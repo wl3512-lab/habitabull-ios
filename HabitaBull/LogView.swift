@@ -18,6 +18,8 @@ struct LogView: View {
     @State private var resting = false
     @State private var addingLift = false
     @State private var confirmingFinish = false
+    @State private var beat: SetOutcome? = nil   // the confirmation on screen
+    @State private var finished = false
 
     private var session: Session? { store.today }
 
@@ -43,8 +45,20 @@ struct LogView: View {
     }
 
     var body: some View {
-        content
+        Group {
+            if finished, let session {
+                FinishedView(session: session,
+                             bests: store.bests(in: session),
+                             firsts: store.firstTimes(in: session)) { dismiss() }
+            } else if let beat {
+                SetLoggedView(outcome: beat, onDone: endBeat)
+                    .id(session?.setsDone)
+            } else {
+                content
+            }
+        }
         .navigationBarBackButtonHidden()
+        .toolbar(beat == nil && !finished ? .visible : .hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) { liftMenu }
             ToolbarItem(placement: .topBarTrailing) {
@@ -57,6 +71,8 @@ struct LogView: View {
         // a new position brings its own numbers. adding a set doesn't move you,
         // so it leaves whatever you've dialed in alone
         .onChange(of: position) { fillIn() }
+        // the rest screen can change the next weight without moving you
+        .onChange(of: resting) { if !resting { fillIn() } }
         .fullScreenCover(isPresented: $resting) {
             RestTimerView(startsRunning: true, exerciseIndex: restingOn) { resting = false }
         }
@@ -93,10 +109,8 @@ struct LogView: View {
                 } else {
                     Pill(title: "Log set") {
                         restingOn = currentLift
-                        store.logSet(onExercise: currentLift, weight: weight, reps: Int(reps))
-                        resting = true
+                        beat = store.logSet(onExercise: currentLift, weight: weight, reps: Int(reps))
                     }
-                    .sensoryFeedback(.impact, trigger: session.setsDone)
                 }
             } else {
                 Spacer()
@@ -175,9 +189,17 @@ struct LogView: View {
         }
     }
 
+    // by timer or tap, whichever comes first. the rest timer waits for this, so
+    // it never covers the confirmation
+    private func endBeat() {
+        guard let done = beat else { return }
+        beat = nil
+        resting = done.resting
+    }
+
     private func finish() {
         store.finishWorkout()
-        dismiss()
+        finished = true
     }
 
     private func fillIn() {

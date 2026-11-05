@@ -33,6 +33,7 @@ extension ShapeStyle where Self == Color {
 extension Font {
     static let hero = Font.custom("BarlowCondensed-Bold", size: 56, relativeTo: .largeTitle)
     static let figure = Font.custom("BarlowCondensed-Bold", size: 44, relativeTo: .largeTitle)
+    static let titleText = Font.custom("BarlowCondensed-Bold", size: 26, relativeTo: .title)
         static let head = Font.custom("Barlow-SemiBold", size: 17, relativeTo: .headline)
     static let emphasis = Font.custom("Barlow-Medium", size: 17, relativeTo: .body)
     static let bodyText = Font.custom("Barlow-Regular", size: 15, relativeTo: .subheadline)

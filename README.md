@@ -12,6 +12,8 @@ a full workout loop, saved on the phone with no account and no signal:
 - **log a set:** one set at a time, big steppers for one thumb, tap a number to type it. what you just logged opens the next set of that lift
 - **set bar:** shows where you are. tap a green set to redo it
 - **rest:** starts after every set, with a notification and a buzz. change how many sets are left from here
+- **lock screen and Dynamic Island:** the rest countdown keeps running with the phone locked (Live Activity)
+- **confirmations:** logged, new lift and new best, each with its own vibration, then a finished screen
 - **the 1/2 menu:** jump between lifts or add one, from 67 lifts or your own
 - **end:** the one way out. asks before finishing, and Continue picks up anything unfinished
 
@@ -21,8 +23,8 @@ the web app is v1 and this one is allowed to be better: set count controls only 
 
 ## plan
 
-- confirmations: set logged, new best, next up, finished (by nov 20)
-- lock screen and Dynamic Island rest countdown (by nov 27)
+- quick workout, swap a lift, last time and best, plates on the bar (by nov 20)
+- real gym test, then fix what it finds, and get someone else testing it (by dec 4)
 - the App Store version adds the planner, calendar, progress and photos
 
 ## sources / AI assistance

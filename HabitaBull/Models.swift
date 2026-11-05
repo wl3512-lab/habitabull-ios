@@ -47,6 +47,11 @@ struct Session: Codable, Equatable, Identifiable {
         exercises.filter { $0.sets.contains(where: \.done) }.count
     }
 
+    // weight × reps across every logged set
+    var poundsMoved: Int {
+        Int(exercises.flatMap(\.sets).filter(\.done).reduce(0) { $0 + $1.weight * Double($1.reps) })
+    }
+
     var setsTotal: Int {
         exercises.reduce(0) { $0 + $1.sets.count }
     }
@@ -61,6 +66,25 @@ struct Session: Codable, Equatable, Identifiable {
         }
         return nil
     }
+}
+
+// what logging a set meant, so the screen can answer it
+struct SetOutcome: Equatable {
+    enum Kind { case routine, first, best }
+
+    var kind: Kind
+    var liftName: String
+    var summary: String     // "95 lb × 8", or "8 reps" with no weight
+    var resting: Bool       // false when that was the last set of the workout
+}
+
+// a lift that beat your old heaviest
+struct SessionBest: Equatable {
+    var liftName: String
+    var was: Double
+    var now: Double
+
+    var gain: Double { now - was }
 }
 
 // one fixed workout for now, so the loop can be tried before the planner exists

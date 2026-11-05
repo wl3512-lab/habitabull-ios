@@ -18,6 +18,15 @@ struct RestTimerView: View {
     @Environment(SessionStore.self) private var store
 
     // the lift you just did, if this rest came after a logged set
+    private var upcomingLift: Int? {
+        guard let session = store.today else { return nil }
+        if let exerciseIndex, session.exercises.indices.contains(exerciseIndex),
+           session.exercises[exerciseIndex].setsLeft > 0 {
+            return exerciseIndex
+        }
+        return session.nextSet?.exercise
+    }
+
     private var lift: LoggedExercise? {
         guard let exerciseIndex, let exercises = store.today?.exercises,
               exercises.indices.contains(exerciseIndex) else { return nil }
@@ -57,8 +66,8 @@ struct RestTimerView: View {
                     .monospacedDigit()
                     .foregroundStyle(.fg)
             }
-            .frame(width: 240, height: 240)
-            .padding(.top, 40)
+            .frame(width: 220, height: 220)
+            .padding(.top, 8)
 
             if !resting {
                 HStack(spacing: 40) {
@@ -68,6 +77,8 @@ struct RestTimerView: View {
                 .font(.head)
                 .foregroundStyle(.brandCyan)
             }
+
+            nextUp
 
             Spacer()
 
@@ -95,6 +106,66 @@ struct RestTimerView: View {
         .onAppear {
             if startsRunning && !resting { start() }
         }
+        .onChange(of: done) { _, isDone in
+            if isDone { RestActivityController.markReady() }
+        }
+    }
+
+    // the words on the Lock Screen
+    private var nextUpLine: String {
+        guard let upcomingLift, let upcoming = store.today?.exercises[upcomingLift],
+              let set = upcoming.sets.first(where: { !$0.done }) else { return "Next set" }
+        let numbers = upcoming.usesWeight ? "\(set.weight.formatted()) lb × \(set.reps)" : "\(set.reps) reps"
+        return "\(upcoming.name), \(numbers)"
+    }
+
+    // what's coming, so you can load the bar while you rest. the weight can
+    // change right here, where you find out it was wrong
+    @ViewBuilder private var nextUp: some View {
+        if let upcomingLift, let upcoming = store.today?.exercises[upcomingLift],
+           let set = upcoming.sets.first(where: { !$0.done }) {
+            Card {
+                VStack(alignment: .leading, spacing: 10) {
+                    SectionLabel(text: "Next up")
+                    Text(upcoming.name).font(.head).foregroundStyle(.fg)
+                    if upcoming.usesWeight {
+                        HStack {
+                            weightButton("minus", name: "Take \(upcoming.weightStep.formatted()) pounds off \(upcoming.name)", disabled: set.weight <= 0) {
+                                store.setUpcomingWeight(onExercise: upcomingLift, to: set.weight - upcoming.weightStep)
+                            }
+                            Spacer()
+                            Text("\(set.weight.formatted()) lb × \(set.reps)")
+                                .font(.titleText)
+                                .foregroundStyle(.brandCyan)
+                                .monospacedDigit()
+                            Spacer()
+                            weightButton("plus", name: "Put \(upcoming.weightStep.formatted()) more pounds on \(upcoming.name)", disabled: false) {
+                                store.setUpcomingWeight(onExercise: upcomingLift, to: set.weight + upcoming.weightStep)
+                            }
+                        }
+                    } else {
+                        Text("\(set.reps) reps")
+                            .font(.titleText)
+                            .foregroundStyle(.brandCyan)
+                    }
+                }
+            }
+        }
+    }
+
+    private func weightButton(_ symbol: String, name: String, disabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.headline)
+                .frame(width: 44, height: 44)
+                .foregroundStyle(.fg)
+                .background(.raise, in: .circle)
+                .contentShape(.circle)
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .opacity(disabled ? 0.4 : 1)
+        .accessibilityLabel(name)
     }
 
     // with sets left, change the count. with none left, one tap for one more
@@ -122,11 +193,15 @@ struct RestTimerView: View {
         endsAt = Date.now.addingTimeInterval(TimeInterval(restSeconds))
         left = restSeconds
         scheduleRestAlert(in: restSeconds)
+        if let endsAt {
+            RestActivityController.start(endsAt: endsAt, nextUp: nextUpLine)
+        }
     }
 
     private func stop() {
         endsAt = nil
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["rest"])
+        RestActivityController.stop()
         onFinished?()
     }
 

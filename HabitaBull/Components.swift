@@ -7,18 +7,19 @@ import SwiftUI
 // the small uppercase heading above a section
 struct SectionLabel: View {
     let text: String
+    var color = Color.dim
 
     var body: some View {
         Text(text.uppercased())
             .font(.label)
             .tracking(1.1)
-            .foregroundStyle(.dim)
+            .foregroundStyle(color)
     }
 }
 
 // the big full-width button. primary is the one orange action, ghost is the rest
 struct Pill: View {
-    enum Variant { case primary, ghost }
+    enum Variant { case primary, ghost, onOrange }
 
     let title: String
     var variant = Variant.primary
@@ -40,9 +41,33 @@ struct Pill: View {
     }
 
     private var isPrimary: Bool { variant == .primary && isEnabled }
-    private var textColor: Color { isPrimary ? .ground : isEnabled ? .brandCyan : .dim }
-    private var fillColor: Color { isPrimary ? .action : .clear }
-    private var edgeColor: Color { isPrimary ? .action : .lineStrong }
+    private var textColor: Color {
+        if variant == .onOrange { return .action }
+        return isPrimary ? .ground : isEnabled ? .brandCyan : .dim
+    }
+    private var fillColor: Color {
+        if variant == .onOrange { return .ground }
+        return isPrimary ? .action : .clear
+    }
+    private var edgeColor: Color {
+        if variant == .onOrange { return .ground }
+        return isPrimary ? .action : .lineStrong
+    }
+}
+
+// a counted thing. the number is the point
+struct Stat: View {
+    let value: String
+    let label: String
+
+    var body: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(value).font(.figure).foregroundStyle(.fg).monospacedDigit()
+                Text(label).font(.bodyText).foregroundStyle(.dim)
+            }
+        }
+    }
 }
 
 // a raised panel

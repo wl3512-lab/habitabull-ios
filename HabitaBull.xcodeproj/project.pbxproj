@@ -6,8 +6,37 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		B0BA0000000000000000001C /* RestWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B0BA00000000000000000011 /* RestWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		B0BA0000000000000000001D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B0BA00000000000000000008 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B0BA00000000000000000017;
+			remoteInfo = RestWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		B0BA0000000000000000001B /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				B0BA0000000000000000001C /* RestWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		B0BA00000000000000000001 /* HabitaBull.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HabitaBull.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B0BA00000000000000000011 /* RestWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RestWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B0BA00000000000000000002 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -17,10 +46,27 @@
 			path = HabitaBull;
 			sourceTree = "<group>";
 		};
+		B0BA00000000000000000012 /* HabitaBullWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = HabitaBullWidget;
+			sourceTree = "<group>";
+		};
+		B0BA00000000000000000013 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		B0BA00000000000000000004 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B0BA00000000000000000014 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -35,6 +81,8 @@
 			children = (
 				B0BA00000000000000000002 /* README.md */,
 				B0BA00000000000000000003 /* HabitaBull */,
+				B0BA00000000000000000012 /* HabitaBullWidget */,
+				B0BA00000000000000000013 /* Shared */,
 				B0BA00000000000000000006 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -43,6 +91,7 @@
 			isa = PBXGroup;
 			children = (
 				B0BA00000000000000000001 /* HabitaBull.app */,
+				B0BA00000000000000000011 /* RestWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -57,13 +106,16 @@
 				B0BA0000000000000000000A /* Sources */,
 				B0BA00000000000000000004 /* Frameworks */,
 				B0BA00000000000000000009 /* Resources */,
+				B0BA0000000000000000001B /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				B0BA0000000000000000001E /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				B0BA00000000000000000003 /* HabitaBull */,
+				B0BA00000000000000000013 /* Shared */,
 			);
 			name = HabitaBull;
 			packageProductDependencies = (
@@ -71,6 +123,29 @@
 			productName = HabitaBull;
 			productReference = B0BA00000000000000000001 /* HabitaBull.app */;
 			productType = "com.apple.product-type.application";
+		};
+		B0BA00000000000000000017 /* RestWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B0BA00000000000000000018 /* Build configuration list for PBXNativeTarget "RestWidget" */;
+			buildPhases = (
+				B0BA00000000000000000015 /* Sources */,
+				B0BA00000000000000000014 /* Frameworks */,
+				B0BA00000000000000000016 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B0BA00000000000000000012 /* HabitaBullWidget */,
+				B0BA00000000000000000013 /* Shared */,
+			);
+			name = RestWidget;
+			packageProductDependencies = (
+			);
+			productName = RestWidget;
+			productReference = B0BA00000000000000000011 /* RestWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -84,6 +159,9 @@
 				TargetAttributes = {
 					B0BA00000000000000000007 = {
 						CreatedOnToolsVersion = 26.6;
+					};
+					B0BA00000000000000000017 = {
+						CreatedOnToolsVersion = 27.2;
 					};
 				};
 			};
@@ -102,12 +180,20 @@
 			projectRoot = "";
 			targets = (
 				B0BA00000000000000000007 /* HabitaBull */,
+				B0BA00000000000000000017 /* RestWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		B0BA00000000000000000009 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B0BA00000000000000000016 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -124,7 +210,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B0BA00000000000000000015 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B0BA0000000000000000001E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B0BA00000000000000000017 /* RestWidget */;
+			targetProxy = B0BA0000000000000000001D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		B0BA0000000000000000000B /* Debug */ = {
@@ -304,6 +405,54 @@
 			};
 			name = Release;
 		};
+		B0BA00000000000000000019 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HT73Y6554B;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "HabitaBullWidget-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = HabitaBull;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = xyz.lucyliu.habitabull.RestWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		B0BA0000000000000000001A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HT73Y6554B;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "HabitaBullWidget-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = HabitaBull;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = xyz.lucyliu.habitabull.RestWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -321,6 +470,15 @@
 			buildConfigurations = (
 				B0BA0000000000000000000D /* Debug */,
 				B0BA0000000000000000000E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B0BA00000000000000000018 /* Build configuration list for PBXNativeTarget "RestWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B0BA00000000000000000019 /* Debug */,
+				B0BA0000000000000000001A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

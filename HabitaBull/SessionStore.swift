@@ -43,10 +43,24 @@ final class SessionStore {
     // saves the moment a set is logged, so closing the app never loses it.
     // the weight and reps you just did become the plan for the sets left on
     // that lift: if you dropped down, you're tired, and you won't go back up
-    func logSet(onExercise e: Int, weight: Double, reps: Int) {
+    @discardableResult
+    func logSet(onExercise e: Int, weight: Double, reps: Int) -> SetOutcome? {
         guard let i = openIndex, sessions[i].exercises.indices.contains(e),
-              let s = sessions[i].exercises[e].sets.firstIndex(where: { !$0.done }) else { return }
+              let s = sessions[i].exercises[e].sets.firstIndex(where: { !$0.done }) else { return nil }
         var exercise = sessions[i].exercises[e]
+
+        // judged before this set is saved. a best needs a number to beat, so
+        // the first time you ever log a lift is never called one
+        let heaviest = heaviestWeight(of: exercise.exerciseId)
+        let kind: SetOutcome.Kind
+        if heaviest == nil {
+            kind = .first
+        } else if let heaviest, heaviest > 0, weight > heaviest {
+            kind = .best
+        } else {
+            kind = .routine
+        }
+
         exercise.sets[s] = LoggedSet(weight: weight, reps: reps, done: true)
         for s in exercise.sets.indices where !exercise.sets[s].done {
             exercise.sets[s].weight = weight
@@ -54,11 +68,57 @@ final class SessionStore {
         }
         sessions[i].exercises[e] = exercise
         save()
+        return SetOutcome(
+            kind: kind,
+            liftName: exercise.name,
+            summary: exercise.usesWeight ? "\(weight.formatted()) lb × \(reps)" : "\(reps) reps",
+            resting: sessions[i].nextSet != nil
+        )
     }
 
     func logNextSet(weight: Double, reps: Int) {
         guard let e = today?.nextSet?.exercise else { return }
         logSet(onExercise: e, weight: weight, reps: reps)
+    }
+
+    // change the plan for the sets left on a lift, from the rest screen
+    func setUpcomingWeight(onExercise e: Int, to weight: Double) {
+        guard let i = openIndex, sessions[i].exercises.indices.contains(e) else { return }
+        for s in sessions[i].exercises[e].sets.indices where !sessions[i].exercises[e].sets[s].done {
+            sessions[i].exercises[e].sets[s].weight = max(0, weight)
+        }
+        save()
+    }
+
+    // the heaviest logged weight of a lift, or nil if it was never logged
+    private func heaviestWeight(of id: String, in list: [Session]? = nil) -> Double? {
+        let weights = (list ?? sessions)
+            .flatMap(\.exercises)
+            .filter { $0.exerciseId == id }
+            .flatMap(\.sets)
+            .filter(\.done)
+            .map(\.weight)
+        return weights.max()
+    }
+
+    // what a finished workout beat, biggest jump first
+    func bests(in session: Session) -> [SessionBest] {
+        let others = sessions.filter { $0.id != session.id }
+        return session.exercises.compactMap { exercise -> SessionBest? in
+            guard let now = heaviestWeight(of: exercise.exerciseId, in: [session]),
+                  let was = heaviestWeight(of: exercise.exerciseId, in: others),
+                  was > 0, now > was else { return nil }
+            return SessionBest(liftName: exercise.name, was: was, now: now)
+        }
+        .sorted { $0.gain > $1.gain }
+    }
+
+    // lifts logged for the first time ever in this workout
+    func firstTimes(in session: Session) -> [String] {
+        let others = sessions.filter { $0.id != session.id }
+        return session.exercises
+            .filter { $0.sets.contains(where: \.done) && heaviestWeight(of: $0.exerciseId, in: others) == nil }
+            .map(\.name)
     }
 
     // tap a logged set on the bar to redo it. its numbers come back to edit
