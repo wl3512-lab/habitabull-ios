@@ -6,11 +6,29 @@ why native: the web app can't do the stuff a gym app needs most. it can't send a
 
 ## so far
 
-- **rest timer:** set your rest length (saved with `@AppStorage`), tap start, and you get a notification when rest is over even with the phone locked. one buzz if the app is open. it never moves on by itself, same rule as the web version
+a full workout loop, saved on the phone with no account and no signal:
 
-## plan (by the week 11 proposal, nov 13)
+- **today:** what's on for today, then Start or Continue. tells you when you're done
+- **log a set:** one set at a time, big steppers for one thumb, tap a number to type it. what you just logged opens the next set of that lift
+- **set bar:** shows where you are. tap a green set to redo it
+- **rest:** starts after every set, with a notification and a buzz. change how many sets are left from here
+- **the 1/2 menu:** jump between lifts or add one, from 67 lifts or your own
+- **end:** the one way out. asks before finishing, and Continue picks up anything unfinished
 
-- today screen → log a set → rest timer → history saved on the phone (JSON file, week 06)
-- then 1–2 phone-only extras: lock screen countdown (Live Activity), push-up counter (proximity sensor), Apple Health
+## on purpose different from the web app
+
+the web app is v1 and this one is allowed to be better: set count controls only on rest, add a lift only in the menu, one End button instead of End plus Finish
+
+## plan
+
+- confirmations: set logged, new best, next up, finished (by nov 20)
+- lock screen and Dynamic Island rest countdown (by nov 27)
+- the App Store version adds the planner, calendar, progress and photos
+
+## sources / AI assistance
+
+- behavior, wording, exercise list and art come from my [HabitaBull Lifting](https://github.com/wl3512-lab/habitabull-lifting) web app
+- [Barlow](https://github.com/jpt/barlow) fonts, SIL Open Font License, in `licenses/`
+- Claude (Anthropic) wrote the Swift code from November 5, 2026. I reviewed and tested it, chose the changes from v1, and am learning how it works. AI-assisted work
 
 open `HabitaBull.xcodeproj` in Xcode, iOS 18+
