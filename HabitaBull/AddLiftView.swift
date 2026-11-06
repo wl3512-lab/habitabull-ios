@@ -12,8 +12,12 @@ struct AddLiftView: View {
     let onPick: (_ exerciseId: String, _ sets: Int) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(SessionStore.self) private var store
     @State private var search = ""
     @State private var sets = 3
+    // true when that number is the one she did last time rather than the
+    // app's, which is the difference between a default and a memory
+    @State private var setsRemembered = false
     @State private var chosen: Choice?
 
     // the lift you tapped, waiting for its sets
@@ -100,6 +104,12 @@ struct AddLiftView: View {
                 value: Binding(get: { Double(sets) }, set: { sets = Int($0) }),
                 step: 1, minimum: 1, maximum: 10
             )
+            if setsRemembered {
+                Text("What you did last time. Change it if today is different.")
+                    .font(.bodyText)
+                    .foregroundStyle(.dim)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             Spacer()
             Pill(title: "Add \(sets) \(sets == 1 ? "set" : "sets")") { pick(choice.id) }
         }
@@ -109,9 +119,17 @@ struct AddLiftView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    // a swap takes the new lift straight away; adding asks for sets first
+    // a swap takes the new lift straight away; adding asks for sets first,
+    // opening on the count she did last time rather than on a flat three
     private func choose(_ id: String, _ name: String) {
-        if swapping != nil { pick(id) } else { chosen = Choice(id: id, name: name) }
+        if swapping != nil {
+            pick(id)
+            return
+        }
+        let before = store.setsLastTime(of: id)
+        sets = before ?? 3
+        setsRemembered = before != nil
+        chosen = Choice(id: id, name: name)
     }
 
     private func pick(_ id: String) {
@@ -122,4 +140,5 @@ struct AddLiftView: View {
 
 #Preview {
     AddLiftView(excluding: []) { _, _ in }
+        .environment(SessionStore())
 }

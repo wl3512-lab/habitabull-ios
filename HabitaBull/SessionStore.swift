@@ -178,6 +178,20 @@ final class SessionStore {
     func lastSetLogged(of id: String) -> LoggedSet? { lastSet(of: id) }
     func heaviest(of id: String) -> Double? { heaviestWeight(of: id) }
 
+    // how many sets you did of it, the last time you did it. weight and reps
+    // already come back from last time; the count was the one number still
+    // guessing, so four sets of cable crossovers every week came back as three
+    // every week and the only way to say so was the stepper, every time
+    func setsLastTime(of id: String) -> Int? {
+        for session in sessions.reversed() {
+            if let exercise = session.exercises.first(where: { $0.exerciseId == id }) {
+                let done = exercise.sets.filter(\.done).count
+                if done > 0 { return done }
+            }
+        }
+        return nil
+    }
+
     private func lastSet(of id: String) -> LoggedSet? {
         for session in sessions.reversed() {
             if let set = session.exercises.first(where: { $0.exerciseId == id })?.sets.last(where: \.done) {
