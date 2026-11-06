@@ -20,7 +20,7 @@ let package = Package(
             name: "HabitaBullKitTests",
             dependencies: ["HabitaBullKit"],
             // the web engine's own answers, generated from it, checked against
-            resources: [.copy("Fixtures/progression.json")]
+            resources: [.copy("Fixtures/progression.json"), .copy("Fixtures/planner.json")]
         ),
     ]
 )
