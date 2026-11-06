@@ -16,9 +16,13 @@
 		<data>
 		8OixAUTWvTCpn5m2S3DHywUsuqU=
 		</data>
+		<key>Resources/HabitaBullKit_HabitaBullKitTests.bundle/Contents/Resources/schedule.json</key>
+		<data>
+		LM52oc5qeayzkSwgYfHye3k3axU=
+		</data>
 		<key>Resources/HabitaBullKit_HabitaBullKitTests.bundle/Contents/_CodeSignature/CodeDirectory</key>
 		<data>
-		Gr04Rc18SBwvipjvs0yRzAQQEK0=
+		RUoiUw2xEAq/DJC+FgsdwEI/xTs=
 		</data>
 		<key>Resources/HabitaBullKit_HabitaBullKitTests.bundle/Contents/_CodeSignature/CodeRequirements</key>
 		<data>
@@ -26,7 +30,7 @@
 		</data>
 		<key>Resources/HabitaBullKit_HabitaBullKitTests.bundle/Contents/_CodeSignature/CodeResources</key>
 		<data>
-		EIY2PUFqlsvMUqolVzNtXY6ugQo=
+		42o6505nD8a4bNlJOHSymxY2Vi0=
 		</data>
 		<key>Resources/HabitaBullKit_HabitaBullKitTests.bundle/Contents/_CodeSignature/CodeSignature</key>
 		<data>
@@ -56,11 +60,18 @@
 			y9EvenyZhflQ8phwSJ26UMGX7v864yNs9Yr8/3sTcD8=
 			</data>
 		</dict>
+		<key>Resources/HabitaBullKit_HabitaBullKitTests.bundle/Contents/Resources/schedule.json</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			ESBDtu/jiVGY0JkrsmYE5QqiugrAJNXA2OH6YKS81a0=
+			</data>
+		</dict>
 		<key>Resources/HabitaBullKit_HabitaBullKitTests.bundle/Contents/_CodeSignature/CodeDirectory</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			tkGbVjSA5WQUkR6GVD13tzmFjpKnq9APv+8l7W3rLts=
+			mxMH/MPwhYElg48U8L1r18qaJNciKZt9Qo4ykRF9a6I=
 			</data>
 		</dict>
 		<key>Resources/HabitaBullKit_HabitaBullKitTests.bundle/Contents/_CodeSignature/CodeRequirements</key>
@@ -74,7 +85,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			8FjoE8heuYeNPgl5k7et2wRvqq3dDcmuKgolvliJQE4=
+			1cdrQCRAeDGnnOHJY2uKKy178AO7r7YO/j1gIWmdvPg=
 			</data>
 		</dict>
 		<key>Resources/HabitaBullKit_HabitaBullKitTests.bundle/Contents/_CodeSignature/CodeSignature</key>

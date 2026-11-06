@@ -1,0 +1,9 @@
+Target dependency graph (4 targets)
+Target 'AllExcludingTests' in project 'Aggregate'
+➜ Explicit dependency on target 'HabitaBullKit_HabitaBullKitTests' in project 'HabitaBullKit'
+➜ Explicit dependency on target 'HabitaBullKit-product' in project 'HabitaBullKit'
+➜ Explicit dependency on target 'HabitaBullKit' in project 'HabitaBullKit'
+Target 'HabitaBullKit-product' in project 'HabitaBullKit'
+➜ Explicit dependency on target 'HabitaBullKit' in project 'HabitaBullKit'
+Target 'HabitaBullKit' in project 'HabitaBullKit' (no dependencies)
+Target 'HabitaBullKit_HabitaBullKitTests' in project 'HabitaBullKit' (no dependencies)

@@ -12,6 +12,10 @@
 		<data>
 		8OixAUTWvTCpn5m2S3DHywUsuqU=
 		</data>
+		<key>Resources/schedule.json</key>
+		<data>
+		LM52oc5qeayzkSwgYfHye3k3axU=
+		</data>
 	</dict>
 	<key>files2</key>
 	<dict>
@@ -27,6 +31,13 @@
 			<key>hash2</key>
 			<data>
 			y9EvenyZhflQ8phwSJ26UMGX7v864yNs9Yr8/3sTcD8=
+			</data>
+		</dict>
+		<key>Resources/schedule.json</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			ESBDtu/jiVGY0JkrsmYE5QqiugrAJNXA2OH6YKS81a0=
 			</data>
 		</dict>
 	</dict>
