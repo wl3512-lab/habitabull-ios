@@ -20,6 +20,15 @@
                ReferencedContainer = "container:HabitaBull.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry buildForTesting = "YES" buildForRunning = "NO" buildForProfiling = "NO" buildForArchiving = "NO" buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "B0BA00000000000000000043"
+               BuildableName = "HabitaBullTests.xctest"
+               BlueprintName = "HabitaBullTests"
+               ReferencedContainer = "container:HabitaBull.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction buildConfiguration = "Debug" selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv = "YES">
@@ -30,6 +39,15 @@
                BlueprintIdentifier = "B0BA00000000000000000033"
                BuildableName = "HabitaBullUITests.xctest"
                BlueprintName = "HabitaBullUITests"
+               ReferencedContainer = "container:HabitaBull.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "B0BA00000000000000000043"
+               BuildableName = "HabitaBullTests.xctest"
+               BlueprintName = "HabitaBullTests"
                ReferencedContainer = "container:HabitaBull.xcodeproj">
             </BuildableReference>
          </TestableReference>
