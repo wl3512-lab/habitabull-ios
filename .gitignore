@@ -2,3 +2,6 @@
 xcuserdata/
 *.xcuserstate
 build/
+
+# Swift package build output
+.build/

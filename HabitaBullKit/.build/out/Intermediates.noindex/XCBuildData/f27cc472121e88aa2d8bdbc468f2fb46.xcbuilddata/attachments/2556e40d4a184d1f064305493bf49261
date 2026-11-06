@@ -1,4 +1,0 @@
-module HabitaBullKit {
-header "HabitaBullKit-Swift.h"
-export *
-}
