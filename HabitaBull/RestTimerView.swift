@@ -115,8 +115,7 @@ struct RestTimerView: View {
     private var nextUpLine: String {
         guard let upcomingLift, let upcoming = store.today?.exercises[upcomingLift],
               let set = upcoming.sets.first(where: { !$0.done }) else { return "Next set" }
-        let numbers = upcoming.usesWeight ? "\(set.weight.formatted()) lb × \(set.reps)" : "\(set.reps) reps"
-        return "\(upcoming.name), \(numbers)"
+        return "\(upcoming.name), \(upcoming.describe(set))"
     }
 
     // what's coming, so you can load the bar while you rest. the weight can

@@ -63,6 +63,13 @@ struct TodayView: View {
                         store.startWorkout()
                         logging = true
                     }
+
+                    if session == nil {
+                        Pill(title: "Quick workout", variant: .ghost) {
+                            store.startQuickWorkout()
+                            logging = true
+                        }
+                    }
                 }
 
                 #if DEBUG

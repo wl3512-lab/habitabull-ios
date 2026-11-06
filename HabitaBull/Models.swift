@@ -28,6 +28,12 @@ struct LoggedExercise: Codable, Equatable {
     // lifts of your own go up in 5s
     var weightStep: Double { ExerciseLibrary.find(exerciseId)?.increment ?? 5 }
     var usesWeight: Bool { weightStep > 0 }
+    var isBarbell: Bool { ExerciseLibrary.find(exerciseId)?.equipment == "barbell" }
+
+    // one set, said the way the screens say it
+    func describe(_ set: LoggedSet) -> String {
+        usesWeight ? "\(set.weight.formatted()) lb × \(set.reps)" : "\(set.reps) reps"
+    }
 }
 
 struct Session: Codable, Equatable, Identifiable {
@@ -74,7 +80,6 @@ struct SetOutcome: Equatable {
 
     var kind: Kind
     var liftName: String
-    var summary: String     // "95 lb × 8", or "8 reps" with no weight
     var resting: Bool       // false when that was the last set of the workout
 }
 

@@ -40,6 +40,26 @@ final class SessionStore {
         save()
     }
 
+    // a workout with no plan. it starts empty, and the first lift is yours to pick
+    func startQuickWorkout() {
+        guard today == nil else { return }
+        sessions.append(Session(
+            id: UUID().uuidString,
+            date: dayString(),
+            label: "Quick workout",
+            exercises: [],
+            startedAt: .now
+        ))
+        save()
+    }
+
+    // a quick workout you backed out of before picking anything leaves no trace
+    func dropEmptyWorkout() {
+        guard let i = openIndex, sessions[i].exercises.isEmpty else { return }
+        sessions.remove(at: i)
+        save()
+    }
+
     // saves the moment a set is logged, so closing the app never loses it.
     // the weight and reps you just did become the plan for the sets left on
     // that lift: if you dropped down, you're tired, and you won't go back up
@@ -71,7 +91,6 @@ final class SessionStore {
         return SetOutcome(
             kind: kind,
             liftName: exercise.name,
-            summary: exercise.usesWeight ? "\(weight.formatted()) lb × \(reps)" : "\(reps) reps",
             resting: sessions[i].nextSet != nil
         )
     }
@@ -133,13 +152,31 @@ final class SessionStore {
     // starts from the library's light starting point
     func addLift(_ id: String, sets count: Int) {
         guard let i = openIndex, !sessions[i].exercises.contains(where: { $0.exerciseId == id }) else { return }
+        sessions[i].exercises.append(LoggedExercise(exerciseId: id, sets: Array(repeating: startingSet(for: id), count: max(1, count))))
+        save()
+    }
+
+    // swap a lift you haven't started. logged sets really happened, so a lift
+    // with any is left alone. the numbers start fresh for the new lift
+    func swapLift(at e: Int, to id: String) {
+        guard let i = openIndex, sessions[i].exercises.indices.contains(e),
+              !sessions[i].exercises[e].sets.contains(where: \.done),
+              !sessions[i].exercises.contains(where: { $0.exerciseId == id }) else { return }
+        let count = sessions[i].exercises[e].sets.count
+        sessions[i].exercises[e] = LoggedExercise(exerciseId: id, sets: Array(repeating: startingSet(for: id), count: count))
+        save()
+    }
+
+    private func startingSet(for id: String) -> LoggedSet {
         let start = lastSet(of: id)
             ?? ExerciseLibrary.find(id).map { LoggedSet(weight: $0.startWeight, reps: $0.startReps) }
             ?? LoggedSet(weight: 0, reps: 10)
-        let fresh = LoggedSet(weight: start.weight, reps: start.reps)
-        sessions[i].exercises.append(LoggedExercise(exerciseId: id, sets: Array(repeating: fresh, count: max(1, count))))
-        save()
+        return LoggedSet(weight: start.weight, reps: start.reps)
     }
+
+    // the numbers shown under the steppers
+    func lastSetLogged(of id: String) -> LoggedSet? { lastSet(of: id) }
+    func heaviest(of id: String) -> Double? { heaviestWeight(of: id) }
 
     private func lastSet(of id: String) -> LoggedSet? {
         for session in sessions.reversed() {

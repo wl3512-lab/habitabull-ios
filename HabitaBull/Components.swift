@@ -181,11 +181,17 @@ struct SetRow: View {
     @Binding var reps: Double
     var weightStep = 5.0
     var showsWeight = true
+    var onLoadBar: (() -> Void)? = nil
+
+    @AppStorage("barWeight") private var bar = 45.0
 
     var body: some View {
         VStack(spacing: 12) {
             if showsWeight {
                 NumberStepper(label: "Weight", value: $weight, step: weightStep, unit: "lb")
+                if let onLoadBar {
+                    PlateRow(weight: weight, bar: weight > 0 ? min(weight, bar) : bar, onTap: onLoadBar)
+                }
             }
             NumberStepper(label: "Reps", value: $reps, step: 1, minimum: 1, maximum: 200, unit: "reps")
         }

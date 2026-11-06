@@ -17,6 +17,8 @@ struct LogView: View {
     @State private var restingOn = 0            // the lift you just logged on
     @State private var resting = false
     @State private var addingLift = false
+    @State private var swappingLift = false
+    @State private var loadingBar = false
     @State private var confirmingFinish = false
     @State private var beat: SetOutcome? = nil   // the confirmation on screen
     @State private var finished = false
@@ -67,7 +69,11 @@ struct LogView: View {
                     .foregroundStyle(.fg)
             }
         }
-        .onAppear(perform: fillIn)
+        .onAppear {
+            fillIn()
+            // a quick workout starts by picking the first lift
+            if session?.exercises.isEmpty == true { addingLift = true }
+        }
         // a new position brings its own numbers. adding a set doesn't move you,
         // so it leaves whatever you've dialed in alone
         .onChange(of: position) { fillIn() }
@@ -77,11 +83,23 @@ struct LogView: View {
             RestTimerView(startsRunning: true, exerciseIndex: restingOn) { resting = false }
         }
         .sheet(isPresented: $addingLift) {
-            AddLiftView(excluding: session?.exercises.map(\.exerciseId) ?? []) { id, sets in
+            AddLiftView(excluding: session?.exercises.map(\.exerciseId) ?? [], onCancel: leaveIfEmpty) { id, sets in
                 store.addLift(id, sets: sets)
                 chosenLift = (store.today?.exercises.count ?? 1) - 1
                 confirmingFinish = false
             }
+        }
+        .sheet(isPresented: $swappingLift) {
+            if let session, let currentLift {
+                AddLiftView(excluding: session.exercises.map(\.exerciseId),
+                            swapping: session.exercises[currentLift]) { id, _ in
+                    store.swapLift(at: currentLift, to: id)
+                    fillIn()
+                }
+            }
+        }
+        .sheet(isPresented: $loadingBar) {
+            LoadBarView(weight: $weight)
         }
     }
 
@@ -94,13 +112,23 @@ struct LogView: View {
                     chosenLift = currentLift
                     store.reopenSet(exercise: currentLift, set: tapped)
                 }
-                SectionLabel(text: "Set \(currentSet + 1) of \(exercise.sets.count)")
+                SectionLabel(text: setLine(exercise, set: currentSet))
                 Text(exercise.name)
                     .font(.figure)
                     .foregroundStyle(.fg)
 
                 SetRow(weight: $weight, reps: $reps,
-                       weightStep: exercise.weightStep, showsWeight: exercise.usesWeight)
+                       weightStep: exercise.weightStep, showsWeight: exercise.usesWeight,
+                       onLoadBar: exercise.isBarbell ? { loadingBar = true } : nil)
+
+                // only before the first set. after that the steppers already
+                // show what you just did
+                if !exercise.sets.contains(where: \.done), let last = store.lastSetLogged(of: exercise.exerciseId) {
+                    Text("Last time: \(exercise.describe(last))")
+                        .font(.bodyText)
+                        .foregroundStyle(.dim)
+                        .monospacedDigit()
+                }
 
                 Spacer()
 
@@ -112,6 +140,9 @@ struct LogView: View {
                         beat = store.logSet(onExercise: currentLift, weight: weight, reps: Int(reps))
                     }
                 }
+            } else if session?.exercises.isEmpty == true {
+                // a quick workout before its first lift, behind the picker
+                Spacer()
             } else {
                 Spacer()
                 VStack(spacing: 16) {
@@ -134,7 +165,7 @@ struct LogView: View {
     // everything about which lifts are in the workout lives here, so the logging
     // screen stays clean: jump to a lift with sets left, or add a new one
     @ViewBuilder private var liftMenu: some View {
-        if let session {
+        if let session, !session.exercises.isEmpty {
             let count = session.exercises.count
             let shown = (currentLift ?? count - 1) + 1
             Menu {
@@ -147,6 +178,11 @@ struct LogView: View {
                     .disabled(lift.setsLeft == 0)
                 }
                 Divider()
+                if let currentLift, !session.exercises[currentLift].sets.contains(where: \.done) {
+                    Button("Swap \(session.exercises[currentLift].name)", systemImage: "arrow.left.arrow.right") {
+                        swappingLift = true
+                    }
+                }
                 Button("Add a lift", systemImage: "plus") { addingLift = true }
             } label: {
                 Text("\(shown)/\(count) ▾")
@@ -155,6 +191,19 @@ struct LogView: View {
             }
             .accessibilityLabel("Exercise \(shown) of \(count). Tap to jump or add a lift")
         }
+    }
+
+    // "Set 2 of 3 · Best 95 lb", once there's a best to show
+    private func setLine(_ exercise: LoggedExercise, set: Int) -> String {
+        let line = "Set \(set + 1) of \(exercise.sets.count)"
+        guard exercise.usesWeight, let best = store.heaviest(of: exercise.exerciseId), best > 0 else { return line }
+        return "\(line) · Best \(best.formatted()) lb"
+    }
+
+    private func leaveIfEmpty() {
+        guard session?.exercises.isEmpty == true else { return }
+        store.dropEmptyWorkout()
+        dismiss()
     }
 
     private func finishCheck(_ session: Session) -> some View {

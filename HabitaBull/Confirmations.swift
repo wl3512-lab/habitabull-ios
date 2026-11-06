@@ -80,20 +80,18 @@ struct SetLoggedView: View {
             case .routine:
                 disc
                 Text("Logged").font(.titleText).foregroundStyle(.fg)
-                Text(outcome.summary).font(.emphasis).foregroundStyle(.dim).monospacedDigit()
             case .first:
                 Text("New lift").font(.figure).foregroundStyle(.brandCyan)
                     .padding(.bottom, 18)
                 disc
                 Text(outcome.liftName).font(.titleText).foregroundStyle(.fg)
-                Text(outcome.summary).font(.emphasis).foregroundStyle(.dim).monospacedDigit()
                 Text("Next time it comes back at this.")
                     .font(.bodyText)
                     .foregroundStyle(.dim)
                     .padding(.top, 6)
             case .best:
                 // the check is the exact center of the screen, because the
-                // circle grows out of it. the words hang off it, above and below
+                // circle grows out of it. the words hang off it
                 Image(systemName: "checkmark")
                     .font(.system(size: 110, weight: .bold))
                     .foregroundStyle(.ground)
@@ -101,12 +99,6 @@ struct SetLoggedView: View {
                         Text("New best").font(.hero).foregroundStyle(.ground)
                             .fixedSize()
                             .alignmentGuide(.top) { $0[.bottom] + 28 }
-                            .opacity(revealed ? 1 : 0)
-                    }
-                    .overlay(alignment: .bottom) {
-                        Text(outcome.summary).font(.figure).foregroundStyle(.ground).monospacedDigit()
-                            .fixedSize()
-                            .alignmentGuide(.bottom) { $0[.top] - 28 }
                             .opacity(revealed ? 1 : 0)
                     }
             }

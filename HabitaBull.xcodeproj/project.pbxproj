@@ -36,8 +36,8 @@
 
 /* Begin PBXFileReference section */
 		B0BA00000000000000000001 /* HabitaBull.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HabitaBull.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		B0BA00000000000000000011 /* RestWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RestWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B0BA00000000000000000002 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = SOURCE_ROOT; };
+		B0BA00000000000000000011 /* RestWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RestWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
