@@ -24,6 +24,7 @@ extension ShapeStyle where Self == Color {
     static var fg: Color { Color(hex: 0xF4F6F7) }       // main text
     static var dim: Color { Color(hex: 0x9AA3AE) }      // quieter text
     static var brandCyan: Color { Color(hex: 0x8EB4BD) } // quiet actions. not .cyan, SwiftUI has its own
+    static var brandCyanSoft: Color { Color(hex: 0xC1D4D9) } // the lighter plates
     static var action: Color { Color(hex: 0xD57E5C) }   // the one main action
     static var done: Color { Color(hex: 0x6BB88D) }     // finished
     static var fault: Color { Color(hex: 0xD9746D) }    // something went wrong in the app

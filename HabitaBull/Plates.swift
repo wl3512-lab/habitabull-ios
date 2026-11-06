@@ -55,184 +55,174 @@ enum Plates {
     }
 }
 
-// the whole bar, drawn: the same plates on both ends, mirrored. bigger plates
-// are taller, like the real thing
-struct BarDrawing: View {
-    let perSide: [Double]
-    var height = 32.0
-    var onTapPlate: ((Int) -> Void)? = nil
+// the plates on one end of the bar, as you'd see them at a rack: heaviest
+// against the collar. the whole end is one button that takes the outer plate
+// off, because a 2.5 alone is too thin for a thumb
+struct Sleeve: View {
+    let plates: [Double]
+    let mirror: Bool
+    let onRemove: () -> Void
 
     var body: some View {
-        HStack(spacing: 2) {
-            sleeveEnd
-            ForEach(perSide.indices.reversed(), id: \.self) { plate($0) }
-            collar
-            Rectangle().fill(.lineStrong).frame(minWidth: 12, maxWidth: .infinity, maxHeight: max(3, height * 0.1))
-            collar
-            ForEach(perSide.indices, id: \.self) { plate($0) }
-            sleeveEnd
-        }
-        .frame(height: height)
-        .accessibilityHidden(true)
-    }
-
-    private var sleeveEnd: some View {
-        Rectangle().fill(.lineStrong).frame(width: height * 0.25, height: max(4, height * 0.16))
-    }
-    private var collar: some View {
-        RoundedRectangle(cornerRadius: 1).fill(.dim).frame(width: max(3, height * 0.1), height: height * 0.5)
-    }
-    private func plate(_ i: Int) -> some View {
-        RoundedRectangle(cornerRadius: 2)
-            .fill(perSide[i] >= 25 ? Color.brandCyan : Color.dim)
-            .frame(width: max(3, height * 0.1 * Plates.thickness(perSide[i])), height: height * (0.45 + perSide[i] / 45 * 0.55))
-            .onTapGesture { onTapPlate?(i) }
-    }
-}
-
-// the slim row under Weight, barbell lifts only. tap it to load the bar
-struct PlateRow: View {
-    let weight: Double
-    let bar: Double
-    let onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
-                BarDrawing(perSide: Plates.load(weight, bar: bar).perSide, height: 26)
-                    .frame(maxWidth: 170)
-                Spacer()
-                Text(Plates.words(Plates.load(weight, bar: bar).perSide))
-                    .font(.bodyText)
-                    .foregroundStyle(.dim)
-                    .monospacedDigit()
+        Button(action: onRemove) {
+            ZStack(alignment: mirror ? .leading : .trailing) {
+                Rectangle().fill(.lineStrong).frame(height: 10)
+                HStack(spacing: 2) {
+                    ForEach(Array((mirror ? plates : plates.reversed()).enumerated()), id: \.offset) { _, p in
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(p >= 25 ? Color.brandCyan : Color.brandCyanSoft)
+                            .frame(width: p >= 25 ? 13 : p >= 10 ? 10 : 7)
+                            .frame(height: max(26, p / 45 * 76))
+                    }
+                }
             }
-            .padding(.horizontal, 18)
-            .frame(minHeight: 48)
-            .background(.card, in: .rect(cornerRadius: 16))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("On the bar: \(Plates.words(Plates.load(weight, bar: bar).perSide)). Tap to load the bar")
+        .disabled(plates.isEmpty)
+        .accessibilityHidden(mirror)
+        .accessibilityLabel(plates.last.map { "Take off the outer \($0.formatted()) pound plate" } ?? "No plates on")
     }
 }
 
-// load the bar by plate instead of by number
-struct LoadBarView: View {
+// load the bar, drawn. it takes the place of the Weight stepper on barbell
+// lifts when you pick "Load the bar". the weight stays the one number; the
+// plates are worked out from it
+struct PlateBar: View {
     @Binding var weight: Double
+
     @AppStorage("barWeight") private var savedBar = 45.0
     // the bar for this lift. a weight lighter than your usual bar means a lighter
     // bar (a 30 lb squat is a 30 lb bar, no plates), without changing the saved one
     @State private var bar = 45.0
-    @Environment(\.dismiss) private var dismiss
-    @State private var added: [Double] = []   // plates added here, newest last, so undo takes the last one off
+    @State private var added: [Double] = []   // newest last, so "remove last" takes it off
 
     private var loaded: (perSide: [Double], achieved: Double, exact: Bool) {
         Plates.load(weight, bar: bar)
     }
+    private var full: Bool { !Plates.sizes.contains { Plates.fits($0, on: loaded.perSide) } }
 
     var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 20) {
+        Card {
+            VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .firstTextBaseline) {
                     SectionLabel(text: "On the bar")
                     Spacer()
-                    Text("\(loaded.achieved.formatted()) lb")
-                        .font(.figure)
-                        .foregroundStyle(.fg)
-                        .monospacedDigit()
+                    Text(loaded.achieved.formatted())
+                        .font(.figure).foregroundStyle(.fg).monospacedDigit()
+                    Text("lb").font(.bodyText).foregroundStyle(.dim)
                 }
 
-                Card {
-                    VStack(alignment: .leading, spacing: 8) {
-                        BarDrawing(perSide: loaded.perSide, height: 72) { i in
-                            var plates = loaded.perSide
-                            let gone = plates.remove(at: i)
-                            if let k = added.lastIndex(of: gone) { added.remove(at: k) }
-                            weight = Plates.total(plates, bar: bar)
-                        }
-                        Text(Plates.words(loaded.perSide))
-                            .font(.bodyText)
-                            .foregroundStyle(.dim)
-                        if !loaded.perSide.isEmpty {
-                            Label("Tap any plate to take it off", systemImage: "hand.tap")
-                                .font(.captionText)
-                                .foregroundStyle(.brandCyan)
-                        }
-                    }
+                // the whole bar: a loaded sleeve at each end of a long bare shaft
+                HStack(spacing: 0) {
+                    Sleeve(plates: loaded.perSide, mirror: false) { removeOuter() }
+                        .frame(width: 100)
+                    collar
+                    Rectangle().fill(.lineStrong).frame(height: 6).frame(maxWidth: .infinity)
+                    collar
+                    Sleeve(plates: loaded.perSide, mirror: true) { removeOuter() }
+                        .frame(width: 100)
                 }
+                .padding(.horizontal, 12)
+                .frame(height: 96)
+                .background(.ground, in: .rect(cornerRadius: 12))
+
+                Text(loaded.perSide.isEmpty
+                     ? "Just the bar. Tap a plate below to put one on each end."
+                     : "\(Plates.words(loaded.perSide)). Tap an end of the bar to take one off.")
+                    .font(.bodyText).foregroundStyle(.dim)
 
                 if !loaded.exact {
-                    Text("\(weight.formatted()) lb can't be loaded with these plates.")
-                        .font(.bodyText)
-                        .foregroundStyle(.dim)
+                    Text(full && weight > loaded.achieved
+                         ? "\(weight.formatted()) lb is more than a bar holds. Full, it's \(loaded.achieved.formatted())."
+                         : "\(weight.formatted()) lb needs a plate you may not have. Nearest is \(loaded.achieved.formatted()).")
+                        .font(.bodyText).foregroundStyle(.fault)
+                } else if full {
+                    Text("That's a full bar. Take a plate off to change it.")
+                        .font(.bodyText).foregroundStyle(.dim)
                 }
 
-                SectionLabel(text: "Tap to add one to each side")
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     ForEach(Plates.sizes, id: \.self) { size in
+                        let fits = Plates.fits(size, on: loaded.perSide)
                         Button(size.formatted()) {
                             weight = Plates.total(loaded.perSide + [size], bar: bar)
                             added.append(size)
                         }
-                        .font(.head)
-                        .foregroundStyle(.fg)
-                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .font(.head).foregroundStyle(.fg).monospacedDigit()
+                        .frame(maxWidth: .infinity, minHeight: 48)
                         .background(.raise, in: .capsule)
-                        .disabled(!Plates.fits(size, on: loaded.perSide))
-                        .opacity(Plates.fits(size, on: loaded.perSide) ? 1 : 0.35)
-                        .accessibilityLabel("Add \(size.formatted()) pounds to each side")
+                        .disabled(!fits)
+                        .opacity(fits ? 1 : 0.4)
+                        .accessibilityLabel("Add one \(size.formatted()) pound plate to each side")
                     }
                 }
                 .buttonStyle(.plain)
 
                 HStack {
-                    if !Plates.sizes.contains(where: { Plates.fits($0, on: loaded.perSide) }) {
-                        Text("The bar's full.")
-                    } else if !Plates.fits(45, on: loaded.perSide) {
-                        Text("No room for another 45.")
-                    }
-                    Spacer()
                     Button {
                         removeLast()
                     } label: {
                         Label("Remove last plate", systemImage: "arrow.uturn.backward")
                     }
-                    .font(.head)
-                    .foregroundStyle(loaded.perSide.isEmpty ? Color.dim : Color.brandCyan)
-                    .disabled(loaded.perSide.isEmpty)
-                    .accessibilityLabel("Remove the last plate from each side")
+                    .foregroundStyle(.brandCyan)
+                    Spacer()
+                    Button("Strip") { weight = bar; added = [] }
+                        .foregroundStyle(.dim)
                 }
-                .font(.bodyText)
-                .foregroundStyle(.dim)
+                .font(.head)
+                .disabled(loaded.perSide.isEmpty)
+                .opacity(loaded.perSide.isEmpty ? 0.4 : 1)
                 .frame(minHeight: 44)
 
-                NumberStepper(label: "Bar", value: Binding(get: { bar }, set: { bar = $0; savedBar = $0 }), step: 5, maximum: 100, unit: "lb")
-
-                Spacer()
-
-                Pill(title: "Strip the bar", variant: .ghost) { weight = bar; added = [] }
-            }
-            .padding(24)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .background(.ground)
-            .onAppear { bar = weight > 0 && weight < savedBar ? weight : savedBar }
-            .navigationTitle("Load the bar")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                HStack {
+                    SectionLabel(text: "Bar")
+                    Spacer()
+                    smallButton("minus", "Lighter bar") { setBar(bar - 5) }
+                    Text("\(bar.formatted()) lb")
+                        .font(.head).foregroundStyle(.fg).monospacedDigit()
+                        .frame(minWidth: 64)
+                    smallButton("plus", "Heavier bar") { setBar(bar + 5) }
                 }
             }
         }
-        .tint(.brandCyan)
+        .onAppear { bar = weight > 0 && weight < savedBar ? weight : savedBar }
+        .onChange(of: weight) { _, w in if w > 0 && w < bar { bar = w } }
     }
-}
 
-extension LoadBarView {
-    // takes off the plate you added last. if you came in with the bar already
-    // loaded, it takes the outermost (smallest) plate, the one you'd grab first
-    fileprivate func removeLast() {
+    private var collar: some View {
+        RoundedRectangle(cornerRadius: 2).fill(.dim).frame(width: 6, height: 30)
+    }
+
+    private func smallButton(_ icon: String, _ name: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon).font(.head).foregroundStyle(.fg)
+                .frame(width: 44, height: 44)
+                .background(.raise, in: .circle)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(name)
+    }
+
+    // the bar you set here is saved for every barbell lift
+    private func setBar(_ b: Double) {
+        let plates = loaded.perSide
+        bar = min(100, max(0, b))
+        savedBar = bar
+        weight = Plates.total(plates, bar: bar)
+    }
+
+    // tapping an end takes off its outer plate, the way a bar is unloaded
+    private func removeOuter() {
+        var plates = loaded.perSide
+        guard let gone = plates.popLast() else { return }
+        if let k = added.lastIndex(of: gone) { added.remove(at: k) }
+        weight = Plates.total(plates, bar: bar)
+    }
+
+    // takes off the plate you added last; with nothing added here, the outer one
+    private func removeLast() {
         var plates = loaded.perSide
         guard !plates.isEmpty else { return }
         if let last = added.popLast(), let k = plates.lastIndex(of: last) {
@@ -244,7 +234,22 @@ extension LoadBarView {
     }
 }
 
+// choose how to set the weight on a barbell lift. remembered for every barbell
+// lift. it's the system segmented control, so the thumb slides the way iOS does
+struct WeightInputSwitch: View {
+    @Binding var plates: Bool
+
+    var body: some View {
+        Picker("Weight entry method", selection: $plates.animation(.smooth(duration: 0.3))) {
+            Text("Use + / −").tag(false)
+            Text("Load the bar").tag(true)
+        }
+        .pickerStyle(.segmented)
+        .controlSize(.large)
+    }
+}
+
 #Preview {
     @Previewable @State var weight = 135.0
-    LoadBarView(weight: $weight)
+    PlateBar(weight: $weight).padding().background(.ground)
 }

@@ -181,17 +181,27 @@ struct SetRow: View {
     @Binding var reps: Double
     var weightStep = 5.0
     var showsWeight = true
-    var onLoadBar: (() -> Void)? = nil
+    var canLoadBar = false
 
-    @AppStorage("barWeight") private var bar = 45.0
+    // "Load the bar" or "+ / −", one choice for every barbell lift
+    @AppStorage("loadTheBar") private var plates = false
 
     var body: some View {
         VStack(spacing: 12) {
             if showsWeight {
-                NumberStepper(label: "Weight", value: $weight, step: weightStep, unit: "lb")
-                if let onLoadBar {
-                    PlateRow(weight: weight, bar: weight > 0 ? min(weight, bar) : bar, onTap: onLoadBar)
+                if canLoadBar {
+                    WeightInputSwitch(plates: $plates)
                 }
+                // a soft cross-fade between the two, like a Settings page changing
+                // what it shows. nothing slides in from the side
+                Group {
+                    if canLoadBar && plates {
+                        PlateBar(weight: $weight)
+                    } else {
+                        NumberStepper(label: "Weight", value: $weight, step: weightStep, unit: "lb")
+                    }
+                }
+                .transition(.opacity)
             }
             NumberStepper(label: "Reps", value: $reps, step: 1, minimum: 1, maximum: 200, unit: "reps")
         }

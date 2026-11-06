@@ -18,7 +18,6 @@ struct LogView: View {
     @State private var resting = false
     @State private var addingLift = false
     @State private var swappingLift = false
-    @State private var loadingBar = false
     @State private var confirmingFinish = false
     @State private var beat: SetOutcome? = nil   // the confirmation on screen
     @State private var finished = false
@@ -98,9 +97,6 @@ struct LogView: View {
                 }
             }
         }
-        .sheet(isPresented: $loadingBar) {
-            LoadBarView(weight: $weight)
-        }
     }
 
     private var content: some View {
@@ -119,7 +115,7 @@ struct LogView: View {
 
                 SetRow(weight: $weight, reps: $reps,
                        weightStep: exercise.weightStep, showsWeight: exercise.usesWeight,
-                       onLoadBar: exercise.isBarbell ? { loadingBar = true } : nil)
+                       canLoadBar: exercise.isBarbell)
 
                 // only before the first set. after that the steppers already
                 // show what you just did
