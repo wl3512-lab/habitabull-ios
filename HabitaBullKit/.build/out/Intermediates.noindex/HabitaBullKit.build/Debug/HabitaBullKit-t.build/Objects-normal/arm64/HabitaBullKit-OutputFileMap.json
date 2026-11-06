@@ -16,6 +16,16 @@
     "swift-dependencies" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/.build/out/Intermediates.noindex/HabitaBullKit.build/Debug/HabitaBullKit-t.build/Objects-normal/arm64/AvailabilityParser.swiftdeps",
     "swiftmodule" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/.build/out/Intermediates.noindex/HabitaBullKit.build/Debug/HabitaBullKit-t.build/Objects-normal/arm64/AvailabilityParser~partial.swiftmodule"
   },
+  "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/Sources/HabitaBullKit/DayFit.swift" : {
+    "const-values" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/.build/out/Intermediates.noindex/HabitaBullKit.build/Debug/HabitaBullKit-t.build/Objects-normal/arm64/DayFit.swiftconstvalues",
+    "dependencies" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/.build/out/Intermediates.noindex/HabitaBullKit.build/Debug/HabitaBullKit-t.build/Objects-normal/arm64/DayFit.d",
+    "diagnostics" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/.build/out/Intermediates.noindex/HabitaBullKit.build/Debug/HabitaBullKit-t.build/Objects-normal/arm64/DayFit.dia",
+    "index-unit-output-path" : "/HabitaBullKit.build/Debug/HabitaBullKit-t.build/Objects-normal/arm64/DayFit.o",
+    "llvm-bc" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/.build/out/Intermediates.noindex/HabitaBullKit.build/Debug/HabitaBullKit-t.build/Objects-normal/arm64/DayFit.bc",
+    "object" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/.build/out/Intermediates.noindex/HabitaBullKit.build/Debug/HabitaBullKit-t.build/Objects-normal/arm64/DayFit.o",
+    "swift-dependencies" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/.build/out/Intermediates.noindex/HabitaBullKit.build/Debug/HabitaBullKit-t.build/Objects-normal/arm64/DayFit.swiftdeps",
+    "swiftmodule" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/.build/out/Intermediates.noindex/HabitaBullKit.build/Debug/HabitaBullKit-t.build/Objects-normal/arm64/DayFit~partial.swiftmodule"
+  },
   "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/Sources/HabitaBullKit/DayTypes.swift" : {
     "const-values" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/.build/out/Intermediates.noindex/HabitaBullKit.build/Debug/HabitaBullKit-t.build/Objects-normal/arm64/DayTypes.swiftconstvalues",
     "dependencies" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/.build/out/Intermediates.noindex/HabitaBullKit.build/Debug/HabitaBullKit-t.build/Objects-normal/arm64/DayTypes.d",

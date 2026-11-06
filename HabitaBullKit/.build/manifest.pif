@@ -5,11 +5,11 @@
       "name" : "HabitaBullKit",
       "path" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit",
       "projects" : [
-        "a6635ec60de27a5a1273a600e3d4ae306a763b4949db518f4c7a691052b91040",
+        "371f52a04843ebde64471f4f5b9b38220e08e75b862e570aa1cac6acd9b39ab9",
         "269dbedd65b288f77363762a91d1cd65a0439300ed41b1732d8a9ef43783b0e5"
       ]
     },
-    "signature" : "9b54a0213d1db4966a05e6c9139cdbc9740d991970bd8523dfcc05328e302975",
+    "signature" : "6e992963894a2f428bc8a4973190817006759074befab8171b78b3e8c89e6584",
     "type" : "workspace"
   },
   {
@@ -207,6 +207,14 @@
               {
                 "fileType" : "sourcecode.swift",
                 "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_2::REF_0",
+                "name" : "DayFitParityTests.swift",
+                "path" : "DayFitParityTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_2::REF_1",
                 "name" : "PlannerParityTests.swift",
                 "path" : "PlannerParityTests.swift",
                 "sourceTree" : "<group>",
@@ -214,7 +222,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_2::REF_1",
+                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_2::REF_2",
                 "name" : "PortParityTests.swift",
                 "path" : "PortParityTests.swift",
                 "sourceTree" : "<group>",
@@ -222,7 +230,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_2::REF_2",
+                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_2::REF_3",
                 "name" : "ProgressionTests.swift",
                 "path" : "ProgressionTests.swift",
                 "sourceTree" : "<group>",
@@ -230,7 +238,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_2::REF_3",
+                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_2::REF_4",
                 "name" : "ScheduleParityTests.swift",
                 "path" : "ScheduleParityTests.swift",
                 "sourceTree" : "<group>",
@@ -246,6 +254,14 @@
           {
             "fileType" : "file",
             "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_3",
+            "name" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/Tests/HabitaBullKitTests/Fixtures/dayfit.json",
+            "path" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/Tests/HabitaBullKitTests/Fixtures/dayfit.json",
+            "sourceTree" : "<absolute>",
+            "type" : "file"
+          },
+          {
+            "fileType" : "file",
+            "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_4",
             "name" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/Tests/HabitaBullKitTests/Fixtures/planner.json",
             "path" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/Tests/HabitaBullKitTests/Fixtures/planner.json",
             "sourceTree" : "<absolute>",
@@ -253,7 +269,7 @@
           },
           {
             "fileType" : "file",
-            "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_4",
+            "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_5",
             "name" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/Tests/HabitaBullKitTests/Fixtures/progression.json",
             "path" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/Tests/HabitaBullKitTests/Fixtures/progression.json",
             "sourceTree" : "<absolute>",
@@ -261,7 +277,7 @@
           },
           {
             "fileType" : "file",
-            "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_5",
+            "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_6",
             "name" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/Tests/HabitaBullKitTests/Fixtures/schedule.json",
             "path" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/Tests/HabitaBullKitTests/Fixtures/schedule.json",
             "sourceTree" : "<absolute>",
@@ -269,60 +285,11 @@
           },
           {
             "fileType" : "file",
-            "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_6",
+            "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_7",
             "name" : "$(CONFIGURATION_BUILD_DIR)/HabitaBullKit_HabitaBullKitTests.bundle",
             "path" : "$(CONFIGURATION_BUILD_DIR)/HabitaBullKit_HabitaBullKitTests.bundle",
             "sourceTree" : "<group>",
             "type" : "file"
-          },
-          {
-            "children" : [
-              {
-                "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_7::REF_0",
-                "name" : "AvailabilityParser.swift",
-                "path" : "AvailabilityParser.swift",
-                "sourceTree" : "<group>",
-                "type" : "file"
-              },
-              {
-                "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_7::REF_1",
-                "name" : "DayTypes.swift",
-                "path" : "DayTypes.swift",
-                "sourceTree" : "<group>",
-                "type" : "file"
-              },
-              {
-                "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_7::REF_2",
-                "name" : "Planner.swift",
-                "path" : "Planner.swift",
-                "sourceTree" : "<group>",
-                "type" : "file"
-              },
-              {
-                "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_7::REF_3",
-                "name" : "Progression.swift",
-                "path" : "Progression.swift",
-                "sourceTree" : "<group>",
-                "type" : "file"
-              },
-              {
-                "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_7::REF_4",
-                "name" : "Schedule.swift",
-                "path" : "Schedule.swift",
-                "sourceTree" : "<group>",
-                "type" : "file"
-              }
-            ],
-            "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_7",
-            "name" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/Sources/HabitaBullKit",
-            "path" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/Sources/HabitaBullKit",
-            "sourceTree" : "<absolute>",
-            "type" : "group"
           },
           {
             "children" : [
@@ -337,6 +304,14 @@
               {
                 "fileType" : "sourcecode.swift",
                 "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_1",
+                "name" : "DayFit.swift",
+                "path" : "DayFit.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_2",
                 "name" : "DayTypes.swift",
                 "path" : "DayTypes.swift",
                 "sourceTree" : "<group>",
@@ -344,7 +319,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_2",
+                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_3",
                 "name" : "Planner.swift",
                 "path" : "Planner.swift",
                 "sourceTree" : "<group>",
@@ -352,7 +327,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_3",
+                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_4",
                 "name" : "Progression.swift",
                 "path" : "Progression.swift",
                 "sourceTree" : "<group>",
@@ -360,7 +335,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_4",
+                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_5",
                 "name" : "Schedule.swift",
                 "path" : "Schedule.swift",
                 "sourceTree" : "<group>",
@@ -368,6 +343,63 @@
               }
             ],
             "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_8",
+            "name" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/Sources/HabitaBullKit",
+            "path" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/Sources/HabitaBullKit",
+            "sourceTree" : "<absolute>",
+            "type" : "group"
+          },
+          {
+            "children" : [
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_9::REF_0",
+                "name" : "AvailabilityParser.swift",
+                "path" : "AvailabilityParser.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_9::REF_1",
+                "name" : "DayFit.swift",
+                "path" : "DayFit.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_9::REF_2",
+                "name" : "DayTypes.swift",
+                "path" : "DayTypes.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_9::REF_3",
+                "name" : "Planner.swift",
+                "path" : "Planner.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_9::REF_4",
+                "name" : "Progression.swift",
+                "path" : "Progression.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_9::REF_5",
+                "name" : "Schedule.swift",
+                "path" : "Schedule.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              }
+            ],
+            "guid" : "PACKAGE:habitabullkit::MAINGROUP::REF_9",
             "name" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/Sources/HabitaBullKit",
             "path" : "/Users/lucyliu/Desktop/Portfolio Documentation/fall 2026/molab/habitabull-ios/HabitaBullKit/Sources/HabitaBullKit",
             "sourceTree" : "<absolute>",
@@ -386,17 +418,17 @@
       "projectIsPackage" : "true",
       "projectName" : "HabitaBullKit",
       "targets" : [
-        "035f17f3fee8172d028e88855295ee8543d622e1911c4657803fb04e784be277",
-        "043e6c3bc04c8109167e69f4b3c43fc2b7289f0e6da995a86aa6490cf7fafef4",
+        "24b6c9aaa9776786f6bbaba7e34579dd76bf8cca85ad34698b8cf7a1b36d5a62",
+        "ee5fb8b8537f06c53939f23414eee2aaed8c8449f08c5eda7cf940ff8ade20bc",
         "394a11bfd4d412d1a79979b781388f6b4501d3a0e109b88fd278cf2df6825f75",
         "370b1c81923a1b167ca63c7c5e779cee811d59bd3f8c5bfed2d66468701c54b8",
         "6103ac661c7d5d85ca03435be137bdfc9b6ef7dda93786b3c0782d98f7149aee",
-        "db3fbfdb58dd458b7d0d4962ff402df6408da3381787d3c5004e35899b221d9d",
-        "461485785762bc409a585f5de91d2a47aa912f9bc61bff73cb85dd66f1d34fc8",
+        "36793fd7cb86024b89f93297fe6d78e6dd319bb7e2f9ee00b7ce729759b8da32",
+        "8a20aef4bf74fcc53fbf8ff27ff57427d2806aa22679fdfc40af045c263d5727",
         "d9943242ec48b2952faabfe010ffd033ba691d3c113e606381862387c46d07ef"
       ]
     },
-    "signature" : "a6635ec60de27a5a1273a600e3d4ae306a763b4949db518f4c7a691052b91040",
+    "signature" : "371f52a04843ebde64471f4f5b9b38220e08e75b862e570aa1cac6acd9b39ab9",
     "type" : "project"
   },
   {
@@ -612,6 +644,15 @@
 
               ],
               "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_2::REF_4",
+              "guid" : "PACKAGE-PRODUCT:habitabullkit_HabitaBullKitTests.HabitaBullKitTests::BUILDPHASE_0::4",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
             }
           ],
           "guid" : "PACKAGE-PRODUCT:habitabullkit_HabitaBullKitTests.HabitaBullKitTests::BUILDPHASE_0",
@@ -621,7 +662,7 @@
           "buildFiles" : [
             {
               "codeSignOnCopy" : "false",
-              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_6",
+              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_7",
               "guid" : "PACKAGE-PRODUCT:habitabullkit_HabitaBullKitTests.HabitaBullKitTests::BUILDPHASE_1::0",
               "platformFilters" : [
 
@@ -676,7 +717,7 @@
       "productTypeIdentifier" : "com.apple.product-type.bundle.unit-test",
       "type" : "standard"
     },
-    "signature" : "035f17f3fee8172d028e88855295ee8543d622e1911c4657803fb04e784be277",
+    "signature" : "24b6c9aaa9776786f6bbaba7e34579dd76bf8cca85ad34698b8cf7a1b36d5a62",
     "type" : "target"
   },
   {
@@ -762,6 +803,16 @@
               ],
               "removeHeadersOnCopy" : "false",
               "resourceRule" : "copy"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_6",
+              "guid" : "PACKAGE-RESOURCE:HabitaBullKitTests::BUILDPHASE_0::3",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false",
+              "resourceRule" : "copy"
             }
           ],
           "guid" : "PACKAGE-RESOURCE:HabitaBullKitTests::BUILDPHASE_0",
@@ -787,7 +838,7 @@
       "productTypeIdentifier" : "com.apple.product-type.bundle",
       "type" : "standard"
     },
-    "signature" : "043e6c3bc04c8109167e69f4b3c43fc2b7289f0e6da995a86aa6490cf7fafef4",
+    "signature" : "ee5fb8b8537f06c53939f23414eee2aaed8c8449f08c5eda7cf940ff8ade20bc",
     "type" : "target"
   },
   {
@@ -1122,7 +1173,7 @@
           "buildFiles" : [
             {
               "codeSignOnCopy" : "false",
-              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_7::REF_0",
+              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_0",
               "guid" : "PACKAGE-TARGET:HabitaBullKit::BUILDPHASE_0::0",
               "platformFilters" : [
 
@@ -1131,7 +1182,7 @@
             },
             {
               "codeSignOnCopy" : "false",
-              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_7::REF_1",
+              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_1",
               "guid" : "PACKAGE-TARGET:HabitaBullKit::BUILDPHASE_0::1",
               "platformFilters" : [
 
@@ -1140,7 +1191,7 @@
             },
             {
               "codeSignOnCopy" : "false",
-              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_7::REF_2",
+              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_2",
               "guid" : "PACKAGE-TARGET:HabitaBullKit::BUILDPHASE_0::2",
               "platformFilters" : [
 
@@ -1149,7 +1200,7 @@
             },
             {
               "codeSignOnCopy" : "false",
-              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_7::REF_3",
+              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_3",
               "guid" : "PACKAGE-TARGET:HabitaBullKit::BUILDPHASE_0::3",
               "platformFilters" : [
 
@@ -1158,8 +1209,17 @@
             },
             {
               "codeSignOnCopy" : "false",
-              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_7::REF_4",
+              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_4",
               "guid" : "PACKAGE-TARGET:HabitaBullKit::BUILDPHASE_0::4",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_5",
+              "guid" : "PACKAGE-TARGET:HabitaBullKit::BUILDPHASE_0::5",
               "platformFilters" : [
 
               ],
@@ -1190,7 +1250,7 @@
       "productTypeIdentifier" : "org.swift.product-type.library.static",
       "type" : "standard"
     },
-    "signature" : "db3fbfdb58dd458b7d0d4962ff402df6408da3381787d3c5004e35899b221d9d",
+    "signature" : "36793fd7cb86024b89f93297fe6d78e6dd319bb7e2f9ee00b7ce729759b8da32",
     "type" : "target"
   },
   {
@@ -1462,7 +1522,7 @@
           "buildFiles" : [
             {
               "codeSignOnCopy" : "false",
-              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_0",
+              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_9::REF_0",
               "guid" : "PACKAGE-TARGET:HabitaBullKit--7AAABEC731B992F3-dynamic::BUILDPHASE_0::0",
               "platformFilters" : [
 
@@ -1471,7 +1531,7 @@
             },
             {
               "codeSignOnCopy" : "false",
-              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_1",
+              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_9::REF_1",
               "guid" : "PACKAGE-TARGET:HabitaBullKit--7AAABEC731B992F3-dynamic::BUILDPHASE_0::1",
               "platformFilters" : [
 
@@ -1480,7 +1540,7 @@
             },
             {
               "codeSignOnCopy" : "false",
-              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_2",
+              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_9::REF_2",
               "guid" : "PACKAGE-TARGET:HabitaBullKit--7AAABEC731B992F3-dynamic::BUILDPHASE_0::2",
               "platformFilters" : [
 
@@ -1489,7 +1549,7 @@
             },
             {
               "codeSignOnCopy" : "false",
-              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_3",
+              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_9::REF_3",
               "guid" : "PACKAGE-TARGET:HabitaBullKit--7AAABEC731B992F3-dynamic::BUILDPHASE_0::3",
               "platformFilters" : [
 
@@ -1498,8 +1558,17 @@
             },
             {
               "codeSignOnCopy" : "false",
-              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_8::REF_4",
+              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_9::REF_4",
               "guid" : "PACKAGE-TARGET:HabitaBullKit--7AAABEC731B992F3-dynamic::BUILDPHASE_0::4",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:habitabullkit::MAINGROUP::REF_9::REF_5",
+              "guid" : "PACKAGE-TARGET:HabitaBullKit--7AAABEC731B992F3-dynamic::BUILDPHASE_0::5",
               "platformFilters" : [
 
               ],
@@ -1529,7 +1598,7 @@
       "productTypeIdentifier" : "com.apple.product-type.library.dynamic",
       "type" : "standard"
     },
-    "signature" : "461485785762bc409a585f5de91d2a47aa912f9bc61bff73cb85dd66f1d34fc8",
+    "signature" : "8a20aef4bf74fcc53fbf8ff27ff57427d2806aa22679fdfc40af045c263d5727",
     "type" : "target"
   },
   {
