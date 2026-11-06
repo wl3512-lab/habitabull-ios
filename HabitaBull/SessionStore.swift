@@ -15,6 +15,13 @@ final class SessionStore {
 
     init(fileURL: URL? = nil) {
         self.fileURL = fileURL ?? URL.documentsDirectory.appending(path: "sessions.json")
+        // the UI test asks for an empty slate, so every run starts in the same
+        // place: no history, and every lift one you have never done. only the
+        // test runner passes this, and only to a simulator
+        if ProcessInfo.processInfo.arguments.contains("-uitest-reset") {
+            try? FileManager.default.removeItem(at: self.fileURL)
+            return
+        }
         load()
     }
 
