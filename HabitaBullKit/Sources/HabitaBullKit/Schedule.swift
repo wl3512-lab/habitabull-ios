@@ -89,6 +89,8 @@ public enum Schedule {
     /// allows. Evenly spaced rather than the first N: somebody free every
     /// evening who trains three times should get Sunday, Tuesday, Friday.
     public static func spread(_ available: [Int], count: Int) -> [Int] {
+        // Asking for none, or for fewer than none, is nothing rather than a trap.
+        if count <= 0 { return [] }
         let days = Array(Set(available)).sorted()
         if days.count <= count { return days }
         let step = Double(days.count) / Double(count)
@@ -146,10 +148,15 @@ public enum Schedule {
 
     /// The next day she said she would train, named rather than counted:
     /// "in 2 days" is arithmetic she has to do, "Thursday" is not.
+    /// `dow` is 0 = Sunday, like everything else here. `Calendar` counts
+    /// weekdays from 1, so a caller reading one straight out of it has to
+    /// subtract one; anything out of range is brought back into the week
+    /// rather than read off the end of the names.
     public static func nextTrainingDay(_ days: [Int]?, todayWeekday dow: Int) -> String? {
         guard let days, !days.isEmpty else { return nil }
+        let from = ((dow % 7) + 7) % 7
         for i in 1...7 {
-            let d = (dow + i) % 7
+            let d = (from + i) % 7
             if days.contains(d) { return i == 1 ? "tomorrow" : fullDays[d] }
         }
         return nil
@@ -168,8 +175,11 @@ public enum Schedule {
         if hours.count < minSessions { return nil }
         var tally: [Anchor: Int] = [:]
         for h in hours { tally[anchorForHour(h), default: 0] += 1 }
-        // Ties go to the earlier slot, so the answer does not depend on the
-        // order a dictionary happens to hand back.
+        // Ties go to the earlier slot. The web breaks them by whichever
+        // anchor it happened to see first, which is the order her sessions sit
+        // in an array rather than anything about her, so this deliberately
+        // differs: an exact 50/50 split answers the same way every time.
+        // Only reachable on an even sample of six or more split two ways.
         guard let best = tally.sorted(by: { a, b in
             a.value != b.value ? a.value > b.value : a.key.minute < b.key.minute
         }).first else { return nil }

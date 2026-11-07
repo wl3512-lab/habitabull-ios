@@ -58,6 +58,36 @@ public struct Target: Sendable, Equatable {
     public var note: String
 }
 
+/// A set as it was logged, before anything decides whether it counts.
+public struct LoggedSet: Sendable, Equatable {
+    public var weight: Double
+    public var reps: Int
+    public var done: Bool
+
+    public init(weight: Double, reps: Int, done: Bool) {
+        self.weight = weight; self.reps = reps; self.done = done
+    }
+}
+
+public struct LoggedLift: Sendable, Equatable {
+    public var exerciseId: String
+    public var sets: [LoggedSet]
+
+    public init(exerciseId: String, sets: [LoggedSet]) {
+        self.exerciseId = exerciseId; self.sets = sets
+    }
+}
+
+public struct TrainingSession: Sendable, Equatable {
+    /// Local day, "2026-11-06".
+    public var date: String
+    public var lifts: [LoggedLift]
+
+    public init(date: String, lifts: [LoggedLift]) {
+        self.date = date; self.lifts = lifts
+    }
+}
+
 public enum Progression {
     static let baseLoad: [Level: Double] = [.new: 45, .returning: 65, .experienced: 95]
     static let levelSets: [Level: Int] = [.new: 3, .returning: 3, .experienced: 4]
@@ -89,6 +119,30 @@ public enum Progression {
         guard lift.increment > 0 else { return 0 }   // bodyweight
         let base = baseLoad[level] ?? 45
         return round(lift.compound ? base : base * 0.45, to: lift.increment)
+    }
+
+    /// Every logged set of a lift, newest session first.
+    ///
+    /// This is the step `next` depends on and the easiest one to get wrong, so
+    /// it lives here rather than in whatever screen happens to need it.
+    ///
+    /// Three rules, all from the web version. Sessions are ordered by date, not
+    /// by the order they sit in storage. A set counts whether or not she ever
+    /// pressed Finish, because End is where most sessions actually stop and
+    /// requiring Finish made the ordinary gym session invisible. A session she
+    /// opened and logged nothing in contributes nothing: it is dropped, so a
+    /// lift with no history reads as a lift with no history.
+    public static func history(of exerciseId: String, in sessions: [TrainingSession]) -> [[DoneSet]] {
+        sessions
+            .sorted { $0.date > $1.date }
+            .map { session in
+                session.lifts
+                    .filter { $0.exerciseId == exerciseId }
+                    .flatMap { $0.sets }
+                    .filter(\.done)
+                    .map { DoneSet(weight: $0.weight, reps: $0.reps) }
+            }
+            .filter { !$0.isEmpty }
     }
 
     /// What to put on the bar next.
@@ -143,7 +197,12 @@ public enum Progression {
     }
 
     /// "2.5" rather than "2.5000", and "5" rather than "5.0".
+    ///
+    /// The range check is not pedantry: this is the one place in the package
+    /// that turns an unchecked Double into an Int, and a stored lift with a
+    /// nonsense increment would take the app down rather than print oddly.
     private static func trim(_ n: Double) -> String {
-        n == n.rounded() ? String(Int(n)) : String(n)
+        guard n == n.rounded(), n.magnitude < 1e15 else { return String(n) }
+        return String(Int(n))
     }
 }

@@ -101,21 +101,6 @@ public enum DayFit {
     }
 }
 
-/// A day of the week as the week editor holds it: which workout it is, and
-/// what is on it. `workoutId` links a day to one of her saved workouts.
-public struct WeekDay: Sendable, Equatable {
-    public var day: Int
-    public var label: String
-    public var dayType: String?
-    public var workoutId: String?
-    public var exercises: [PlannedLift]
-
-    public init(day: Int, label: String, dayType: String? = nil, workoutId: String? = nil, exercises: [PlannedLift]) {
-        self.day = day; self.label = label; self.dayType = dayType
-        self.workoutId = workoutId; self.exercises = exercises
-    }
-}
-
 extension DayFit {
     /// Which days in a week are the same workout as this one, itself included.
     ///
@@ -124,10 +109,10 @@ extension DayFit {
     /// Thursday's "Leg day" are one leg day. "Full body A" and "Full body B"
     /// share a type and are deliberately two different workouts, which is why
     /// the name is part of it.
-    public static func sameWorkoutDays(_ days: [WeekDay], at index: Int) -> [Int] {
+    public static func sameWorkoutDays(_ days: [PlannedDay], at index: Int) -> [Int] {
         guard days.indices.contains(index) else { return [] }
         let me = days[index]
-        func same(_ r: WeekDay) -> Bool {
+        func same(_ r: PlannedDay) -> Bool {
             if let mine = me.workoutId { return r.workoutId == mine }
             return r.workoutId == nil
                 && (r.dayType ?? "full-body") == (me.dayType ?? "full-body")
@@ -142,7 +127,7 @@ extension DayFit {
     /// day keeps its own sets, reps and weight for a lift it already had, and a
     /// lift new to it arrives as it was planned on the day it came from. What a
     /// single session logged is that session's business.
-    public static func shareLineup(_ week: [WeekDay], from at: Int) -> [WeekDay] {
+    public static func shareLineup(_ week: [PlannedDay], from at: Int) -> [PlannedDay] {
         guard week.indices.contains(at), !week[at].exercises.isEmpty else { return week }
         let from = week[at]
         let twins = Set(sameWorkoutDays(week, at: at).filter { $0 != at })

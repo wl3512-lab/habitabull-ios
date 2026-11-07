@@ -40,12 +40,27 @@ public struct PlannedLift: Sendable, Equatable {
     public var weight: Double
 }
 
-public struct Routine: Sendable, Equatable {
-    /// 0 = Sunday, matching the calendar.
+/// A day of the planned week.
+///
+/// One type for the whole package: the planner returns these and the day-fit
+/// rules take them. They were two types for a while, which meant the week the
+/// planner built could not be handed to the rules that decide which days share
+/// a workout without a conversion by hand, and the conversion was exactly
+/// where a missing day type would have gone unnoticed.
+public struct PlannedDay: Sendable, Equatable {
+    /// 0 = Sunday, matching the calendar and the chosen training days.
     public var day: Int
     public var label: String
-    public var dayType: String
+    public var dayType: String?
+    /// Set when this day is one of her saved workouts.
+    public var workoutId: String?
     public var exercises: [PlannedLift]
+
+    public init(day: Int, label: String, dayType: String? = nil,
+                workoutId: String? = nil, exercises: [PlannedLift]) {
+        self.day = day; self.label = label; self.dayType = dayType
+        self.workoutId = workoutId; self.exercises = exercises
+    }
 }
 
 public enum Planner {
@@ -86,6 +101,11 @@ public enum Planner {
         return ranked[i].element
     }
 
+    /// An index that lands inside the array however odd the number is.
+    static func wrap(_ i: Int, _ count: Int) -> Int {
+        count > 0 ? ((i % count) + count) % count : 0
+    }
+
     /// A week of routines, one per training day.
     public static func generate(
         level: Level,
@@ -95,7 +115,7 @@ public enum Planner {
         dayTypes: [String]? = nil,
         variants: [Int: Int]? = nil,
         catalogue: [Lift]
-    ) -> [Routine] {
+    ) -> [PlannedDay] {
         let days = Array(Set(trainingDays)).sorted()
         if days.isEmpty { return [] }
         let kit = equipment.isEmpty ? ["bodyweight"] : equipment
@@ -103,17 +123,22 @@ public enum Planner {
 
         return days.enumerated().map { i, day in
             let type = DayTypes.named(chosen[i % chosen.count])
+            // The slot is more than an index: it also rotates which core lift
+            // a full-body day gets, so it has to keep its real value. Only the
+            // two places that index an array are wrapped, because a stored
+            // week can hand back any integer and a negative one used to read
+            // off the front of the shapes and trap.
             let slot = variants?[day] ?? i
             // Full body alternates its slots so two sessions are never
             // identical; a named day is the same shape every time, which is
             // the point of naming it.
-            let muscles = type.id == "full-body" ? fullBody[slot % fullBody.count] : type.muscles
+            let muscles = type.id == "full-body" ? fullBody[wrap(slot, fullBody.count)] : type.muscles
 
             // A day type that names its lifts skips the picker entirely: the
             // first one her kit allows, and nothing else on the day.
             if let named = type.lifts?.compactMap({ id in catalogue.first { $0.id == id } }), !named.isEmpty {
                 let fixed = named.first { kit.contains($0.equipment) } ?? named.last!
-                return Routine(day: day, label: type.label, dayType: type.id, exercises: [
+                return PlannedDay(day: day, label: type.label, dayType: type.id, exercises: [
                     PlannedLift(exerciseId: fixed.id,
                                 sets: 1,                                    // continuous work is one block
                                 reps: Progression.reps(fixed.shape, level: level),
@@ -144,8 +169,8 @@ public enum Planner {
                 ))
             }
 
-            let label = type.id == "full-body" ? fullBodyLabels[slot % fullBodyLabels.count] : type.label
-            return Routine(day: day, label: label, dayType: type.id, exercises: exercises)
+            let label = type.id == "full-body" ? fullBodyLabels[wrap(slot, fullBodyLabels.count)] : type.label
+            return PlannedDay(day: day, label: label, dayType: type.id, exercises: exercises)
         }
     }
 }

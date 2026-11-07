@@ -85,10 +85,10 @@ final class DayFitParityTests: XCTestCase {
 
     func testWhichDaysAreTheSameWorkoutAndWhatTheyInherit() throws {
         let f = try load()
-        let weeks: [[WeekDay]] = f.weeks.map { week in
+        let weeks: [[PlannedDay]] = f.weeks.map { week in
             week.map { entry in
                 let row = entry.list
-                return WeekDay(day: row[0].int, label: row[1].str,
+                return PlannedDay(day: row[0].int, label: row[1].str,
                         dayType: row[2].isNull ? nil : row[2].str,
                         workoutId: row[3].isNull ? nil : row[3].str,
                         exercises: row[4].list.map {
