@@ -81,10 +81,17 @@ public struct LoggedLift: Sendable, Equatable {
 public struct TrainingSession: Sendable, Equatable {
     /// Local day, "2026-11-06".
     public var date: String
+    /// What the workout was called, which is how a day recognises its own
+    /// session when the week is written back to.
+    public var label: String
     public var lifts: [LoggedLift]
+    /// A session that is not a statement about the day it fell on: a quick
+    /// workout with no plan behind it, or a day rebuilt around something that
+    /// hurts. Both are right for today and neither redefines Thursday.
+    public var oneOff: Bool
 
-    public init(date: String, lifts: [LoggedLift]) {
-        self.date = date; self.lifts = lifts
+    public init(date: String, label: String = "", lifts: [LoggedLift], oneOff: Bool = false) {
+        self.date = date; self.label = label; self.lifts = lifts; self.oneOff = oneOff
     }
 }
 

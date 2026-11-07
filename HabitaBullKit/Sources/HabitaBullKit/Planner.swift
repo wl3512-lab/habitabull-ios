@@ -9,6 +9,8 @@
 // where the list of lifts comes from, and handing it in is what lets a test
 // check this against the web engine using the web engine's own library.
 
+import Foundation
+
 /// A lift, as the planner needs it.
 public struct Lift: Sendable, Equatable, Codable {
     public var id: String
@@ -99,6 +101,49 @@ public enum Planner {
         }
         let i = ((variant % ranked.count) + ranked.count) % ranked.count
         return ranked[i].element
+    }
+
+    /// Carry the lineup she actually trained back onto the day it belongs to.
+    ///
+    /// The plan is where a session's lifts come from, so without this the day
+    /// rebuilds from its original shape every week and the lift she added at
+    /// the rack, or the one she dropped, is forgotten by the next session.
+    /// Only the choice of lifts and how many sets travels; the weights come
+    /// back out of her history every time the session is built.
+    ///
+    /// Three exemptions, all from the web version. A quick workout is not a
+    /// decision about the day it happened to fall on. Neither is a day rebuilt
+    /// around an injury. And an empty session never blanks a day.
+    ///
+    /// It writes to the day with the same weekday *and* the same name, because
+    /// "Full body A" and "Full body B" share a weekday rotation and are two
+    /// different workouts.
+    public static func remember(
+        _ session: TrainingSession, in week: [PlannedDay], zone: TimeZone = .current
+    ) -> [PlannedDay] {
+        if session.oneOff || session.lifts.isEmpty { return week }
+        let cal = Attendance.calendar(zone)
+        guard let date = Attendance.date(session.date, cal) else { return week }
+        let weekday = cal.component(.weekday, from: date) - 1
+
+        return week.map { day in
+            guard day.day == weekday, day.label == session.label else { return day }
+            var updated = day
+            updated.exercises = session.lifts.map { lift in
+                // The first set is the one the day comes back at: what she
+                // opened with, not what she finished on, which is the same
+                // reading the web takes.
+                let first = lift.sets.first
+                let known = day.exercises.first { $0.exerciseId == lift.exerciseId }
+                return PlannedLift(
+                    exerciseId: lift.exerciseId,
+                    sets: lift.sets.count,
+                    reps: first?.reps ?? known?.reps ?? 10,
+                    weight: first?.weight ?? 0
+                )
+            }
+            return updated
+        }
     }
 
     /// An index that lands inside the array however odd the number is.
