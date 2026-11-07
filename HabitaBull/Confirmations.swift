@@ -3,6 +3,7 @@
 // new best doesn't feel like a routine set. all of this is on purpose short:
 // it sits between you and your next set
 
+import Foundation
 import SwiftUI
 
 // how each moment feels in your hand. haptics do nothing in the simulator, and
@@ -18,10 +19,15 @@ extension SetOutcome.Kind {
 
     // a routine set should barely slow you down. same timing as v1
     var seconds: Double {
+        // A test cannot reliably read a screen that leaves after a second: the
+        // accessibility snapshot alone can take longer than the beat does, so
+        // the suite was racing it and losing sometimes. Held open for the test
+        // runner only, which taps through them itself.
+        if ProcessInfo.processInfo.arguments.contains("-uitest-hold-beats") { return 30 }
         switch self {
-        case .routine: 0.85
-        case .first: 1.25
-        case .best: 1.2
+        case .routine: return 0.85
+        case .first: return 1.25
+        case .best: return 1.2
         }
     }
     var discSize: CGFloat { self == .routine ? 80 : self == .first ? 96 : 112 }

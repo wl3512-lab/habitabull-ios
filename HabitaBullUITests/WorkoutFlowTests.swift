@@ -1,6 +1,10 @@
 //
-// the three things Lucy reported on November 6, driven through the real app in
-// the simulator. one workout, start to finish, asserting as it goes:
+// the workout loop, driven through the real app in the simulator rather than
+// through the store. three of these started as things Lucy reported from a
+// phone that turned out to be right in the code already, which is the
+// expensive kind of uncertainty; the rest cover the screens since.
+//
+// one workout, start to finish, asserting as it goes:
 //
 //   1. resting after the last set of a lift offers "One more set of X" and does
 //      not also offer the +/- row, which was two controls for one decision
@@ -21,7 +25,9 @@ final class WorkoutFlowTests: XCTestCase {
         app = XCUIApplication()
         // a clean slate every run: the starter workout, and no lift with any
         // history, which is what makes the first-time beat testable at all
-        app.launchArguments = ["-uitest-reset"]
+        // an empty slate, and beats that wait to be read rather than expiring
+        // while the query that reads them is still resolving
+        app.launchArguments = ["-uitest-reset", "-uitest-hold-beats"]
         app.launch()
     }
 
@@ -45,7 +51,7 @@ final class WorkoutFlowTests: XCTestCase {
         rest.tap()
 
         // Leg Press is next and untouched. Add a lift in the middle of it.
-        XCTAssertTrue(app.staticTexts["Leg Press"].waitForExistence(timeout: 5))
+        onLift("Leg Press")
         addLift(named: "Hammer Curl")
 
         // (2) a lift she has never done says so on its first set
@@ -57,8 +63,7 @@ final class WorkoutFlowTests: XCTestCase {
 
         // (3) the workout is not over: Leg Press has had nothing logged on it
         leaveRest()
-        XCTAssertTrue(app.staticTexts["Leg Press"].waitForExistence(timeout: 5),
-                      "finishing the added lift did not go back to the lift still to do")
+        onLift("Leg Press")
         XCTAssertFalse(app.staticTexts["That's every set."].exists,
                        "the workout ended with Leg Press untouched")
     }
@@ -84,6 +89,94 @@ final class WorkoutFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Back Squat"].exists, "it came back on a different lift")
     }
 
+    // the screen between two lifts. it only appears when there is a real
+    // choice, and the plan's order is the button at the bottom: keeping the
+    // same order inside a block is what makes the numbers comparable
+    func testTheScreenBetweenLiftsKeepsThePlansOrderAsTheDefault() {
+        start()
+        // two added lifts, so there is still a choice after the second one
+        addLift(named: "Hammer Curl")
+        addLift(named: "Lat Pulldown")
+        // back onto the curl, which is where the first finish will come from
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Exercise '")).firstMatch.tap()
+        app.buttons["Hammer Curl, 3 left"].tap()
+        logSet(expecting: "New lift")
+        leaveRest()
+        logSet()
+        leaveRest()
+        logSet()
+        leaveRest()
+
+        XCTAssertTrue(app.staticTexts["HAMMER CURL DONE"].waitForExistence(timeout: 6),
+                      "the between-lifts screen did not appear with two lifts left")
+        // the plan's next lift is the one big button, one tap away
+        XCTAssertTrue(app.buttons["Start Back Squat"].exists, "the planned lift is not the default")
+        // and the other one is an alternative, not a peer
+        let instead = app.buttons["Start Leg Press instead, 3 sets left"]
+        XCTAssertTrue(instead.exists, "no way to take the other lift first")
+        XCTAssertTrue(app.staticTexts["Your plan keeps its order. This is just today."].exists,
+                      "nothing says the change is only for today")
+
+        // it owns the screen: no End and no menu to tap behind it
+        XCTAssertFalse(app.buttons["End"].exists, "the toolbar is still live over the chooser")
+        // and it never offers the lift that was just finished
+        XCTAssertFalse(app.buttons["Start Hammer Curl instead, 3 sets left"].exists)
+
+        instead.tap()
+        onLift("Leg Press")
+        XCTAssertTrue(app.buttons["Log set"].exists)
+
+        // finish this one too: the chooser comes back, and the plan's next
+        // lift is now the squat she has not touched
+        logSet(); leaveRest(); logSet(); leaveRest(); logSet(); leaveRest()
+        XCTAssertTrue(app.staticTexts["LEG PRESS DONE"].waitForExistence(timeout: 6),
+                      "the chooser did not come back for the second lift")
+        let planned = app.buttons["Start Back Squat"]
+        XCTAssertTrue(planned.exists)
+        planned.tap()
+        XCTAssertTrue(app.buttons["Log set"].waitForExistence(timeout: 5),
+                      "the plan's own lift did not open")
+        onLift("Back Squat")
+    }
+
+    // the way out for somebody who never found the menu in the corner: the
+    // lift's own name is the control, because it is the thing they want to
+    // change
+    func testTappingTheLiftNameGetsYouOffTheWrongLift() {
+        start()
+        addLift(named: "Hammer Curl")   // three lifts, so there is a choice
+
+        // she lands on the curl and actually wants the press first
+        let title = app.buttons["Hammer Curl. Tap to do a different lift first"]
+        XCTAssertTrue(title.waitForExistence(timeout: 6), "the lift name is not a way out")
+        title.tap()
+
+        XCTAssertTrue(app.staticTexts["SWITCH LIFT"].waitForExistence(timeout: 5))
+        // the one she is on is in the list, so staying is a tap and not a hunt
+        XCTAssertTrue(app.buttons["Stay on Hammer Curl"].exists)
+        app.buttons["Switch to Leg Press, 3 sets left"].tap()
+
+        onLift("Leg Press")
+        XCTAssertTrue(app.buttons["Log set"].exists)
+    }
+
+    func testOneLiftLeftIsNotAChoiceWorthAScreen() {
+        start()
+        // the starter workout is two lifts: finishing the first leaves one,
+        // and a screen offering a single option is a tap for nothing
+        logSet()
+        leaveRest()
+        logSet()
+        leaveRest()
+        logSet()
+        leaveRest()
+        // wait for where it should land before asserting what is absent, or
+        // the absence passes simply by being early
+        XCTAssertTrue(app.buttons["Log set"].waitForExistence(timeout: 6))
+        onLift("Leg Press")
+        XCTAssertFalse(app.staticTexts["BACK SQUAT DONE"].exists, "it asked with nothing to ask about")
+    }
+
     // MARK: - the flow, in the app's own words
 
     private func start() {
@@ -99,17 +192,31 @@ final class WorkoutFlowTests: XCTestCase {
         XCTAssertTrue(log.waitForExistence(timeout: 10), "no Log set button", line: line)
         log.tap()
         if let beat {
-            XCTAssertTrue(app.staticTexts[beat].waitForExistence(timeout: 3),
-                          "the beat did not say \(beat)", line: line)
+            if !app.staticTexts[beat].waitForExistence(timeout: 5) {
+                // only read the screen when something is already wrong
+                let shown = app.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: " | ")
+                XCTFail("the beat did not say \(beat). on screen: \(shown)", line: line)
+            }
         }
         // the beat clears itself; tapping it only gets there sooner
         app.tap()
     }
 
-    /// The rest screen, when there is one. Returns to the working screen.
-    private func leaveRest() {
+    /// Which lift the log screen is on. The name is a button now, and its
+    /// label changes depending on whether there is anything to switch to.
+    private func onLift(_ name: String, line: UInt = #line) {
+        let plain = app.buttons[name]
+        let switchable = app.buttons["\(name). Tap to do a different lift first"]
+        XCTAssertTrue(plain.waitForExistence(timeout: 8) || switchable.exists,
+                      "not on \(name)", line: line)
+    }
+
+    /// The rest screen. It always follows a set that is not the last of the
+    /// workout, so a missing one is a failure rather than something to skip.
+    private func leaveRest(line: UInt = #line) {
         let done = app.buttons["Done resting"]
-        if done.waitForExistence(timeout: 6) { done.tap() }
+        XCTAssertTrue(done.waitForExistence(timeout: 8), "no rest screen", line: line)
+        done.tap()
     }
 
     private func addLift(named name: String) {

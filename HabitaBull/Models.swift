@@ -73,6 +73,13 @@ struct Session: Codable, Equatable, Identifiable {
         exercises.reduce(0) { $0 + $1.sets.count }
     }
 
+    // every lift with sets left, by where it sits in the workout. the screen
+    // between lifts offers these, and the first of them is always what
+    // nextSet would have opened on its own: same predicate, same order
+    var liftsLeft: [Int] {
+        exercises.indices.filter { exercises[$0].setsLeft > 0 }
+    }
+
     // the next set to do, as two positions: which lift, then which set of it.
     // nil means every set is logged
     var nextSet: (exercise: Int, set: Int)? {

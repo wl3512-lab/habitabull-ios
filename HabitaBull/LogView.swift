@@ -14,12 +14,21 @@ struct LogView: View {
     @State private var reps = 0.0
 
     @State private var chosenLift: Int? = nil   // a lift you jumped to
-    @State private var restingOn = 0            // the lift you just logged on
+    // the lift the rest is for. optional like every other lift index here:
+    // "none" and "the first one" are different answers, and a save from an
+    // older build has a running rest with no lift recorded against it
+    @State private var restingOn: Int? = nil
     @State private var resting = false
     @State private var resumeUntil: Date? = nil  // a rest carried over from before
     @State private var addingLift = false
     @State private var swappingLift = false
     @State private var confirmingFinish = false
+    /// the lift picker, and why it is open. after rest when a lift is done, so
+    /// the order is hers rather than the order they sit in; or from the lift's
+    /// own name mid-set, for somebody who landed on the wrong one and would
+    /// never think to look in the corner menu for the way out
+    enum Picking: Equatable { case afterLift, switching }
+    @State private var picking: Picking? = nil
     @State private var beat: SetOutcome? = nil   // the confirmation on screen
     @State private var finished = false
 
@@ -40,6 +49,12 @@ struct LogView: View {
         return session.exercises[currentLift].sets.firstIndex { !$0.done }
     }
 
+    /// every lift with sets left, with where it sits in the session
+    private var liftsLeft: [(index: Int, lift: LoggedExercise)] {
+        guard let session else { return [] }
+        return session.liftsLeft.map { (index: $0, lift: session.exercises[$0]) }
+    }
+
     // where you are in the workout, so the numbers refresh whenever it moves
     private var position: String {
         if let currentLift, let currentSet { return "\(currentLift)-\(currentSet)" }
@@ -58,12 +73,31 @@ struct LogView: View {
             } else if let beat {
                 SetLoggedView(outcome: beat, onDone: endBeat)
                     .id(session?.setsDone)
+            } else if picking == .afterLift, let session, let restingOn,
+                      session.exercises.indices.contains(restingOn),
+                      let planned = liftsLeft.first {
+                NextLiftView(reason: .finished(session.exercises[restingOn].name),
+                             planned: planned,
+                             others: Array(liftsLeft.dropFirst())) { index in
+                    // picking the planned one keeps the session's order, so it
+                    // only has to clear the screen
+                    chosenLift = index == planned.index ? nil : index
+                    picking = nil
+                }
+            } else if picking == .switching, let session, let currentLift,
+                      session.exercises.indices.contains(currentLift) {
+                NextLiftView(reason: .switching(doing: session.exercises[currentLift].name),
+                             planned: nil,
+                             others: liftsLeft) { index in
+                    chosenLift = index
+                    picking = nil
+                }
             } else {
                 content
             }
         }
         .navigationBarBackButtonHidden()
-        .toolbar(beat == nil && !finished ? .visible : .hidden, for: .navigationBar)
+        .toolbar(beat == nil && !finished && picking == nil ? .visible : .hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) { liftMenu }
             ToolbarItem(placement: .topBarTrailing) {
@@ -88,6 +122,10 @@ struct LogView: View {
             RestTimerView(startsRunning: resumeUntil == nil, exerciseIndex: restingOn, resumeUntil: resumeUntil) {
                 resting = false
                 resumeUntil = nil
+                // the lift she was resting from is finished and there is more
+                // than one way to go: ask. with one lift left there is nothing
+                // to choose, so the set screen opens as it always did
+                askWhatIsNext()
             }
         }
         .sheet(isPresented: $addingLift) {
@@ -95,6 +133,7 @@ struct LogView: View {
                 store.addLift(id, sets: sets)
                 chosenLift = (store.today?.exercises.count ?? 1) - 1
                 confirmingFinish = false
+                picking = nil
             }
         }
         .sheet(isPresented: $swappingLift) {
@@ -122,9 +161,29 @@ struct LogView: View {
                             store.reopenSet(exercise: currentLift, set: tapped)
                         }
                         SectionLabel(text: setLine(exercise, set: currentSet))
-                        Text(exercise.name)
-                            .font(.figure)
-                            .foregroundStyle(.fg)
+                        // tapping the name opens the picker. the thing you
+                        // want to change is the thing you tap, so nobody has
+                        // to know the corner menu exists to get off a lift
+                        // they did not mean to start
+                        Button {
+                            if liftsLeft.count > 1 { picking = .switching }
+                        } label: {
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(exercise.name)
+                                    .font(.figure)
+                                    .foregroundStyle(.fg)
+                                if liftsLeft.count > 1 {
+                                    Text("\u{25BE}")
+                                        .font(.bodyText)
+                                        .foregroundStyle(.dim)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(liftsLeft.count <= 1)
+                        .accessibilityLabel(liftsLeft.count > 1
+                            ? "\(exercise.name). Tap to do a different lift first"
+                            : exercise.name)
 
                         SetRow(weight: $weight, reps: $reps,
                                weightStep: exercise.weightStep, showsWeight: exercise.usesWeight,
@@ -186,6 +245,7 @@ struct LogView: View {
                     Button("\(lift.name), \(lift.setsLeft) left") {
                         chosenLift = i
                         confirmingFinish = false
+                        picking = nil
                     }
                     .disabled(lift.setsLeft == 0)
                 }
@@ -217,12 +277,26 @@ struct LogView: View {
         chosenLift = session?.chosenLift
         guard let endsAt = session?.restEndsAt else { return }
         if endsAt > .now {
-            restingOn = session?.restLift ?? 0
+            restingOn = session?.restLift
             resumeUntil = endsAt
             resting = true
         } else {
+            // the rest is over, but the decision it was leading up to is not.
+            // whether she gets asked should not depend on how long the phone
+            // was in her pocket
+            restingOn = session?.restLift
             store.clearRest()
+            askWhatIsNext()
         }
+    }
+
+    /// The lift she was resting from is finished and there is more than one
+    /// way to go, so ask. With one lift left there is nothing to choose and
+    /// the set screen opens the way it always did.
+    private func askWhatIsNext() {
+        guard let session, let restingOn, session.exercises.indices.contains(restingOn),
+              session.exercises[restingOn].setsLeft == 0, liftsLeft.count > 1 else { return }
+        picking = .afterLift
     }
 
     private func leaveIfEmpty() {
@@ -256,6 +330,9 @@ struct LogView: View {
     // the one way out. with sets logged it asks first. every set is already
     // saved, so leaving the app and tapping Continue later still works
     private func end() {
+        // End stays reachable from the between-lifts screen, and has to clear
+        // it or the question would be asked behind it
+        picking = nil
         if (session?.setsDone ?? 0) > 0 {
             confirmingFinish = true
         } else {

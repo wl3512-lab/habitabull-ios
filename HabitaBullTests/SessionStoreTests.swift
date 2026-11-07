@@ -90,6 +90,39 @@ final class SessionStoreTests: XCTestCase {
         XCTAssertEqual(store.today?.exercises.last.map { _ in true }, true)
     }
 
+    // MARK: - what the screen between lifts offers
+
+    func testTheLiftsLeftAreTheOnesWithSetsLeftInTheOrderTheySit() {
+        store.startWorkout()
+        store.addLift("hammer-curl", sets: 2)
+        guard let session = store.today else { return XCTFail("no workout") }
+        XCTAssertEqual(session.liftsLeft, Array(session.exercises.indices))
+
+        // finish the first one and it drops out, the rest keep their places
+        for _ in session.exercises[0].sets { store.logSet(onExercise: 0, weight: 95, reps: 8) }
+        XCTAssertEqual(store.today?.liftsLeft, [1, 2])
+    }
+
+    func testTheFirstLiftLeftIsAlwaysTheOneTheAppWouldHaveOpened() {
+        // the screen offers the first of liftsLeft as the plan's next lift,
+        // and the log screen falls back to nextSet. they have to be the same
+        // lift or the screen names one and the app opens another
+        store.startWorkout()
+        store.addLift("hammer-curl", sets: 2)
+        guard var session = store.today else { return XCTFail("no workout") }
+        XCTAssertEqual(session.liftsLeft.first, session.nextSet?.exercise)
+
+        store.logSet(onExercise: 1, weight: 180, reps: 10)   // out of order, on purpose
+        session = store.today!
+        XCTAssertEqual(session.liftsLeft.first, session.nextSet?.exercise)
+
+        for e in session.exercises.indices {
+            for _ in session.exercises[e].sets { store.logSet(onExercise: e, weight: 50, reps: 5) }
+        }
+        XCTAssertEqual(store.today?.liftsLeft, [])
+        XCTAssertNil(store.today?.nextSet)
+    }
+
     // MARK: - what logging a set means
 
     func testTheFirstSetOfALiftIsNeverCalledABest() {
