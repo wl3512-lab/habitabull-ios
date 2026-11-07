@@ -16,6 +16,8 @@ a full workout loop, saved on the phone with no account and no signal:
 - **confirmations:** logged, new lift and new best, each with its own vibration, then a finished screen
 - **the 1/2 menu:** jump between lifts or add one, from 67 lifts or your own
 - **end:** the one way out. asks before finishing, and Continue picks up anything unfinished
+- **picks up where you left off:** your lift and any running rest survive the app closing, and a workout left open offers to resume for 24 hours
+- **quick workout, swap a lift, load the bar:** start with no plan, swap a lift you haven't started, or load by plate
 
 ## on purpose different from the web app
 
@@ -23,7 +25,6 @@ the web app is v1 and this one is allowed to be better: set count controls only 
 
 ## plan
 
-- quick workout, swap a lift, last time and best, plates on the bar (by nov 20)
 - real gym test, then fix what it finds, and get someone else testing it (by dec 4)
 - the App Store version adds the planner, calendar, progress and photos
 

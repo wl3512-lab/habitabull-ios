@@ -13,6 +13,7 @@ struct RestTimerView: View {
     // starts by itself after a logged set, and hands back when you're ready
     var startsRunning = false
     var exerciseIndex: Int? = nil
+    var resumeUntil: Date? = nil    // picks up a rest from before the app closed
     var onFinished: (() -> Void)? = nil
 
     @Environment(SessionStore.self) private var store
@@ -104,10 +105,18 @@ struct RestTimerView: View {
                 .requestAuthorization(options: [.alert, .sound])
         }
         .onAppear {
-            if startsRunning && !resting { start() }
+            if let resumeUntil {
+                endsAt = resumeUntil
+                left = max(0, Int(resumeUntil.timeIntervalSinceNow.rounded(.up)))
+            } else if startsRunning && !resting {
+                start()
+            }
         }
         .onChange(of: done) { _, isDone in
-            if isDone { RestActivityController.markReady() }
+            if isDone {
+                RestActivityController.markReady()
+                Chime.play()
+            }
         }
     }
 
@@ -193,6 +202,7 @@ struct RestTimerView: View {
         left = restSeconds
         scheduleRestAlert(in: restSeconds)
         if let endsAt {
+            store.setRest(endsAt: endsAt, lift: exerciseIndex)
             RestActivityController.start(endsAt: endsAt, nextUp: nextUpLine)
         }
     }
@@ -201,6 +211,7 @@ struct RestTimerView: View {
         endsAt = nil
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["rest"])
         RestActivityController.stop()
+        store.clearRest()
         onFinished?()
     }
 
@@ -216,7 +227,7 @@ func scheduleRestAlert(in seconds: Int) {
     let content = UNMutableNotificationContent()
     content.title = "Ready when you are"
     content.body = "Rest's over. Next set whenever you are."
-    content.sound = .default
+    content.sound = UNNotificationSound(named: UNNotificationSoundName("chime.wav"))
     let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(seconds), repeats: false)
     // same id every time, so starting a new rest replaces the old alert
     let request = UNNotificationRequest(identifier: "rest", content: content, trigger: trigger)

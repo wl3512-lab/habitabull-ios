@@ -91,6 +91,7 @@ struct NumberStepper: View {
     var minimum = 0.0
     var maximum = 2000.0
     var unit = ""
+    var compact = false     // one short row, for when the screen is already full
 
     @State private var draft = ""
     @FocusState private var typing: Bool
@@ -98,15 +99,27 @@ struct NumberStepper: View {
     var body: some View {
         Card {
             VStack(alignment: .leading, spacing: 8) {
-                SectionLabel(text: label)
+                if !compact {
+                    SectionLabel(text: label)
+                }
                 HStack(spacing: 8) {
                     roundButton("minus", name: "Decrease \(label)", disabled: value <= minimum) {
                         value = max(minimum, value - step)
                     }
-                    VStack(spacing: 0) {
-                        number
-                        if !unit.isEmpty {
-                            Text(unit).font(.captionText).foregroundStyle(.dim)
+                    // the unit sits beside the number in the short version
+                    Group {
+                        if compact {
+                            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                number.fixedSize()
+                                Text(unit).font(.captionText).foregroundStyle(.dim)
+                            }
+                        } else {
+                            VStack(spacing: 0) {
+                                number
+                                if !unit.isEmpty {
+                                    Text(unit).font(.captionText).foregroundStyle(.dim)
+                                }
+                            }
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -139,7 +152,7 @@ struct NumberStepper: View {
                 .allowsHitTesting(typing)
                 .accessibilityHidden(!typing)
         }
-        .font(.hero)
+        .font(compact ? .figure : .hero)
         .monospacedDigit()
         .foregroundStyle(.fg)
         .toolbar {
@@ -203,7 +216,8 @@ struct SetRow: View {
                 }
                 .transition(.opacity)
             }
-            NumberStepper(label: "Reps", value: $reps, step: 1, minimum: 1, maximum: 200, unit: "reps")
+            NumberStepper(label: "Reps", value: $reps, step: 1, minimum: 1, maximum: 200, unit: "reps",
+                          compact: canLoadBar && plates)
         }
     }
 }

@@ -72,7 +72,7 @@ struct Sleeve: View {
                         RoundedRectangle(cornerRadius: 3)
                             .fill(p >= 25 ? Color.brandCyan : Color.brandCyanSoft)
                             .frame(width: p >= 25 ? 13 : p >= 10 ? 10 : 7)
-                            .frame(height: max(26, p / 45 * 76))
+                            .frame(height: max(22, p / 45 * 60))
                     }
                 }
             }
@@ -105,9 +105,9 @@ struct PlateBar: View {
 
     var body: some View {
         Card {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {
-                    SectionLabel(text: "On the bar")
+                    SectionLabel(text: Plates.words(loaded.perSide))
                     Spacer()
                     Text(loaded.achieved.formatted())
                         .font(.figure).foregroundStyle(.fg).monospacedDigit()
@@ -125,13 +125,8 @@ struct PlateBar: View {
                         .frame(width: 100)
                 }
                 .padding(.horizontal, 12)
-                .frame(height: 96)
+                .frame(height: 76)
                 .background(.ground, in: .rect(cornerRadius: 12))
-
-                Text(loaded.perSide.isEmpty
-                     ? "Just the bar. Tap a plate below to put one on each end."
-                     : "\(Plates.words(loaded.perSide)). Tap an end of the bar to take one off.")
-                    .font(.bodyText).foregroundStyle(.dim)
 
                 if !loaded.exact {
                     Text(full && weight > loaded.achieved
@@ -160,29 +155,32 @@ struct PlateBar: View {
                 }
                 .buttonStyle(.plain)
 
-                HStack {
-                    Button {
-                        removeLast()
-                    } label: {
-                        Label("Remove last plate", systemImage: "arrow.uturn.backward")
+                // one row: fix the plates on the left, the bar itself on the right
+                HStack(spacing: 8) {
+                    Group {
+                        Button {
+                            removeLast()
+                        } label: {
+                            Image(systemName: "arrow.uturn.backward")
+                                .frame(width: 44, height: 44)
+                                .contentShape(.rect)
+                        }
+                        .foregroundStyle(.brandCyan)
+                        .accessibilityLabel("Remove last plate")
+                        Button("Strip") { weight = bar; added = [] }
+                            .foregroundStyle(.dim)
                     }
-                    .foregroundStyle(.brandCyan)
-                    Spacer()
-                    Button("Strip") { weight = bar; added = [] }
-                        .foregroundStyle(.dim)
-                }
-                .font(.head)
-                .disabled(loaded.perSide.isEmpty)
-                .opacity(loaded.perSide.isEmpty ? 0.4 : 1)
-                .frame(minHeight: 44)
+                    .font(.head)
+                    .disabled(loaded.perSide.isEmpty)
+                    .opacity(loaded.perSide.isEmpty ? 0.4 : 1)
 
-                HStack {
-                    SectionLabel(text: "Bar")
                     Spacer()
+
                     smallButton("minus", "Lighter bar") { setBar(bar - 5) }
-                    Text("\(bar.formatted()) lb")
-                        .font(.head).foregroundStyle(.fg).monospacedDigit()
-                        .frame(minWidth: 64)
+                    Text("\(bar.formatted()) lb bar")
+                        .font(.bodyText).foregroundStyle(.dim).monospacedDigit()
+                        .fixedSize()
+                        .accessibilityLabel("Bar weight \(bar.formatted()) pounds")
                     smallButton("plus", "Heavier bar") { setBar(bar + 5) }
                 }
             }

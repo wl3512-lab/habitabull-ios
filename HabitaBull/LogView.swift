@@ -16,6 +16,7 @@ struct LogView: View {
     @State private var chosenLift: Int? = nil   // a lift you jumped to
     @State private var restingOn = 0            // the lift you just logged on
     @State private var resting = false
+    @State private var resumeUntil: Date? = nil  // a rest carried over from before
     @State private var addingLift = false
     @State private var swappingLift = false
     @State private var confirmingFinish = false
@@ -50,7 +51,10 @@ struct LogView: View {
             if finished, let session {
                 FinishedView(session: session,
                              bests: store.bests(in: session),
-                             firsts: store.firstTimes(in: session)) { dismiss() }
+                             firsts: store.firstTimes(in: session)) {
+                    store.endResume()
+                    dismiss()
+                }
             } else if let beat {
                 SetLoggedView(outcome: beat, onDone: endBeat)
                     .id(session?.setsDone)
@@ -69,6 +73,7 @@ struct LogView: View {
             }
         }
         .onAppear {
+            restorePlace()
             fillIn()
             // a quick workout starts by picking the first lift
             if session?.exercises.isEmpty == true { addingLift = true }
@@ -76,10 +81,14 @@ struct LogView: View {
         // a new position brings its own numbers. adding a set doesn't move you,
         // so it leaves whatever you've dialed in alone
         .onChange(of: position) { fillIn() }
+        .onChange(of: chosenLift) { _, lift in store.setChosenLift(lift) }
         // the rest screen can change the next weight without moving you
         .onChange(of: resting) { if !resting { fillIn() } }
         .fullScreenCover(isPresented: $resting) {
-            RestTimerView(startsRunning: true, exerciseIndex: restingOn) { resting = false }
+            RestTimerView(startsRunning: resumeUntil == nil, exerciseIndex: restingOn, resumeUntil: resumeUntil) {
+                resting = false
+                resumeUntil = nil
+            }
         }
         .sheet(isPresented: $addingLift) {
             AddLiftView(excluding: session?.exercises.map(\.exerciseId) ?? [], onCancel: leaveIfEmpty) { id, sets in
@@ -104,29 +113,36 @@ struct LogView: View {
             if let session, let currentLift, let currentSet {
                 let exercise = session.exercises[currentLift]
 
-                SetBar(sets: exercise.sets, current: currentSet) { tapped in
-                    chosenLift = currentLift
-                    store.reopenSet(exercise: currentLift, set: tapped)
+                // the middle scrolls if it has to, so a tall screen like Load
+                // the bar can never push Log set off the bottom
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        SetBar(sets: exercise.sets, current: currentSet) { tapped in
+                            chosenLift = currentLift
+                            store.reopenSet(exercise: currentLift, set: tapped)
+                        }
+                        SectionLabel(text: setLine(exercise, set: currentSet))
+                        Text(exercise.name)
+                            .font(.figure)
+                            .foregroundStyle(.fg)
+
+                        SetRow(weight: $weight, reps: $reps,
+                               weightStep: exercise.weightStep, showsWeight: exercise.usesWeight,
+                               canLoadBar: exercise.isBarbell)
+
+                        // only before the first set. after that the steppers
+                        // already show what you just did
+                        if !exercise.sets.contains(where: \.done), let last = store.lastSetLogged(of: exercise.exerciseId) {
+                            Text("Last time: \(exercise.describe(last))")
+                                .font(.bodyText)
+                                .foregroundStyle(.dim)
+                                .monospacedDigit()
+                        }
+                    }
+                    .padding(.top, 8)
                 }
-                SectionLabel(text: setLine(exercise, set: currentSet))
-                Text(exercise.name)
-                    .font(.figure)
-                    .foregroundStyle(.fg)
-
-                SetRow(weight: $weight, reps: $reps,
-                       weightStep: exercise.weightStep, showsWeight: exercise.usesWeight,
-                       canLoadBar: exercise.isBarbell)
-
-                // only before the first set. after that the steppers already
-                // show what you just did
-                if !exercise.sets.contains(where: \.done), let last = store.lastSetLogged(of: exercise.exerciseId) {
-                    Text("Last time: \(exercise.describe(last))")
-                        .font(.bodyText)
-                        .foregroundStyle(.dim)
-                        .monospacedDigit()
-                }
-
-                Spacer()
+                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize)
 
                 if confirmingFinish {
                     finishCheck(session)
@@ -194,6 +210,19 @@ struct LogView: View {
         let line = "Set \(set + 1) of \(exercise.sets.count)"
         guard exercise.usesWeight, let best = store.heaviest(of: exercise.exerciseId), best > 0 else { return line }
         return "\(line) · Best \(best.formatted()) lb"
+    }
+
+    // back to the lift you were on, and into any rest still running
+    private func restorePlace() {
+        chosenLift = session?.chosenLift
+        guard let endsAt = session?.restEndsAt else { return }
+        if endsAt > .now {
+            restingOn = session?.restLift ?? 0
+            resumeUntil = endsAt
+            resting = true
+        } else {
+            store.clearRest()
+        }
     }
 
     private func leaveIfEmpty() {

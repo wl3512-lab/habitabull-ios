@@ -101,6 +101,21 @@ struct SetLoggedView: View {
                             .alignmentGuide(.top) { $0[.bottom] + 28 }
                             .opacity(revealed ? 1 : 0)
                     }
+                    .overlay(alignment: .bottom) {
+                        // the one thing on these screens you didn't just type
+                        VStack(spacing: 4) {
+                            if let newBest = outcome.newBest {
+                                Text("\(newBest.formatted()) lb").font(.hero).monospacedDigit()
+                            }
+                            if let gain = outcome.gain {
+                                Text("\(gain.formatted()) lb more than your best").font(.emphasis)
+                            }
+                        }
+                        .foregroundStyle(.ground)
+                        .fixedSize()
+                        .alignmentGuide(.bottom) { $0[.top] - 28 }
+                        .opacity(revealed ? 1 : 0)
+                    }
             }
         }
         .multilineTextAlignment(.center)

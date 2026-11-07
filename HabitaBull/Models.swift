@@ -44,6 +44,11 @@ struct Session: Codable, Equatable, Identifiable {
     var startedAt: Date
     var completedAt: Date? = nil
 
+    // where you were, so closing the app costs nothing. both are empty on older saves
+    var chosenLift: Int? = nil
+    var restEndsAt: Date? = nil
+    var restLift: Int? = nil
+
     var setsDone: Int {
         exercises.reduce(0) { $0 + $1.sets.filter(\.done).count }
     }
@@ -81,6 +86,8 @@ struct SetOutcome: Equatable {
     var kind: Kind
     var liftName: String
     var resting: Bool       // false when that was the last set of the workout
+    var newBest: Double? = nil      // only on a new best
+    var gain: Double? = nil         // how far past the old best
 }
 
 // a lift that beat your old heaviest

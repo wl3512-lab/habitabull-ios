@@ -25,12 +25,37 @@ final class SessionStore {
         load()
     }
 
+    private(set) var resumedId: String? = nil   // an unfinished workout from another day
+
     private var openIndex: Int? {
-        sessions.lastIndex { $0.date == dayString() && $0.completedAt == nil }
+        if let resumedId, let i = sessions.firstIndex(where: { $0.id == resumedId && $0.completedAt == nil }) {
+            return i
+        }
+        return sessions.lastIndex { $0.date == dayString() && $0.completedAt == nil }
+    }
+
+    // a workout left open from an earlier day, for up to 24 hours. this also
+    // catches one that ran past midnight
+    var unfinished: Session? {
+        sessions
+            .filter { $0.date < dayString() && $0.completedAt == nil && !$0.exercises.isEmpty }
+            .filter { Date.now.timeIntervalSince($0.startedAt) < 24 * 60 * 60 }
+            .max { $0.startedAt < $1.startedAt }
+    }
+
+    func resume(_ session: Session) {
+        resumedId = session.id
+    }
+
+    func endResume() {
+        resumedId = nil
     }
 
     // today's workout: an unfinished one first, otherwise the latest finished one
     var today: Session? {
+        if let resumedId, let session = sessions.first(where: { $0.id == resumedId }) {
+            return session
+        }
         let todays = sessions.filter { $0.date == dayString() }
         return todays.first { $0.completedAt == nil } ?? todays.last
     }
@@ -98,7 +123,9 @@ final class SessionStore {
         return SetOutcome(
             kind: kind,
             liftName: exercise.name,
-            resting: sessions[i].nextSet != nil
+            resting: sessions[i].nextSet != nil,
+            newBest: kind == .best ? weight : nil,
+            gain: kind == .best ? heaviest.map { weight - $0 } : nil
         )
     }
 
@@ -224,9 +251,32 @@ final class SessionStore {
         save()
     }
 
+    // remembered so a rest survives the app closing
+    func setRest(endsAt: Date, lift: Int?) {
+        guard let i = openIndex else { return }
+        sessions[i].restEndsAt = endsAt
+        sessions[i].restLift = lift
+        save()
+    }
+
+    func clearRest() {
+        guard let i = openIndex, sessions[i].restEndsAt != nil else { return }
+        sessions[i].restEndsAt = nil
+        sessions[i].restLift = nil
+        save()
+    }
+
+    func setChosenLift(_ lift: Int?) {
+        guard let i = openIndex, sessions[i].chosenLift != lift else { return }
+        sessions[i].chosenLift = lift
+        save()
+    }
+
     func finishWorkout() {
         guard let i = openIndex, sessions[i].setsDone > 0 else { return }
         sessions[i].completedAt = .now
+        sessions[i].restEndsAt = nil
+        sessions[i].restLift = nil
         save()
     }
 
@@ -234,7 +284,8 @@ final class SessionStore {
     // for demos: wipes today so the app starts fresh. test builds only, so it
     // can't reach the App Store version
     func resetToday() {
-        sessions.removeAll { $0.date == dayString() }
+        sessions.removeAll { $0.date == dayString() || $0.id == resumedId }
+        resumedId = nil
         save()
     }
     #endif

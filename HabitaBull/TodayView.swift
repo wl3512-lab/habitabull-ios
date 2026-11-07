@@ -50,6 +50,29 @@ struct TodayView: View {
                     }
                 }
 
+                // a workout left open yesterday. the whole card is the button
+                if session == nil, let unfinished = store.unfinished {
+                    Button {
+                        store.resume(unfinished)
+                        logging = true
+                    } label: {
+                        Card {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    SectionLabel(text: "Unfinished")
+                                    Text(unfinished.label).font(.head).foregroundStyle(.fg)
+                                    Text("Resume from \(unfinished.startedAt.formatted(.relative(presentation: .named)))")
+                                        .font(.bodyText)
+                                        .foregroundStyle(.brandCyan)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right").foregroundStyle(.dim)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+
                 if store.saveFailed {
                     Text("This phone isn't saving right now.")
                         .font(.bodyText)
