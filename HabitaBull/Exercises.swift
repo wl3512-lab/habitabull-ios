@@ -14,6 +14,32 @@ struct Exercise: Codable, Identifiable {
     var hold: Bool
     var startWeight: Double
     var startReps: Int
+    /// Carries the session, and progresses more slowly. The planner needs it.
+    var compound: Bool = false
+    /// Trained heavy and low by convention: a novice deadlifting for ten is
+    /// the clearest sign nobody looked at the programme.
+    var heavy: Bool = false
+    /// A cardio machine whose incline you can set.
+    var incline: Bool = false
+
+    // Written by hand rather than synthesised so a library file saved before
+    // these three existed still reads, instead of failing the whole decode and
+    // leaving the app with no lifts at all.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        equipment = try c.decode(String.self, forKey: .equipment)
+        primary = try c.decode(String.self, forKey: .primary)
+        increment = try c.decode(Double.self, forKey: .increment)
+        cardio = try c.decodeIfPresent(Bool.self, forKey: .cardio) ?? false
+        hold = try c.decodeIfPresent(Bool.self, forKey: .hold) ?? false
+        startWeight = try c.decode(Double.self, forKey: .startWeight)
+        startReps = try c.decode(Int.self, forKey: .startReps)
+        compound = try c.decodeIfPresent(Bool.self, forKey: .compound) ?? false
+        heavy = try c.decodeIfPresent(Bool.self, forKey: .heavy) ?? false
+        incline = try c.decodeIfPresent(Bool.self, forKey: .incline) ?? false
+    }
 }
 
 enum ExerciseLibrary {

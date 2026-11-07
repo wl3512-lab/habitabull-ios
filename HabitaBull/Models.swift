@@ -30,9 +30,15 @@ struct LoggedExercise: Codable, Equatable {
     var usesWeight: Bool { weightStep > 0 }
     var isBarbell: Bool { ExerciseLibrary.find(exerciseId)?.equipment == "barbell" }
 
+    /// Reps are seconds on a lift you hold, which is a property of the lift
+    /// and not of the muscle: a plank is 30 seconds, a machine crunch is 30
+    /// reps. The library's `startReps` for a hold is 30 for the same reason.
+    var isHold: Bool { ExerciseLibrary.find(exerciseId)?.hold == true }
+
     // one set, said the way the screens say it
     func describe(_ set: LoggedSet) -> String {
-        usesWeight ? "\(set.weight.formatted()) lb × \(set.reps)" : "\(set.reps) reps"
+        if usesWeight { return "\(set.weight.formatted()) lb × \(set.reps)" }
+        return isHold ? "\(set.reps) sec" : "\(set.reps) reps"
     }
 }
 
