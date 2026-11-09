@@ -152,7 +152,7 @@ struct RestTimerView: View {
                             }
                         }
                     } else {
-                        Text("\(set.reps) reps")
+                        Text("\(set.reps) \(upcoming.unit)")
                             .font(.titleText)
                             .foregroundStyle(.brandCyan)
                     }

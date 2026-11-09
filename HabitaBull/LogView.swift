@@ -156,7 +156,8 @@ struct LogView: View {
                 // the bar can never push Log set off the bottom
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        SetBar(sets: exercise.sets, current: currentSet) { tapped in
+                        SetBar(sets: exercise.sets, current: currentSet,
+                               spoken: exercise.spoken) { tapped in
                             chosenLift = currentLift
                             store.reopenSet(exercise: currentLift, set: tapped)
                         }
@@ -187,12 +188,16 @@ struct LogView: View {
 
                         SetRow(weight: $weight, reps: $reps,
                                weightStep: exercise.weightStep, showsWeight: exercise.usesWeight,
-                               canLoadBar: exercise.isBarbell)
+                               canLoadBar: exercise.isBarbell,
+                               countLabel: exercise.countLabel, countUnit: exercise.unit,
+                               countStep: exercise.countStep, countRange: exercise.countRange)
 
                         // only before the first set. after that the steppers
-                        // already show what you just did
-                        if !exercise.sets.contains(where: \.done), let last = store.lastSetLogged(of: exercise.exerciseId) {
-                            Text("Last time: \(exercise.describe(last))")
+                        // already show what you just did. this says why the
+                        // numbers are what they are, which is the question
+                        // "last time: 135 lb x 5" was really answering
+                        if !exercise.sets.contains(where: \.done) {
+                            Text(store.reasonForNext(of: exercise.exerciseId))
                                 .font(.bodyText)
                                 .foregroundStyle(.dim)
                                 .monospacedDigit()

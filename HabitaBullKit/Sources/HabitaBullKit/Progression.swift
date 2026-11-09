@@ -157,11 +157,19 @@ public enum Progression {
     /// `history` is the sessions that logged this lift, newest first, each one
     /// the sets completed in it. A session she opened and never lifted in is
     /// not history and must not be in this list.
-    public static func next(_ lift: LiftShape, history: [[DoneSet]], level: Level) -> Target {
+    /// - Parameter planned: how many sets she is actually going to do, when
+    ///   that is already known. The app plans a lift from the number of sets
+    ///   she did last time, so a lift she settled at two can be below the
+    ///   level's three. Judging "did she clear it" against the level's count
+    ///   then means clearing every rep of both sets still reads as a miss, and
+    ///   the weight never moves again. Left out, the level decides, which is
+    ///   what the web version did and what the parity fixtures pin.
+    public static func next(_ lift: LiftShape, history: [[DoneSet]], level: Level,
+                            planned: Int? = nil) -> Target {
         let targetReps = reps(lift, level: level)
         // Cardio is one block of time, not a set count. Everything else keeps
-        // the level's count; a plank held three or four times is exactly right.
-        let setCount = lift.cardio ? 1 : sets(for: level)
+        // the level's count, unless the caller knows better.
+        let setCount = lift.cardio ? 1 : max(1, planned ?? sets(for: level))
 
         guard let last = history.first else {
             return Target(weight: startingWeight(lift, level: level), reps: targetReps, sets: setCount,

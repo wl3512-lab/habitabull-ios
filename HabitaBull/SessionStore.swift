@@ -27,6 +27,11 @@ final class SessionStore {
 
     private(set) var resumedId: String? = nil   // an unfinished workout from another day
 
+    /// The workout being written to, if any. `today` can name a finished one;
+    /// this never does, so the rules and the writes agree on which session is
+    /// the open one.
+    var openSessionId: String? { openIndex.map { sessions[$0].id } }
+
     private var openIndex: Int? {
         if let resumedId, let i = sessions.firstIndex(where: { $0.id == resumedId && $0.completedAt == nil }) {
             return i
@@ -66,7 +71,9 @@ final class SessionStore {
             id: UUID().uuidString,
             date: dayString(),
             label: "Leg day",
-            exercises: starterExercises,
+            // the same lifts every time, but not the same numbers: what you
+            // lift today comes from what you did last time, through the rules
+            exercises: plannedToday,
             startedAt: .now
         ))
         save()
@@ -201,15 +208,14 @@ final class SessionStore {
         save()
     }
 
+    // the rules decide where a lift opens: last time's weight if you did not
+    // clear it, one step up if you did, lighter if three sessions in a row
+    // went badly, and the library's starting point if you have never done it
     private func startingSet(for id: String) -> LoggedSet {
-        let start = lastSet(of: id)
-            ?? ExerciseLibrary.find(id).map { LoggedSet(weight: $0.startWeight, reps: $0.startReps) }
-            ?? LoggedSet(weight: 0, reps: 10)
-        return LoggedSet(weight: start.weight, reps: start.reps)
+        let target = nextTarget(of: id)
+        return LoggedSet(weight: target.weight, reps: target.reps)
     }
 
-    // the numbers shown under the steppers
-    func lastSetLogged(of id: String) -> LoggedSet? { lastSet(of: id) }
     func heaviest(of id: String) -> Double? { heaviestWeight(of: id) }
 
     // how many sets you did of it, the last time you did it. weight and reps
@@ -221,15 +227,6 @@ final class SessionStore {
             if let exercise = session.exercises.first(where: { $0.exerciseId == id }) {
                 let done = exercise.sets.filter(\.done).count
                 if done > 0 { return done }
-            }
-        }
-        return nil
-    }
-
-    private func lastSet(of id: String) -> LoggedSet? {
-        for session in sessions.reversed() {
-            if let set = session.exercises.first(where: { $0.exerciseId == id })?.sets.last(where: \.done) {
-                return set
             }
         }
         return nil

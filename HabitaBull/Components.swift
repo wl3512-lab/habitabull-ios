@@ -91,6 +91,10 @@ struct NumberStepper: View {
     var minimum = 0.0
     var maximum = 2000.0
     var unit = ""
+    /// Weight can be 2.5. A count cannot: half a rep, half a second and half
+    /// a minute are all nonsense, and the set saves a whole number anyway, so
+    /// a typed 32.5 would show one thing and log another.
+    var halves = false
     var compact = false     // one short row, for when the screen is already full
 
     @State private var draft = ""
@@ -165,10 +169,10 @@ struct NumberStepper: View {
         }
     }
 
-    // whole numbers for reps, halves for weight, and always inside the limits
+    // whole numbers for a count, halves for weight, and always inside the limits
     private func commit() {
         guard let typed = Double(draft) else { return }
-        let rounded = step == 1 ? typed.rounded() : (typed * 2).rounded() / 2
+        let rounded = halves ? (typed * 2).rounded() / 2 : typed.rounded()
         value = min(maximum, max(minimum, rounded))
     }
 
@@ -195,6 +199,12 @@ struct SetRow: View {
     var weightStep = 5.0
     var showsWeight = true
     var canLoadBar = false
+    /// What the second number counts, in the lift's own words: reps for a
+    /// squat, seconds for a plank, minutes for a treadmill
+    var countLabel = "Reps"
+    var countUnit = "reps"
+    var countStep = 1.0
+    var countRange = 1.0...200.0
 
     // "Load the bar" or "+ / −", one choice for every barbell lift
     @AppStorage("loadTheBar") private var plates = false
@@ -211,13 +221,15 @@ struct SetRow: View {
                     if canLoadBar && plates {
                         PlateBar(weight: $weight)
                     } else {
-                        NumberStepper(label: "Weight", value: $weight, step: weightStep, unit: "lb")
+                        NumberStepper(label: "Weight", value: $weight, step: weightStep, unit: "lb",
+                                      halves: true)
                     }
                 }
                 .transition(.opacity)
             }
-            NumberStepper(label: "Reps", value: $reps, step: 1, minimum: 1, maximum: 200, unit: "reps",
-                          compact: canLoadBar && plates)
+            NumberStepper(label: countLabel, value: $reps, step: countStep,
+                          minimum: countRange.lowerBound, maximum: countRange.upperBound,
+                          unit: countUnit, compact: canLoadBar && plates)
         }
     }
 }
@@ -227,6 +239,9 @@ struct SetRow: View {
 struct SetBar: View {
     let sets: [LoggedSet]
     let current: Int
+    /// How one set sounds read aloud. The bar only gets sets, so the lift has
+    /// to hand this in, or a bodyweight hold is announced as pounds.
+    var spoken: ((LoggedSet) -> String)? = nil
     var onReopen: ((Int) -> Void)? = nil
 
     var body: some View {
@@ -252,7 +267,9 @@ struct SetBar: View {
 
     private func label(for i: Int) -> String {
         if sets[i].done {
-            return "Set \(i + 1), logged \(sets[i].weight.formatted()) pounds for \(sets[i].reps). Tap to redo"
+            let said = spoken?(sets[i])
+                ?? "\(sets[i].weight.formatted()) pounds for \(sets[i].reps) reps"
+            return "Set \(i + 1), logged \(said). Tap to redo"
         }
         return "Set \(i + 1), not logged"
     }

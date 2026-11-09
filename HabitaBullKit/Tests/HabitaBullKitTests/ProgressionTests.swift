@@ -115,4 +115,36 @@ final class ProgressionTests: XCTestCase {
     func testAnAccessoryGetsFourMoreRepsThanACompound() {
         XCTAssertEqual(Progression.reps(curl, level: .new), Progression.reps(squat, level: .new) + 4)
     }
+
+    // MARK: - clearing what she actually planned
+
+    func testALiftSettledBelowTheLevelsSetCountStillProgresses() {
+        // she does two sets of curls, not three, and clears every rep of both
+        let curl = LiftShape(increment: 2.5)
+        let twoGoodSets = [[DoneSet(weight: 25, reps: 12), DoneSet(weight: 25, reps: 12)]]
+
+        // judged against the level's three, two cleared sets read as a miss
+        let byTheLevel = Progression.next(curl, history: twoGoodSets, level: .new)
+        XCTAssertEqual(byTheLevel.weight, 25, "the level's count is still the default")
+
+        // judged against the two she planned, she cleared it
+        let byWhatShePlanned = Progression.next(curl, history: twoGoodSets, level: .new, planned: 2)
+        XCTAssertEqual(byWhatShePlanned.weight, 27.5)
+        XCTAssertEqual(byWhatShePlanned.sets, 2, "it plans the number she actually does")
+        XCTAssertEqual(byWhatShePlanned.note, "Up 2.5 lb. You earned it.")
+    }
+
+    func testPlanningMoreSetsThanSheDidIsStillAMiss() {
+        let curl = LiftShape(increment: 2.5)
+        let twoGoodSets = [[DoneSet(weight: 25, reps: 12), DoneSet(weight: 25, reps: 12)]]
+        let asked = Progression.next(curl, history: twoGoodSets, level: .new, planned: 4)
+        XCTAssertEqual(asked.weight, 25, "two of four is not every set")
+    }
+
+    func testAPlannedCountOfNothingIsNotTakenLiterally() {
+        let curl = LiftShape(increment: 2.5)
+        let one = [[DoneSet(weight: 25, reps: 12)]]
+        XCTAssertEqual(Progression.next(curl, history: one, level: .new, planned: 0).sets, 1)
+        XCTAssertEqual(Progression.next(curl, history: one, level: .new, planned: -3).sets, 1)
+    }
 }

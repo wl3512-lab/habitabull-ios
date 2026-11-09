@@ -127,7 +127,7 @@ struct AddLiftView: View {
             return
         }
         let before = store.setsLastTime(of: id)
-        sets = before ?? 3
+        sets = before ?? store.nextTarget(of: id).sets
         setsRemembered = before != nil
         chosen = Choice(id: id, name: name)
     }

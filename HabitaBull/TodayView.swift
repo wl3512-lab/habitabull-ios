@@ -34,13 +34,13 @@ struct TodayView: View {
                     Card {
                         VStack(alignment: .leading, spacing: 14) {
                             SectionLabel(text: "Today's lifts")
-                            ForEach(session?.exercises ?? starterExercises, id: \.exerciseId) { exercise in
+                            ForEach(session?.exercises ?? store.plannedToday, id: \.exerciseId) { exercise in
                                 HStack {
                                     Text(exercise.name)
                                         .font(.head)
                                         .foregroundStyle(.fg)
                                     Spacer()
-                                    Text("\(exercise.sets.count) × \(exercise.sets.first?.reps ?? 0)")
+                                    Text(exercise.planLine)
                                         .font(.bodyText)
                                         .foregroundStyle(.dim)
                                         .monospacedDigit()

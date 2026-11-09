@@ -23,6 +23,35 @@ a full workout loop, saved on the phone with no account and no signal:
 
 the web app is v1 and this one is allowed to be better: set count controls only on rest, add a lift only in the menu, one End button instead of End plus Finish
 
+## where a lift opens, and why
+
+the rules package is wired into the app (`HabitaBull/Progress.swift` is the only place that translates between the two). a lift no longer comes back as a copy of last time: it comes back as what the rules say to do next
+
+- cleared every rep of every set, and it opens one increment heavier: "Up 2.5 lb. You earned it."
+- missed some, and it holds: "Same weight. Own it this time."
+- three hard sessions in a row, and it backs off 10%, snapped to a weight you can load
+- a lift with no weight asks for longer or for more reps instead
+- never done it, and it starts light from your level, not from zero
+
+two rules of the join, both pinned by tests. the open workout is never part of its own history, or the first set you log would decide the rest of that same lift. and "did she clear it" is judged against the number of sets she is actually doing: she settled at two sets of curls, and judging that against a new lifter's three made every perfect session read as a miss, so the weight would never have moved again
+
+what Today previews before you start is the same call the workout is built from, so the card and the workout cannot disagree
+
+## one number, three meanings
+
+a set stores a weight and a count. the count is **reps** on a squat, **seconds** on a plank, **minutes** on a treadmill. the lift decides which: `LoggedExercise.counted` reads the library's `hold` and `cardio` flags, and every screen asks it instead of guessing
+
+- it reads as "8 reps", "30 sec", "20 min", and the stepper above it is labelled to match
+- reps step by one, because six pull-ups is a number people have. seconds and minutes step by five, because nobody holds a plank for thirty-one
+- a lift the library has never heard of counts reps rather than guessing
+
+guessing is how a plank came to be planned for twelve of something nobody could name: the library said hold and the number beside it was 12, the accessory rep count. one place decides now, and two tests hold it there
+
+still open, both inherited from the web app and worth deciding rather than keeping by accident:
+
+- a hold and a cardio block want a **timer** that runs while you do them, not a stepper you type into. that is a feature slice, after the planner
+- **cardio never progresses on its own.** it keeps the incline you set and leaves the time to you. every other lift climbs when you clear it
+
 ## plan
 
 - real gym test, then fix what it finds, and get someone else testing it (by dec 4)

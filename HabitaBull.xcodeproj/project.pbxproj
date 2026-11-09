@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		B0BA0000000000000000001C /* RestWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B0BA00000000000000000011 /* RestWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B0BA00000000000000000053 /* HabitaBullKit in Frameworks */ = {isa = PBXBuildFile; productRef = B0BA00000000000000000051 /* HabitaBullKit */; };
+		B0BA00000000000000000055 /* HabitaBullKit in Frameworks */ = {isa = PBXBuildFile; productRef = B0BA00000000000000000054 /* HabitaBullKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -89,6 +91,15 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B0BA00000000000000000053 /* HabitaBullKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B0BA00000000000000000056 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B0BA00000000000000000055 /* HabitaBullKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -157,6 +168,7 @@
 			);
 			name = HabitaBull;
 			packageProductDependencies = (
+				B0BA00000000000000000051 /* HabitaBullKit */,
 			);
 			productName = HabitaBull;
 			productReference = B0BA00000000000000000001 /* HabitaBull.app */;
@@ -211,6 +223,7 @@
 			buildConfigurationList = B0BA00000000000000000044 /* Build configuration list for PBXNativeTarget "HabitaBullTests" */;
 			buildPhases = (
 				B0BA00000000000000000042 /* Sources */,
+				B0BA00000000000000000056 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -222,6 +235,7 @@
 			);
 			name = HabitaBullTests;
 			packageProductDependencies = (
+				B0BA00000000000000000054 /* HabitaBullKit */,
 			);
 			productName = HabitaBullTests;
 			productReference = B0BA00000000000000000040 /* HabitaBullTests.xctest */;
@@ -254,6 +268,9 @@
 			);
 			mainGroup = B0BA00000000000000000005;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				B0BA00000000000000000050 /* XCLocalSwiftPackageReference "HabitaBullKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B0BA00000000000000000006 /* Products */;
 			projectDirPath = "";
@@ -678,6 +695,24 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		B0BA00000000000000000050 /* XCLocalSwiftPackageReference "HabitaBullKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = HabitaBullKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B0BA00000000000000000051 /* HabitaBullKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HabitaBullKit;
+		};
+		B0BA00000000000000000054 /* HabitaBullKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HabitaBullKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B0BA00000000000000000008 /* Project object */;
 }

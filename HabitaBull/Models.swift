@@ -30,15 +30,84 @@ struct LoggedExercise: Codable, Equatable {
     var usesWeight: Bool { weightStep > 0 }
     var isBarbell: Bool { ExerciseLibrary.find(exerciseId)?.equipment == "barbell" }
 
-    /// Reps are seconds on a lift you hold, which is a property of the lift
-    /// and not of the muscle: a plank is 30 seconds, a machine crunch is 30
-    /// reps. The library's `startReps` for a hold is 30 for the same reason.
-    var isHold: Bool { ExerciseLibrary.find(exerciseId)?.hold == true }
+    /// What the second number on a set actually counts.
+    ///
+    /// One field does three jobs: a squat is counted in repetitions, a plank
+    /// in seconds, a treadmill in minutes. That is a property of the lift and
+    /// not of the muscle — a machine crunch is reps, a plank is not — so the
+    /// library's hold and cardio flags decide it, and every screen asks here
+    /// rather than each one guessing. Guessing is how a plank came to be
+    /// planned for twelve of something nobody could name.
+    enum Counted { case reps, seconds, minutes }
+
+    var counted: Counted {
+        guard let lift = ExerciseLibrary.find(exerciseId) else { return .reps }
+        if lift.cardio { return .minutes }
+        return lift.hold ? .seconds : .reps
+    }
+
+    var isHold: Bool { counted == .seconds }
+
+    /// How it reads beside a number: "8 reps", "30 sec", "20 min".
+    var unit: String {
+        switch counted {
+        case .reps: return "reps"
+        case .seconds: return "sec"
+        case .minutes: return "min"
+        }
+    }
+
+    /// What the stepper above it is called.
+    var countLabel: String {
+        switch counted {
+        case .reps: return "Reps"
+        case .seconds: return "Seconds"
+        case .minutes: return "Minutes"
+        }
+    }
+
+    /// Reps move one at a time, because six pull-ups is a number people have.
+    /// Seconds and minutes move in fives: nobody holds a plank for 31.
+    var countStep: Double { counted == .reps ? 1 : 5 }
+
+    /// The limits belong to the unit too. One rep is a set; one second is a
+    /// flinch, and a minus from 30 seconds has to land back on a number the
+    /// plus can reach, so the floor is a multiple of the step.
+    var countRange: ClosedRange<Double> {
+        switch counted {
+        case .reps: return 1...200
+        case .seconds: return 5...600      // ten minutes, enough for any hold
+        case .minutes: return 5...240
+        }
+    }
+
+    /// Spoken aloud, where "sec" and "x" do not read well.
+    var spokenUnit: String {
+        switch counted {
+        case .reps: return "reps"
+        case .seconds: return "seconds"
+        case .minutes: return "minutes"
+        }
+    }
+
+    func spoken(_ set: LoggedSet) -> String {
+        if usesWeight { return "\(set.weight.formatted()) pounds for \(set.reps) \(spokenUnit)" }
+        return "\(set.reps) \(spokenUnit)"
+    }
+
+    /// How the day reads on Today: "3 x 8" for reps, which needs no unit, and
+    /// "1 x 30 sec" for the ones that do. A number with no unit beside it is
+    /// how a plank came to be planned for twelve of nothing.
+    var planLine: String {
+        let count = sets.count
+        let first = sets.first?.reps ?? 0
+        return counted == .reps ? "\(count) × \(first)" : "\(count) × \(first) \(unit)"
+    }
 
     // one set, said the way the screens say it
     func describe(_ set: LoggedSet) -> String {
         if usesWeight { return "\(set.weight.formatted()) lb × \(set.reps)" }
-        return isHold ? "\(set.reps) sec" : "\(set.reps) reps"
+        return "\(set.reps) \(unit)"
     }
 }
 
