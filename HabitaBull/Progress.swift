@@ -15,14 +15,15 @@ extension Exercise {
     /// Only the parts the rules care about: how it loads and what kind of
     /// lift it is. The name, the muscle and the equipment stay here.
     var shape: LiftShape {
-        LiftShape(increment: increment, compound: compound, heavy: heavy, hold: hold, cardio: cardio)
+        LiftShape(increment: increment, compound: compound, heavy: heavy, hold: hold, cardio: cardio,
+                  floor: LiftShape.floor(for: equipment))
     }
 }
 
 /// A lift she typed in herself. Nothing is known about it, so it is treated
 /// as an ordinary accessory lift that loads in fives, which is the same guess
 /// the steppers already make.
-let liftOfHerOwn = LiftShape(increment: 5)
+let liftOfHerOwn = LiftShape(increment: 5, floor: 5)
 
 extension LoggedExercise {
     var asLoggedLift: HabitaBullKit.LoggedLift {
@@ -89,5 +90,5 @@ extension SessionStore {
     /// before you start, and what you get when you do. Two places reading one
     /// answer, because a preview that disagrees with the thing it previews is
     /// worse than no preview.
-    var plannedToday: [LoggedExercise] { starterExercises.map { planned($0.exerciseId) } }
+    var plannedToday: [LoggedExercise] { starterLifts.map(planned) }
 }

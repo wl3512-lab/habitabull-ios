@@ -147,4 +147,78 @@ final class ProgressionTests: XCTestCase {
         XCTAssertEqual(Progression.next(curl, history: one, level: .new, planned: 0).sets, 1)
         XCTAssertEqual(Progression.next(curl, history: one, level: .new, planned: -3).sets, 1)
     }
+
+    // MARK: - the back-off has a bottom
+    //
+    // The floorless cut is the older of the two defects in
+    // ux-tests/2026-09-26-habitabull-longitudinal-test.md: a compliant lifter
+    // walked from a 45 lb deadlift to 17.5 lb in six weeks, because 10% off
+    // 10% off 10% has no bottom and the old rounding stopped at one increment.
+    // These pin the bottom.
+
+    func testABarbellLiftIsNeverCutBelowTheEmptyBar() {
+        let bar = LiftShape(increment: 2.5, compound: true, floor: 45)
+        let hard = [did(3, 6, 47.5), did(3, 6, 47.5), did(3, 6, 47.5)]
+        XCTAssertEqual(Progression.next(bar, history: hard, level: .new).weight, 45)
+    }
+
+    func testAnEmptyBarCannotBeBackedOffAndTheAppSaysSo() {
+        let bar = LiftShape(increment: 2.5, compound: true, floor: 45)
+        let t = Progression.next(bar, history: [did(3, 6, 45), did(3, 6, 45), did(3, 6, 45)], level: .new)
+        XCTAssertEqual(t.weight, 45, "there is nothing under an empty bar")
+        XCTAssertFalse(t.note.lowercased().contains("backing off"),
+                       "the number did not move, so the app must not claim it cut")
+        XCTAssertTrue(t.note.lowercased().contains("as light as it loads"))
+    }
+
+    func testTheFloorNeverPutsWeightBackOn() {
+        // Typed in by hand under the bar, which the gym cannot do but the
+        // keypad can. The cut must not become a promotion.
+        let bar = LiftShape(increment: 2.5, compound: true, floor: 45)
+        let t = Progression.next(bar, history: [did(3, 6, 30), did(3, 6, 30), did(3, 6, 30)], level: .new)
+        XCTAssertEqual(t.weight, 30)
+    }
+
+    func testSixWeeksOfHardSessionsStopAtTheBarRatherThanWalkingPastIt() {
+        let bar = LiftShape(increment: 2.5, compound: true, floor: 45)
+        var weight = 200.0
+        for _ in 0..<20 {
+            let hard = Array(repeating: did(3, 6, weight), count: 3)
+            weight = Progression.next(bar, history: hard, level: .new).weight
+            XCTAssertGreaterThanOrEqual(weight, 45, "a squat you cannot load is not a squat")
+        }
+        XCTAssertEqual(weight, 45)
+    }
+
+    func testADumbbellStopsAtTheLightestPairNotAtTheIncrement() {
+        let db = LiftShape(increment: 2.5, floor: 5)
+        let t = Progression.next(db, history: [did(3, 10, 5), did(3, 10, 5), did(3, 10, 5)], level: .new)
+        XCTAssertEqual(t.weight, 5, "2.5 lb dumbbells are not a thing")
+    }
+
+    func testBodyweightIsUnaffectedByTheFloor() {
+        let t = Progression.next(pushUp, history: [did(3, 6, 0), did(3, 6, 0), did(3, 6, 0)], level: .new)
+        XCTAssertEqual(t.weight, 0)
+    }
+
+    func testABackOffAlwaysBacksOff() {
+        // 10% off 12.5 lb is 11.25, which is nearer 12.5 than 10, so rounding
+        // to the nearest loadable weight left her exactly where she was while
+        // the app announced a cut. Found by an independent review, 2026-11-10.
+        let db = LiftShape(increment: 2.5, floor: 5)
+        let stuck = [did(3, 10, 12.5), did(3, 10, 12.5), did(3, 10, 12.5)]
+        let t = Progression.next(db, history: stuck, level: .new)
+        XCTAssertEqual(t.weight, 10, "10, 7.5 and 5 are all on the rack")
+        XCTAssertTrue(t.note.lowercased().contains("backing off"))
+    }
+
+    func testEveryKindOfEquipmentKnowsHowLightItGoes() {
+        XCTAssertEqual(LiftShape.floor(for: "barbell"), 45)
+        XCTAssertEqual(LiftShape.floor(for: "Barbell"), 45, "the library's spelling should not decide")
+        XCTAssertEqual(LiftShape.floor(for: "dumbbell"), 5)
+        XCTAssertEqual(LiftShape.floor(for: "kettlebell"), 10)
+        XCTAssertEqual(LiftShape.floor(for: "machine"), 10)
+        XCTAssertEqual(LiftShape.floor(for: "bodyweight"), 0)
+        XCTAssertEqual(LiftShape.floor(for: "sandbag"), 0, "an unknown kit gets no floor, not a guess")
+    }
 }

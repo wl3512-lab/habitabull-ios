@@ -160,6 +160,22 @@ final class SessionStoreTests: XCTestCase {
                        "Backing off 10%. Three tough sessions is a signal, not a failure.")
     }
 
+    func testTheBackOffStopsAtTheEmptyBar() {
+        // the phone's end of the floor: three hard sessions at the bar used to
+        // open the next one at 40, then 36, then 32.5, which is a squat nobody
+        // can set up
+        givenPastWorkouts([
+            day("2026-10-26", "back-squat", weight: 45, reps: 5),
+            day("2026-10-29", "back-squat", weight: 45, reps: 5),
+            day("2026-11-01", "back-squat", weight: 45, reps: 5),
+        ])
+        store.startWorkout()
+
+        XCTAssertEqual(store.today!.exercises[indexOf("back-squat")].sets.first?.weight, 45)
+        XCTAssertEqual(store.reasonForNext(of: "back-squat"),
+                       "This is as light as it loads. Stay here until it moves.")
+    }
+
     func testALiftYouHaveNeverDoneStartsWhereTheLibrarySaysNotAtZero() {
         store.startWorkout()
         store.addLift("dumbbell-hammer-curl", sets: 3)
@@ -237,7 +253,7 @@ final class SessionStoreTests: XCTestCase {
 
         let squat = ExerciseLibrary.find("back-squat")!
         XCTAssertEqual(squat.shape, LiftShape(increment: 2.5, compound: true, heavy: false,
-                                              hold: false, cardio: false))
+                                              hold: false, cardio: false, floor: 45))
     }
 
     // MARK: - what the second number counts

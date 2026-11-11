@@ -26,8 +26,10 @@ final class WorkoutFlowTests: XCTestCase {
         // a clean slate every run: the starter workout, and no lift with any
         // history, which is what makes the first-time beat testable at all
         // an empty slate, and beats that wait to be read rather than expiring
-        // while the query that reads them is still resolving
-        app.launchArguments = ["-uitest-reset", "-uitest-hold-beats"]
+        // while the query that reads them is still resolving. onboarded,
+        // because these are about the workout loop and the three questions
+        // have their own test
+        app.launchArguments = ["-uitest-reset", "-uitest-onboarded", "-uitest-hold-beats"]
         app.launch()
     }
 

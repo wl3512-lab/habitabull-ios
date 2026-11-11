@@ -23,13 +23,23 @@ a full workout loop, saved on the phone with no account and no signal:
 
 the web app is v1 and this one is allowed to be better: set count controls only on rest, add a lift only in the menu, one End button instead of End plus Finish
 
+## the first run
+
+three screens, then you lift. a name, why you lift, and how long you rest, each one skippable
+
+- **why you lift** is kept in her words and shown back on the day, above the workout, before she starts. never after: it is there to get somebody to the gym, not to congratulate them. the five suggestions are all reasons that are their own payoff, which is the point of the question rather than a copywriting preference. no "lose 10 lb"
+- **how long you rest** is seconds, and the words describe the number. 1:30 means the timer counts 90, on every lift
+- **the week is not asked here.** her own lo-fi testing found goal-first tested badly: people want to log a workout before they commit to anything, and asking a beginner which days they will train before they have trained once asks for a promise they have no basis to make. the app picks three days, spread out, starting today, and offers the real week after the first finished workout
+- answering once is answering for good, and skipping every question is still an answer: a profile with nothing in it is what stops the app asking again tomorrow
+
 ## where a lift opens, and why
 
 the rules package is wired into the app (`HabitaBull/Progress.swift` is the only place that translates between the two). a lift no longer comes back as a copy of last time: it comes back as what the rules say to do next
 
 - cleared every rep of every set, and it opens one increment heavier: "Up 2.5 lb. You earned it."
 - missed some, and it holds: "Same weight. Own it this time."
-- three hard sessions in a row, and it backs off 10%, snapped to a weight you can load
+- three hard sessions in a row, and it backs off 10%, snapped to a weight you can load, and never below the lightest the equipment goes: an empty bar is 45 and there is nothing under it. without that floor, 10% off 10% off 10% walks a compliant lifter from a 45 lb deadlift to 17.5 lb in six weeks, which is the longitudinal test's own finding
+- at the floor it says so instead of pretending: "This is as light as it loads." the cut also rounds down rather than to the nearest plate, because 10% off 12.5 lb is 11.25, which is nearer 12.5, so the old version announced a cut and moved nothing
 - a lift with no weight asks for longer or for more reps instead
 - never done it, and it starts light from your level, not from zero
 

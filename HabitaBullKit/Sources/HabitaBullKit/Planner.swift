@@ -31,7 +31,8 @@ public struct Lift: Sendable, Equatable, Codable {
     }
 
     public var shape: LiftShape {
-        LiftShape(increment: increment, compound: compound, heavy: heavy, hold: hold, cardio: cardio)
+        LiftShape(increment: increment, compound: compound, heavy: heavy, hold: hold, cardio: cardio,
+                  floor: LiftShape.floor(for: equipment))
     }
 }
 

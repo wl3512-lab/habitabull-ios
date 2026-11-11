@@ -5,19 +5,35 @@ import SwiftUI
 
 struct TodayView: View {
     @Environment(SessionStore.self) private var store
+    @Environment(ProfileStore.self) private var profiles
     @State private var logging = false
 
     private var session: Session? { store.today }
     private var finished: Bool { session?.completedAt != nil }
+
+    /// One quiet line under the day's name, or none. The rule lives in
+    /// TodayAside so it can be tested without a screen around it.
+    private var aside: String? {
+        TodayAside.line(for: profiles.profile, hasHistory: !store.sessions.isEmpty,
+                        finished: finished)
+    }
 
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 20) {
                 SectionLabel(text: Date.now.formatted(.dateTime.weekday(.wide).month().day()))
 
-                Text(session?.label ?? "Leg day")
-                    .font(.figure)
-                    .foregroundStyle(.fg)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(session?.label ?? "Leg day")
+                        .font(.figure)
+                        .foregroundStyle(.fg)
+
+                    if let aside {
+                        Text(aside)
+                            .font(.emphasis)
+                            .foregroundStyle(.brandCyan)
+                    }
+                }
 
                 if let session, finished {
                     Card {
@@ -120,5 +136,7 @@ private func amount(_ count: Int, _ word: String) -> String {
 }
 
 #Preview {
-    TodayView().environment(SessionStore())
+    TodayView()
+        .environment(SessionStore())
+        .environment(ProfileStore(defaults: UserDefaults(suiteName: "preview")!))
 }

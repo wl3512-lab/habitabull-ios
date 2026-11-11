@@ -181,11 +181,11 @@ struct SessionBest: Equatable {
     var gain: Double { now - was }
 }
 
-// one fixed workout for now, so the loop can be tried before the planner exists
-let starterExercises = [
-    LoggedExercise(exerciseId: "back-squat", sets: Array(repeating: LoggedSet(weight: 95, reps: 8), count: 3)),
-    LoggedExercise(exerciseId: "leg-press", sets: Array(repeating: LoggedSet(weight: 90, reps: 10), count: 3)),
-]
+// one fixed workout for now, so the loop can be tried before the planner
+// exists. names only: the weight, the reps and the number of sets all come
+// from the rules, and a hand-written 95 lb squat sitting here was two answers
+// to one question with no way to tell which one you were reading
+let starterLifts = ["back-squat", "leg-press"]
 
 // "Cable Crossover" -> "custom-cable-crossover"
 func customLiftId(_ name: String) -> String {

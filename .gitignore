@@ -5,3 +5,6 @@ build/
 
 # Swift package build output
 .build/
+
+# independent review reports, kept locally rather than in the history
+.jez/

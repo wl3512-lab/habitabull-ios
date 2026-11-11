@@ -40,13 +40,39 @@ public struct LiftShape: Sendable, Equatable {
     public var hold: Bool
     /// Time rather than sets: one block, logged in minutes.
     public var cardio: Bool
+    /// The lightest this lift actually loads: an empty bar is 45, the lightest
+    /// dumbbell on the rack is 5. Only the back-off uses it, and only to stop
+    /// cutting. Without it a run of hard sessions takes 10% off the 10% off
+    /// the 10%, and a compliant lifter is squatting an unloadable 17.5 lb six
+    /// weeks later. Zero means no floor, which is what bodyweight wants.
+    public var floor: Double
 
-    public init(increment: Double, compound: Bool = false, heavy: Bool = false, hold: Bool = false, cardio: Bool = false) {
+    public init(increment: Double, compound: Bool = false, heavy: Bool = false, hold: Bool = false,
+                cardio: Bool = false, floor: Double = 0) {
         self.increment = increment
         self.compound = compound
         self.heavy = heavy
         self.hold = hold
         self.cardio = cardio
+        self.floor = floor
+    }
+}
+
+extension LiftShape {
+    /// The lightest the equipment actually goes, by what it is.
+    ///
+    /// One rule, so the planner and the app cannot disagree about where a
+    /// back-off stops. The numbers are a typical gym rather than a universal
+    /// truth, and being a little conservative is the right way to be wrong:
+    /// the cost of a floor set too high is one session that felt easy.
+    public static func floor(for equipment: String) -> Double {
+        switch equipment.lowercased() {
+        case "barbell": return 45       // the empty bar, and there is no below
+        case "dumbbell": return 5       // the lightest pair on the rack
+        case "kettlebell": return 10    // the lightest bell
+        case "machine": return 10       // one plate on the stack
+        default: return 0               // bodyweight, and anything unrecognised
+        }
     }
 }
 
@@ -120,6 +146,18 @@ public enum Progression {
     public static func round(_ weight: Double, to increment: Double) -> Double {
         guard increment > 0 else { return 0 }
         return Swift.max(increment, (weight / increment).rounded() * increment)
+    }
+
+    /// A weight you can load, and never heavier than what was asked for.
+    ///
+    /// Only the back-off uses this. Rounding to the nearest loadable weight
+    /// can land back where she started -- 10% off 12.5 lb is 11.25, which is
+    /// nearer 12.5 than 10 -- and a back-off that does not back off is worse
+    /// than none, because the app then says it cut while the number sits
+    /// still. Going down is always available and always honest.
+    static func roundDown(_ weight: Double, to increment: Double) -> Double {
+        guard increment > 0 else { return 0 }
+        return Swift.max(increment, (weight / increment).rounded(.down) * increment)
     }
 
     public static func startingWeight(_ lift: LiftShape, level: Level) -> Double {
@@ -200,8 +238,18 @@ public enum Progression {
         let recent = history.prefix(3)
         let missed = recent.filter { !($0.isEmpty == false && $0.allSatisfy { $0.reps >= targetReps }) }.count
         if missed >= 3 && history.count >= 3 {
-            let weight = lift.increment == 0 ? 0 : round(lastWeight * 0.9, to: lift.increment)
-            return Target(weight: weight, reps: targetReps, sets: setCount,
+            let cut = lift.increment == 0 ? 0 : max(roundDown(lastWeight * 0.9, to: lift.increment), lift.floor)
+            // A lift already at its lightest cannot be backed off. Printing
+            // "backing off 10%" over a number that did not move would be the
+            // app describing something it did not do, so it says the true
+            // thing instead: there is nowhere lighter to go. Reaching this is
+            // now the floor's doing and only the floor's, because the cut
+            // rounds down and so always has somewhere to go until it does not.
+            if lift.increment > 0 && cut >= lastWeight {
+                return Target(weight: lastWeight, reps: targetReps, sets: setCount,
+                              note: "This is as light as it loads. Stay here until it moves.")
+            }
+            return Target(weight: cut, reps: targetReps, sets: setCount,
                           note: "Backing off 10%. Three tough sessions is a signal, not a failure.")
         }
 

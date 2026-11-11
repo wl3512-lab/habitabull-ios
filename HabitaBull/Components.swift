@@ -19,7 +19,11 @@ struct SectionLabel: View {
 
 // the big full-width button. primary is the one orange action, ghost is the rest
 struct Pill: View {
-    enum Variant { case primary, ghost, onOrange }
+    /// onOrange and onCyan are the same dark pill on a drenched screen: the
+    /// only difference is that orange wants its own colour back in the label
+    /// and cyan wants plain text, because orange on cyan is a third colour
+    /// nobody asked for.
+    enum Variant { case primary, ghost, onOrange, onCyan }
 
     let title: String
     var variant = Variant.primary
@@ -43,14 +47,15 @@ struct Pill: View {
     private var isPrimary: Bool { variant == .primary && isEnabled }
     private var textColor: Color {
         if variant == .onOrange { return .action }
+        if variant == .onCyan { return .fg }
         return isPrimary ? .ground : isEnabled ? .brandCyan : .dim
     }
     private var fillColor: Color {
-        if variant == .onOrange { return .ground }
+        if variant == .onOrange || variant == .onCyan { return .ground }
         return isPrimary ? .action : .clear
     }
     private var edgeColor: Color {
-        if variant == .onOrange { return .ground }
+        if variant == .onOrange || variant == .onCyan { return .ground }
         return isPrimary ? .action : .lineStrong
     }
 }
