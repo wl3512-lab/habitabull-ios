@@ -5,6 +5,7 @@
 
 import Foundation
 import Observation
+import HabitaBullKit
 
 @Observable
 final class SessionStore {
@@ -20,6 +21,10 @@ final class SessionStore {
         // test runner passes this, and only to a simulator
         if ProcessInfo.processInfo.arguments.contains("-uitest-reset") {
             try? FileManager.default.removeItem(at: self.fileURL)
+            // -uitest-history is the opposite ask: a phone that has been used
+            // for a few weeks, which is the only way to see the record screen
+            // full rather than empty
+            if ProcessInfo.processInfo.arguments.contains("-uitest-history") { seedHistory() }
             return
         }
         load()
@@ -287,10 +292,71 @@ final class SessionStore {
     }
     #endif
 
+    /// Days written in the phone's own calendar, put back in the one the app
+    /// counts in.
+    ///
+    /// `dayString` used to ask `Calendar.current`, so a phone set to the
+    /// Buddhist calendar filed a workout under 2569-11-11, an Indian one
+    /// under 1948-08-20 and an Ethiopic one under 2019-03-02. Changing what
+    /// gets written is not enough on its own: a day the app can no longer
+    /// find is a workout she cannot resume, and a date years out of place
+    /// sorts wrongly against every new session, so the rules would plan today
+    /// off a workout that never happened when it says it did.
+    ///
+    /// The test is not what the year looks like, since 1948 and 2019 look
+    /// like perfectly good years. It is whether the day is anywhere near the
+    /// instant the workout started, which is a real moment and was never in
+    /// doubt. A different calendar is months or years out of place. Two days
+    /// out is the widest the world itself can be: Kiritimati to Pago Pago is
+    /// 25 hours, so the same instant can be the 11th in one and the 9th in
+    /// the other, and that date is right where it was written.
+    private func migrateDays() {
+        let cal = Attendance.calendar()
+        let fixed = sessions.map { session -> Session in
+            let real = dayString(session.startedAt)
+            guard session.date != real,
+                  let stored = Attendance.date(session.date, cal),
+                  let started = Attendance.date(real, cal),
+                  abs(stored.timeIntervalSince(started)) > 60 * 3600
+            else { return session }
+            var moved = session
+            moved.date = real
+            return moved
+        }
+        guard fixed != sessions else { return }
+        sessions = fixed
+        save()
+    }
+
+    /// Six finished leg days over the last three weeks, for screenshots and
+    /// for the tests about a record that has something in it. Simulator only:
+    /// nothing in the app calls this, only a launch argument does.
+    private func seedHistory() {
+        let cal = Calendar.current
+        let back = [2, 4, 7, 9, 11, 14]
+        sessions = back.reversed().map { days in
+            let when = cal.date(byAdding: .day, value: -days, to: .now) ?? .now
+            let weight = 95.0 + Double(14 - days) * 2.5
+            return Session(
+                id: UUID().uuidString,
+                date: dayString(when),
+                label: "Leg day",
+                exercises: starterLifts.map { id in
+                    LoggedExercise(exerciseId: id,
+                                   sets: (0..<3).map { _ in LoggedSet(weight: weight, reps: 8, done: true) })
+                },
+                startedAt: when,
+                completedAt: when
+            )
+        }
+        save()
+    }
+
     private func load() {
         guard let data = try? Data(contentsOf: fileURL) else { return }
         do {
             sessions = try Self.decoder.decode([Session].self, from: data)
+            migrateDays()
         } catch {
             // an unreadable file stays on disk and doesn't get saved over silently
             print("could not read sessions: \(error)")

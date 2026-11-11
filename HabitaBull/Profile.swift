@@ -25,7 +25,35 @@ struct Profile: Codable, Equatable {
     /// have no basis to make. The real week is offered after the first
     /// finished workout, and this is what it opens showing.
     var trainingDays: [Int] = []
+    /// True once she has actually agreed to a week, rather than been given
+    /// one. Onboarding fills `trainingDays` so the app always has an answer,
+    /// but until this is true the home screen offers to build the week rather
+    /// than pretending there is a plan she chose.
+    var weekChosen = false
     var createdAt = Date.now
+
+    /// Written by hand because the synthesised one throws on a key that is
+    /// not there, even when the property has a default. A profile saved
+    /// before a field existed must still load: `load()` reads a throw as "no
+    /// profile", which would put onboarding in front of somebody who has
+    /// already done it and lose the reason she typed.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        motivation = try c.decodeIfPresent(String.self, forKey: .motivation) ?? ""
+        trainingDays = try c.decodeIfPresent([Int].self, forKey: .trainingDays) ?? []
+        weekChosen = try c.decodeIfPresent(Bool.self, forKey: .weekChosen) ?? false
+        createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? .now
+    }
+
+    init(name: String = "", motivation: String = "", trainingDays: [Int] = [],
+         weekChosen: Bool = false, createdAt: Date = .now) {
+        self.name = name
+        self.motivation = motivation
+        self.trainingDays = trainingDays
+        self.weekChosen = weekChosen
+        self.createdAt = createdAt
+    }
 
     /// The reason, or nothing. Empty string and "not said" are the same thing
     /// everywhere else in the app, so they are the same thing here.
@@ -37,27 +65,23 @@ struct Profile: Codable, Equatable {
 
 /// The one quiet line under the day's name on Today, or nothing.
 ///
-/// Its own type because the rule has three inputs and two of them are easy to
-/// get wrong, which is exactly what happened: tying the greeting to "no
-/// workouts yet" meant somebody who signed up on Sunday and first lifted on
-/// Wednesday was greeted all week and never shown the reason she typed, on
-/// precisely the days it was written for.
+/// Only the greeting lives here now. Her reason moved to a card of its own
+/// further down the screen, where it is a sentence in her own words with the
+/// bull above it rather than a dim line nobody reads.
+///
+/// Its own type because the rule is easy to get wrong, which is exactly what
+/// happened: tying the greeting to "no workouts yet" meant somebody who
+/// signed up on Sunday and first lifted on Wednesday was greeted all week.
 enum TodayAside {
-    static func line(for profile: Profile?, hasHistory: Bool, finished: Bool,
+    static func line(for profile: Profile?, hasHistory: Bool,
                      now: Date = .now, calendar: Calendar = .current) -> String? {
-        guard let profile else { return nil }
+        guard let profile, !hasHistory else { return nil }
 
         // the greeting belongs to the day she signed up and to no other day
-        let signedUpToday = calendar.isDate(profile.createdAt, inSameDayAs: now)
-        let name = profile.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !hasHistory, signedUpToday, !name.isEmpty {
-            return "Good to see you, \(name)."
-        }
+        guard calendar.isDate(profile.createdAt, inSameDayAs: now) else { return nil }
 
-        // her reason, before the workout rather than after it. it is there to
-        // get somebody to the gym, not to congratulate them
-        guard !finished, let why = profile.why else { return nil }
-        return "\u{201C}\(why)\u{201D}"
+        let name = profile.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? nil : "Good to see you, \(name)."
     }
 }
 
@@ -82,7 +106,12 @@ final class ProfileStore {
         if launched.contains("-uitest-reset") {
             defaults.removeObject(forKey: key)
             if launched.contains("-uitest-onboarded") {
-                save(Profile(name: "Lucy", motivation: "", trainingDays: Schedule.placeDays(3),
+                // -uitest-noweek is the phone that has answered the three
+                // questions but never agreed to a week, which is the state
+                // the home screen's first-run offer is written for
+                save(Profile(name: "Lucy", motivation: "It clears my head.",
+                             trainingDays: Schedule.placeDays(3),
+                             weekChosen: !launched.contains("-uitest-noweek"),
                              createdAt: .now))
             }
             return

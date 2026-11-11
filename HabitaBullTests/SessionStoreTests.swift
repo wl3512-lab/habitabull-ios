@@ -400,12 +400,17 @@ final class SessionStoreTests: XCTestCase {
     }
 
     /// One finished day: every set logged, at the weight and count given.
+    ///
+    /// It started on the day it says it did. The app only ever writes a date
+    /// that agrees with `startedAt`, and a load now repairs one that is years
+    /// out of place, so a fixture that disagrees is a fixture about nothing.
     private func day(_ date: String, _ id: String, weight: Double, reps: Int, sets: Int = 3) -> Session {
-        Session(id: UUID().uuidString, date: date, label: "Leg day",
-                exercises: [LoggedExercise(exerciseId: id,
-                                           sets: Array(repeating: LoggedSet(weight: weight, reps: reps, done: true),
-                                                       count: sets))],
-                startedAt: .now, completedAt: .now)
+        let when = Attendance.date(date, Attendance.calendar()) ?? .now
+        return Session(id: UUID().uuidString, date: date, label: "Leg day",
+                       exercises: [LoggedExercise(exerciseId: id,
+                                                  sets: Array(repeating: LoggedSet(weight: weight, reps: reps, done: true),
+                                                              count: sets))],
+                       startedAt: when, completedAt: when)
     }
 
     private func indexOf(_ id: String) -> Int {

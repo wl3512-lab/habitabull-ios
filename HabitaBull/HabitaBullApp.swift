@@ -14,7 +14,7 @@ struct HabitaBullApp: App {
                 if profiles.needsOnboarding {
                     OnboardingView()
                 } else {
-                    TodayView()
+                    Shell()
                 }
             }
             .environment(store)

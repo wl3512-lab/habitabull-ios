@@ -155,15 +155,12 @@ private struct WhyStep: View {
         OnboardingPage(
             label: "One question",
             title: "Why do you lift?",
-            blurb: "Your answer, in your words. We show it back to you on the days you don't feel like it, and we never rewrite it.",
+            blurb: "We show it back on the days you don't feel like it.",
             onSkip: onSkip,
-            footnote: "One quick thing, then you lift.",
+            footnote: nil,
             action: "Continue",
             onAction: onContinue
         ) {
-            SectionLabel(text: "I work out because…")
-                .padding(.top, 26)
-
             // the editor carries the card rather than sitting on one, so the
             // caret and the text land where the placeholder was
             ZStack(alignment: .topLeading) {
@@ -185,9 +182,9 @@ private struct WhyStep: View {
             }
             .padding(13)
             .background(.card, in: .rect(cornerRadius: 16))
-            .padding(.top, 8)
+            .padding(.top, 26)
 
-            Text("Or start from one of these:")
+            Text("Or tap one:")
                 .font(.bodyText)
                 .foregroundStyle(.dim)
                 .padding(.top, 16)
@@ -233,7 +230,7 @@ private struct RestStep: View {
             blurb: "Between sets. Change it any time.",
             onSkip: onSkip,
             footnote: nil,
-            action: "Start my first workout",
+            action: "Let's go",
             onAction: onDone
         ) {
             VStack(spacing: 10) {

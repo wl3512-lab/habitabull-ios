@@ -68,38 +68,31 @@ final class ProfileStoreTests: XCTestCase {
                 createdAt: Calendar.current.date(byAdding: .day, value: -daysAgo, to: .now)!)
     }
 
-    func testTheDayYouSignUpYouAreGreetedRatherThanQuoted() {
-        XCTAssertEqual(TodayAside.line(for: signedUp(0), hasHistory: false, finished: false),
+    func testTheDayYouSignUpYouAreGreetedByName() {
+        XCTAssertEqual(TodayAside.line(for: signedUp(0), hasHistory: false),
                        "Good to see you, Lucy.")
     }
 
-    func testTheDayAfterYouSignUpYouGetYourOwnWordsBack() {
+    func testTheDayAfterYouSignUpTheGreetingIsOver() {
         // the bug an independent review found: tying the greeting to "no
-        // workouts yet" greeted her every day until she first lifted, which
-        // are exactly the days the reason was written for
-        XCTAssertEqual(TodayAside.line(for: signedUp(1), hasHistory: false, finished: false),
-                       "\u{201C}It clears my head.\u{201D}")
+        // workouts yet" greeted her every day until she first lifted. it
+        // belongs to the day she signed up and to no other day. her reason is
+        // not in this line any more, it has a card of its own.
+        XCTAssertNil(TodayAside.line(for: signedUp(1), hasHistory: false))
     }
 
     func testOnceYouHaveTrainedTheGreetingIsOver() {
-        XCTAssertEqual(TodayAside.line(for: signedUp(0), hasHistory: true, finished: false),
-                       "\u{201C}It clears my head.\u{201D}")
-    }
-
-    func testAFinishedDayIsNotTheMomentForAPepTalk() {
-        XCTAssertNil(TodayAside.line(for: signedUp(3), hasHistory: true, finished: true))
+        XCTAssertNil(TodayAside.line(for: signedUp(0), hasHistory: true))
     }
 
     func testSayingNothingAtAllShowsNothingAtAll() {
-        XCTAssertNil(TodayAside.line(for: Profile(), hasHistory: false, finished: false),
-                     "no name and no reason is a blank line, not an empty quote")
-        XCTAssertNil(TodayAside.line(for: nil, hasHistory: false, finished: false))
+        XCTAssertNil(TodayAside.line(for: Profile(), hasHistory: false),
+                     "no name is a blank line, not a greeting with a hole in it")
+        XCTAssertNil(TodayAside.line(for: nil, hasHistory: false))
     }
 
-    func testNoNameStillGetsTheReasonOnTheFirstDay() {
-        let shy = signedUp(0, name: "  ")
-        XCTAssertEqual(TodayAside.line(for: shy, hasHistory: false, finished: false),
-                       "\u{201C}It clears my head.\u{201D}")
+    func testANameOfSpacesIsNoName() {
+        XCTAssertNil(TodayAside.line(for: signedUp(0, name: "  "), hasHistory: false))
     }
 
     func testTheWeekSheIsOfferedLaterStartsToday() {

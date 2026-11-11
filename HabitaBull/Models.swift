@@ -193,8 +193,16 @@ func customLiftId(_ name: String) -> String {
     return "custom-" + words.joined(separator: "-")
 }
 
-// the local calendar day. never UTC: an 11pm workout belongs to today
+// the local calendar day. never UTC: an 11pm workout belongs to today.
+//
+// Gregorian on purpose, in the local time zone, which is what the rules
+// package counts attendance in. `Calendar.current` is the phone's calendar,
+// and on a phone set to the Buddhist calendar it writes 2569-11-11 for a
+// workout the week strip then looks for under 2026-11-11: every day she
+// trained would read as a day she missed.
 func dayString(_ date: Date = .now) -> String {
-    let parts = Calendar.current.dateComponents([.year, .month, .day], from: date)
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = .current
+    let parts = cal.dateComponents([.year, .month, .day], from: date)
     return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
 }

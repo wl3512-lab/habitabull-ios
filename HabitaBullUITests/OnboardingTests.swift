@@ -22,7 +22,7 @@ final class OnboardingTests: XCTestCase {
     func testTheAppOpensOnTheWelcomeScreenAndNotOnAWorkout() {
         XCTAssertTrue(app.staticTexts["HabitaBull"].waitForExistence(timeout: 10),
                       "the first run did not open on Welcome")
-        XCTAssertFalse(app.buttons["Start workout"].exists,
+        XCTAssertFalse(app.buttons["Start a quick workout"].exists,
                        "Today is behind onboarding, not beside it")
     }
 
@@ -67,11 +67,13 @@ final class OnboardingTests: XCTestCase {
         wait(for: [expectation(for: NSPredicate(format: "isSelected == true"),
                                evaluatedWith: pace)], timeout: 3)
         still("03-how-long-you-rest")
-        app.buttons["Start my first workout"].tap()
+        app.buttons["Let's go"].tap()
 
-        XCTAssertTrue(app.buttons["Start workout"].waitForExistence(timeout: 10),
+        XCTAssertTrue(app.buttons["Start a quick workout"].waitForExistence(timeout: 10),
                       "finishing the questions did not reach Today")
         still("04-today-first-run")
+        XCTAssertTrue(app.staticTexts["Your first workout"].exists,
+                      "the first run should ask for a session, not show a plan")
         XCTAssertTrue(app.staticTexts["Good to see you, Lucy."].exists,
                       "her name was asked for and never used")
     }
@@ -80,7 +82,7 @@ final class OnboardingTests: XCTestCase {
         app.buttons["Continue"].tap()           // past the name, typing nothing
         app.buttons["Skip"].tap()               // and past the reason
 
-        XCTAssertTrue(app.buttons["Start workout"].waitForExistence(timeout: 10),
+        XCTAssertTrue(app.buttons["Start a quick workout"].waitForExistence(timeout: 10),
                       "skipping a question should cost nothing")
         XCTAssertFalse(app.staticTexts["Good to see you, ."].exists,
                        "nobody is greeted by an empty name")
@@ -89,7 +91,7 @@ final class OnboardingTests: XCTestCase {
     func testTheAppNeverAsksTwice() {
         app.buttons["Continue"].tap()
         app.buttons["Skip"].tap()
-        XCTAssertTrue(app.buttons["Start workout"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Start a quick workout"].waitForExistence(timeout: 10))
 
         // the same phone, opened again. no reset this time, so whatever was
         // saved on the first run is what the second one reads
@@ -97,7 +99,7 @@ final class OnboardingTests: XCTestCase {
         app.launchArguments = ["-uitest-hold-beats"]
         app.launch()
 
-        XCTAssertTrue(app.buttons["Start workout"].waitForExistence(timeout: 10),
+        XCTAssertTrue(app.buttons["Start a quick workout"].waitForExistence(timeout: 10),
                       "it asked the three questions a second time")
         XCTAssertFalse(app.staticTexts["Welcome to"].exists)
     }

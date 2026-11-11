@@ -32,6 +32,32 @@ three screens, then you lift. a name, why you lift, and how long you rest, each 
 - **the week is not asked here.** her own lo-fi testing found goal-first tested badly: people want to log a workout before they commit to anything, and asking a beginner which days they will train before they have trained once asks for a promise they have no basis to make. the app picks three days, spread out, starting today, and offers the real week after the first finished workout
 - answering once is answering for good, and skipping every question is still an answer: a profile with nothing in it is what stops the app asking again tomorrow
 
+## the home screen
+
+it has two faces, and which one you get is the one decision `Home.shape` makes
+
+- **before you have agreed to a week** the headline is "Your first workout" and the one action is a quick workout, with the words `No plan needed. Pick a lift, log it, pick the next one.` under it. this is the 2023 interview finding, confirmed in the 2026 walkthroughs: people log a workout before they will set anything up. the week is one tap away on the empty lifts card and nowhere else
+- **after** it is the day's plan and a Start workout button, and the quick workout drops to a ghost
+- **once today is logged** there is no orange action at all. inventing "log another set" for somebody who has already finished argues against the app's own point, which is that turning up was the job
+- **this week** is seven circles under the action: filled for a day you showed up, ringed for today, outlined for a planned day still to come, quiet for a planned day already gone. absence, not failure. a workout you walked out of after two sets still counts, one opened and left empty does not
+- **today's lifts** sits directly under the day's name, because what you are about to lift belongs under the headline that names it. on the first run that card is the offer to build a week instead, and it stays at the bottom there: with no plan yet, the reason comes first and the plan is the thing at the end
+- **you work out because** is a card with her sentence in it and the bull above, raised above the action on the first run and sitting under it afterwards. the bull is on the home screen every day, not only the first. Change edits it in place. the dim line under the headline is now only the greeting on the day she signed up
+
+## three places, and the bar at the bottom
+
+ported from the web app, reasoning included. Progress sits in the middle, raised out of the bar, because the record is the reward: the place that proves you showed up is the one big target, and a flat tab either side is the only thing that makes the raised circle read as balanced
+
+the bar is attached to each place's own scroll view, never to the navigation stack around it. that is what makes a workout a mode rather than a place: push the log screen and the bar is simply not there, because somebody between sets has one thing to do and three ways to leave is how a logging screen becomes a browsing screen
+
+the web has two more tabs. the month lives inside Progress here rather than on a calendar tab, since on a phone "have i been going" and "which days did i go" are one question, and there is no crew on the phone yet. a tab that opens nothing is worse than a tab that is not there
+
+- **progress** is weeks in a row as the headline (counted in weeks so a rest day is never a miss), days this month and days in all, the month as a grid, and the heaviest set of every lift she has done. nothing on it asks for anything and there is no orange on it
+- **profile** is the three things the app knows: her name, her reason and her week, each changeable. no invented settings
+
+## the week, agreed rather than assigned
+
+seven days to tap, opening on the three onboarding placed for her, so the quickest honest answer is one tap on Save. `Schedule.hasBackToBack` names the tradeoff out loud rather than refusing the choice. offered from the empty lifts card on the first run, and from the profile forever after, because people's weeks change
+
 ## where a lift opens, and why
 
 the rules package is wired into the app (`HabitaBull/Progress.swift` is the only place that translates between the two). a lift no longer comes back as a copy of last time: it comes back as what the rules say to do next
