@@ -13,7 +13,7 @@ final class PlacesTests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["-uitest-reset", "-uitest-onboarded", "-uitest-hold-beats"]
+        app.launchArguments = ["-uitest-skip-opening", "-uitest-reset", "-uitest-onboarded", "-uitest-hold-beats"]
         app.launch()
     }
 
@@ -64,7 +64,7 @@ final class PlacesTests: XCTestCase {
     /// The record with something in it, which is the state it exists for.
     func testARecordWithWeeksInItCountsThemBack() {
         app.terminate()
-        app.launchArguments = ["-uitest-reset", "-uitest-onboarded", "-uitest-history",
+        app.launchArguments = ["-uitest-skip-opening", "-uitest-reset", "-uitest-onboarded", "-uitest-history",
                                "-uitest-hold-beats"]
         app.launch()
 

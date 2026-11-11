@@ -4,7 +4,8 @@
 // It has two faces and they ask for different things: before she has agreed
 // to a week it asks for one session, and after it shows the plan. The path
 // between them is one tap on the empty lifts card, which is the whole point
-// of putting the offer there rather than in onboarding.
+// of putting the offer there rather than in onboarding. Her reason is not on
+// this screen at all any more: it is on the launch screen.
 
 import XCTest
 
@@ -15,7 +16,7 @@ final class HomeTests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         // the three questions answered, no week agreed to, nothing logged
-        app.launchArguments = ["-uitest-reset", "-uitest-onboarded", "-uitest-noweek",
+        app.launchArguments = ["-uitest-skip-opening", "-uitest-reset", "-uitest-onboarded", "-uitest-noweek",
                                "-uitest-hold-beats"]
         app.launch()
     }
@@ -38,10 +39,14 @@ final class HomeTests: XCTestCase {
                        "there is no plan yet, so nothing should offer to start one")
     }
 
-    func testHerReasonIsOnTheScreenSheOpensEveryDay() {
-        XCTAssertTrue(app.staticTexts["YOU WORK OUT BECAUSE"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["\u{201C}It clears my head.\u{201D}"].exists,
-                      "her own words, not a rewrite of them")
+    func testHerReasonIsNotOnTheHomeScreenAnyMore() {
+        // it moved to the launch screen, under whether today is a workout day
+        // or a rest day, and it is changed from her profile. two copies of it
+        // on the screen she opens every day was one too many.
+        XCTAssertTrue(app.staticTexts["Your first workout"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["YOU WORK OUT BECAUSE"].exists)
+        XCTAssertFalse(app.buttons["change-reason"].exists)
+        XCTAssertFalse(app.buttons["add-reason"].exists)
     }
 
     func testBuildingAWeekTurnsTheOfferIntoAPlan() {
@@ -52,8 +57,17 @@ final class HomeTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Which days can you keep?"].waitForExistence(timeout: 5))
         still("11-your-week")
 
-        // Monday on top of whatever onboarding placed
-        app.buttons["Monday"].tap()
+        // the plan this is about is *today's* plan, so the week she saves has
+        // to include today. tapping a fixed day name would switch today off
+        // on one weekday in seven, and the screen would correctly show a rest
+        // day while the test sat waiting for Start workout.
+        let names = ["Sunday", "Monday", "Tuesday", "Wednesday",
+                     "Thursday", "Friday", "Saturday"]
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.timeZone = .current
+        let today = app.buttons[names[gregorian.component(.weekday, from: .now) - 1]]
+        XCTAssertTrue(today.exists)
+        if !today.isSelected { today.tap() }
         app.buttons["Save my week"].tap()
 
         XCTAssertTrue(app.buttons["Start workout"].waitForExistence(timeout: 10),
@@ -70,7 +84,7 @@ final class HomeTests: XCTestCase {
         XCTAssertTrue(app.buttons["Start workout"].waitForExistence(timeout: 10))
 
         app.terminate()
-        app.launchArguments = ["-uitest-hold-beats"]
+        app.launchArguments = ["-uitest-skip-opening", "-uitest-hold-beats"]
         app.launch()
 
         XCTAssertTrue(app.buttons["Start workout"].waitForExistence(timeout: 10),

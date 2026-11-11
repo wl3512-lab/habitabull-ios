@@ -1,16 +1,15 @@
 //
 // her reason, in her own words, where she can see it and change it.
 //
-// Lives on its own because two screens show it: the home screen, where it is
-// there for the days she does not feel like it, and her profile, where it is
-// there to be changed. `raised` is the home screen's first run, where the
-// reason is the first thing under the headline and the bull is bigger.
+// The launch screen shows it, under whether today is a workout day or a rest
+// day, but shows it read-only: a splash is no place for a text field. This is
+// where she changes it, from her profile, which is the only screen it is on
+// now and the reason it kept its own file.
 
 import SwiftUI
 
 struct ReasonCard: View {
     let profile: Profile?
-    let raised: Bool
     let onSave: (String) -> Void
 
     @State private var editing = false
@@ -19,7 +18,7 @@ struct ReasonCard: View {
     var body: some View {
         Card {
             VStack(alignment: .leading, spacing: 0) {
-                Bull(size: raised ? 92 : 76)
+                Bull(size: 76)
                     .frame(maxWidth: .infinity)
                     .padding(.bottom, 14)
 

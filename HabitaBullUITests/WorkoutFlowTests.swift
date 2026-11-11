@@ -29,7 +29,7 @@ final class WorkoutFlowTests: XCTestCase {
         // while the query that reads them is still resolving. onboarded,
         // because these are about the workout loop and the three questions
         // have their own test
-        app.launchArguments = ["-uitest-reset", "-uitest-onboarded", "-uitest-hold-beats"]
+        app.launchArguments = ["-uitest-skip-opening", "-uitest-reset", "-uitest-onboarded", "-uitest-hold-beats"]
         app.launch()
     }
 

@@ -110,13 +110,29 @@ final class ProfileStore {
                 // questions but never agreed to a week, which is the state
                 // the home screen's first-run offer is written for
                 save(Profile(name: "Lucy", motivation: "It clears my head.",
-                             trainingDays: Schedule.placeDays(3),
+                             trainingDays: Self.testDays(launched),
                              weekChosen: !launched.contains("-uitest-noweek"),
                              createdAt: .now))
             }
             return
         }
         load()
+    }
+
+    /// The week a test phone opens with.
+    ///
+    /// Shifted onto today, the way onboarding does it, so the usual test
+    /// phone is always on a day it trains: without the shift `placeDays`
+    /// hands back Monday, Wednesday and Friday, and every test that waits for
+    /// Start workout would fail on four days out of seven. -uitest-restday is
+    /// the opposite ask, a week with today deliberately left out of it, which
+    /// is the only way to see a rest day without waiting for one.
+    private static func testDays(_ launched: [String]) -> [Int] {
+        let today = Attendance.calendar().component(.weekday, from: .now) - 1
+        guard launched.contains("-uitest-restday") else {
+            return Schedule.placeDays(3, today: today)
+        }
+        return [(today + 2) % 7, (today + 4) % 7]
     }
 
     func save(_ profile: Profile) {

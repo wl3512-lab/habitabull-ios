@@ -15,7 +15,7 @@ final class OnboardingTests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         // no profile and no history: a phone that has never run the app
-        app.launchArguments = ["-uitest-reset", "-uitest-hold-beats"]
+        app.launchArguments = ["-uitest-skip-opening", "-uitest-reset", "-uitest-hold-beats"]
         app.launch()
     }
 
@@ -96,7 +96,7 @@ final class OnboardingTests: XCTestCase {
         // the same phone, opened again. no reset this time, so whatever was
         // saved on the first run is what the second one reads
         app.terminate()
-        app.launchArguments = ["-uitest-hold-beats"]
+        app.launchArguments = ["-uitest-skip-opening", "-uitest-hold-beats"]
         app.launch()
 
         XCTAssertTrue(app.buttons["Start a quick workout"].waitForExistence(timeout: 10),

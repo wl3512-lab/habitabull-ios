@@ -16,6 +16,9 @@ enum HomeShape: Equatable {
     case firstWorkout
     /// A day with a workout on it, whether or not it has been started.
     case plan(String)
+    /// A day she did not pick, with nothing open on it. The app has no
+    /// business naming a workout today, and no business stopping her either.
+    case rest
     /// Today is logged. Deliberately no orange action: turning up was the
     /// job, and inventing one more would argue against the app's own point.
     case done(lifts: Int)
@@ -23,13 +26,21 @@ enum HomeShape: Equatable {
 
 enum Home {
     /// `fallback` is the day's name when there is no session yet to name it.
-    static func shape(profile: Profile?, today: Session?, fallback: String = "Leg day") -> HomeShape {
+    ///
+    /// The launch screen reads this same answer, so the two cannot disagree:
+    /// a splash that says rest day in front of a home screen that says Leg
+    /// day is the app arguing with itself one tap apart.
+    static func shape(profile: Profile?, today: Session?, fallback: String = "Leg day",
+                      now: Date = .now, calendar: Calendar = Attendance.calendar()) -> HomeShape {
         if let today, today.completedAt != nil { return .done(lifts: today.liftsDone) }
         // something is open today: the screen is about finishing it, even if
-        // she never agreed to a week
+        // she never agreed to a week, and even on a day off
         if let today { return .plan(today.label) }
-        if profile?.weekChosen != true { return .firstWorkout }
-        return .plan(fallback)
+        // placed days are not agreed days. until she has chosen a week there
+        // is nothing to call a rest day.
+        guard let profile, profile.weekChosen else { return .firstWorkout }
+        let weekday = calendar.component(.weekday, from: now) - 1   // 0 = Sunday
+        return profile.trainingDays.contains(weekday) ? .plan(fallback) : .rest
     }
 
     /// The headline, which is the one big thing on the screen.
@@ -37,6 +48,7 @@ enum Home {
         switch shape {
         case .firstWorkout: "Your first workout"
         case .plan(let label): label
+        case .rest: "Rest day"
         case .done: "Logged"
         }
     }

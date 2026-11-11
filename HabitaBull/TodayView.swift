@@ -6,6 +6,9 @@
 // before they will set anything up. After that the answer is the day's plan.
 // Either way the week she has actually kept sits under it, because turning
 // up is the thing the app is about and it used to be invisible here.
+//
+// Her reason is not here: it is on the launch screen, under whether today is
+// a workout day or a rest day. The bull stayed, on his own.
 
 import SwiftUI
 import HabitaBullKit
@@ -19,19 +22,26 @@ struct TodayView: View {
     @Binding var place: Place
     @State private var logging = false
     @State private var buildingWeek = false
+    /// Today, as a value the screen can be told to re-read.
+    ///
+    /// `Date.now` is not observable, so a phone left on the counter overnight
+    /// would still be offering yesterday's workout in the morning, or telling
+    /// somebody to rest on a day she had planned to train.
+    @State private var day = Date.now
+    @Environment(\.scenePhase) private var phase
 
     init(place: Binding<Place> = .constant(.today)) { _place = place }
 
     private var session: Session? { store.today }
     private var finished: Bool { session?.completedAt != nil }
-    private var shape: HomeShape { Home.shape(profile: profiles.profile, today: session) }
+    private var shape: HomeShape {
+        Home.shape(profile: profiles.profile, today: session, now: day)
+    }
 
-    /// Her reason rises above the action on the day it is written for, and
-    /// sits below it on every other day.
-    private var raised: Bool { shape == .firstWorkout }
+    private var firstRun: Bool { shape == .firstWorkout }
 
     /// The greeting on the day she signed up, or nothing. Her reason is not
-    /// here any more: it has a card of its own further down the screen.
+    /// here any more: it is on the launch screen.
     private var aside: String? {
         TodayAside.line(for: profiles.profile, hasHistory: !store.sessions.isEmpty)
     }
@@ -40,12 +50,21 @@ struct TodayView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    SectionLabel(text: Date.now.formatted(.dateTime.weekday(.wide).month().day()))
+                    SectionLabel(text: day.formatted(.dateTime.weekday(.wide).month().day()))
 
                     Text(Home.headline(shape))
                         .font(.figure)
                         .foregroundStyle(.fg)
                         .padding(.top, 14)
+
+                    // the same line the launch screen gives a rest day, for
+                    // the same reason: "Rest day" alone reads as a scolding
+                    if shape == .rest, let note = Launch.note(.rest) {
+                        Text(note)
+                            .font(.emphasis)
+                            .foregroundStyle(.dim)
+                            .padding(.top, 4)
+                    }
 
                     if let aside {
                         Text(aside)
@@ -57,21 +76,26 @@ struct TodayView: View {
                     unfinishedCard
 
                     // Two orders, because the two screens are answering
-                    // different questions. With no week yet the reason comes
-                    // first and the plan is an offer at the bottom. With a
+                    // different questions. With no week yet the bull is a
+                    // welcome and the plan is an offer at the bottom. With a
                     // plan, what you are about to lift sits under its own
-                    // name, where you look for it, and the reason waits
-                    // below the action it is there to get you through.
-                    if raised {
-                        reasonCard.padding(.top, 26)
-                        action.padding(.top, 26)
+                    // name, where you look for it, and he waits at the end.
+                    if shape == .rest {
+                        // nothing is on today, so there is nothing to list
+                        mascot.padding(.top, 20)
+                        action.padding(.top, 20)
+                        weekStrip.padding(.top, 34)
+                    } else if firstRun {
+                        mascot.padding(.top, 24)
+                        action.padding(.top, 24)
                         weekStrip.padding(.top, 34)
                         todaysLifts.padding(.top, 34)
                     } else {
                         todaysLifts.padding(.top, 22)
                         action.padding(.top, 26)
                         weekStrip.padding(.top, 34)
-                        reasonCard.padding(.top, 34)
+                        // clear of the raised circle in the bar below him
+                        mascot.padding(.top, 30).padding(.bottom, 26)
                     }
 
                     if store.saveFailed {
@@ -93,15 +117,25 @@ struct TodayView: View {
             }
             .background(.ground)
             .standingOn(.today) { place = $0 }
+            // midnight while the app is open, and every return to it
+            .onReceive(NotificationCenter.default
+                .publisher(for: .NSCalendarDayChanged)
+                .receive(on: RunLoop.main)) { _ in day = .now }
+            .onChange(of: phase) { _, now in if now == .active { day = .now } }
             .navigationDestination(isPresented: $logging) { LogView() }
             .navigationDestination(isPresented: $buildingWeek) { WeekView() }
         }
         .tint(.brandCyan)
     }
 
-    private var reasonCard: some View {
-        ReasonCard(profile: profiles.profile, raised: raised) { said in
-            profiles.update { $0.motivation = said }
+    /// On his own, with nothing to say. He is on the launch screen and in the
+    /// finished card too, so he only appears here when neither of those is
+    /// the screen in front of her.
+    @ViewBuilder private var mascot: some View {
+        if !finished {
+            Bull(pose: shape == .rest ? .rest : .stand, size: firstRun || shape == .rest ? 132 : 104)
+                .frame(maxWidth: .infinity)
+                .accessibilityHidden(true)
         }
     }
 
@@ -132,6 +166,19 @@ struct TodayView: View {
                 // explained only here, on the one screen where these words
                 // have nothing around them to make sense of
                 Text("No plan needed. Pick a lift, log it, pick the next one.")
+                    .font(.bodyText)
+                    .foregroundStyle(.dim)
+            }
+
+        case .rest:
+            // not a locked door: a day she did not pick is still a day she
+            // can lift on, it just does not get an orange button
+            VStack(alignment: .leading, spacing: 12) {
+                Pill(title: "Train anyway", variant: .ghost) {
+                    store.startQuickWorkout()
+                    logging = true
+                }
+                Text("Nothing is planned for today.")
                     .font(.bodyText)
                     .foregroundStyle(.dim)
             }

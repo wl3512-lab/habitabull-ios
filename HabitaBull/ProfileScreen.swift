@@ -29,7 +29,7 @@ struct ProfileScreen: View {
                         .foregroundStyle(.fg)
                         .padding(.top, 14)
 
-                    ReasonCard(profile: profiles.profile, raised: false) { said in
+                    ReasonCard(profile: profiles.profile) { said in
                         profiles.update { $0.motivation = said }
                     }
                     .padding(.top, 26)

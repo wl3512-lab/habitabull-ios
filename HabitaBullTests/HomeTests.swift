@@ -28,6 +28,12 @@ final class HomeTests: XCTestCase {
         Profile(name: "Lucy", trainingDays: [1, 3, 5], weekChosen: true)
     }
 
+    /// 2026-11-09, a Monday, which is one of the days `settled()` trains on.
+    /// Pinned because the shape now depends on which day it is, and a test
+    /// that passes on Monday and fails on Tuesday is worse than no test.
+    private let monday = Attendance.date("2026-11-09", Attendance.calendar())!
+    private let tuesday = Attendance.date("2026-11-10", Attendance.calendar())!
+
     // MARK: - which screen today is
 
     func testBeforeSheAgreesToAWeekTheScreenAsksForOneSession() {
@@ -38,8 +44,8 @@ final class HomeTests: XCTestCase {
     }
 
     func testOnceSheHasAgreedToAWeekTheScreenShowsThePlan() {
-        XCTAssertEqual(Home.shape(profile: settled(), today: nil, fallback: "Leg day"),
-                       .plan("Leg day"))
+        XCTAssertEqual(Home.shape(profile: settled(), today: nil, fallback: "Leg day",
+                                  now: monday), .plan("Leg day"))
     }
 
     func testAWorkoutOpenTodayOutranksTheFirstRunOffer() {
@@ -57,6 +63,16 @@ final class HomeTests: XCTestCase {
         XCTAssertEqual(Home.shape(profile: settled(), today: store.today), .done(lifts: 1))
     }
 
+    func testADaySheDidNotPickIsARestDayAndNotAWorkoutWithAnotherName() {
+        XCTAssertEqual(Home.shape(profile: settled(), today: nil, now: tuesday), .rest)
+    }
+
+    func testAWorkoutOpenedOnARestDayIsStillTodaysWorkout() {
+        store.startQuickWorkout()
+        XCTAssertEqual(Home.shape(profile: settled(), today: store.today, now: tuesday),
+                       .plan("Quick workout"))
+    }
+
     func testNoProfileAtAllIsStillAFirstRun() {
         XCTAssertEqual(Home.shape(profile: nil, today: nil), .firstWorkout)
     }
@@ -64,6 +80,7 @@ final class HomeTests: XCTestCase {
     func testTheHeadlineSaysWhatTheScreenIsFor() {
         XCTAssertEqual(Home.headline(.firstWorkout), "Your first workout")
         XCTAssertEqual(Home.headline(.plan("Push day")), "Push day")
+        XCTAssertEqual(Home.headline(.rest), "Rest day")
         XCTAssertEqual(Home.headline(.done(lifts: 2)), "Logged")
     }
 

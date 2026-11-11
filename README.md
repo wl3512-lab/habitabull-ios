@@ -38,10 +38,24 @@ it has two faces, and which one you get is the one decision `Home.shape` makes
 
 - **before you have agreed to a week** the headline is "Your first workout" and the one action is a quick workout, with the words `No plan needed. Pick a lift, log it, pick the next one.` under it. this is the 2023 interview finding, confirmed in the 2026 walkthroughs: people log a workout before they will set anything up. the week is one tap away on the empty lifts card and nowhere else
 - **after** it is the day's plan and a Start workout button, and the quick workout drops to a ghost
+- **the day is re-read at midnight and on every return to the app**, because `Date.now` is not observable: a phone left on the counter overnight would otherwise open on yesterday, offering a workout on a rest day
+- **on a day she did not pick** it is a rest day: the sleeping bull, `Rest is part of the training.` under the headline, no lifts card, and Train anyway as a ghost. a day off is not a locked door, it just does not get the orange button. before this the app named a workout every day of the week, which the launch screen would have contradicted one tap earlier
 - **once today is logged** there is no orange action at all. inventing "log another set" for somebody who has already finished argues against the app's own point, which is that turning up was the job
 - **this week** is seven circles under the action: filled for a day you showed up, ringed for today, outlined for a planned day still to come, quiet for a planned day already gone. absence, not failure. a workout you walked out of after two sets still counts, one opened and left empty does not
 - **today's lifts** sits directly under the day's name, because what you are about to lift belongs under the headline that names it. on the first run that card is the offer to build a week instead, and it stays at the bottom there: with no plan yet, the reason comes first and the plan is the thing at the end
-- **you work out because** is a card with her sentence in it and the bull above, raised above the action on the first run and sitting under it afterwards. the bull is on the home screen every day, not only the first. Change edits it in place. the dim line under the headline is now only the greeting on the day she signed up
+- **the bull** is on the home screen every day, not only the first: a welcome under the headline on the first run, and at the end of the screen once there is a plan to read first. he is quiet, with nothing to say, and he is not there on a day already logged, where the finished card has him cheering
+- **you work out because** is not on this screen any more. it moved to the launch screen, under whether today is a workout day or a rest day, and it is changed from the profile. the dim line under the headline is now only the greeting on the day she signed up
+
+## the launch screen
+
+the app opens on whether today is a workout day or a rest day, with her reason underneath it. a launch screen has to show something, and these were the two candidates: her reason, or the day's shape. the day's shape won the headline, because that is what she opened the app to find out, and the reason reads better there than on the home screen anyway, since the moment she is deciding whether to go is the moment it does any work
+
+- four things it can honestly say: **workout day**, **rest day**, **done for today** when she has already turned up, and **up to you** before she has agreed to a week, because until then no day is a rest day. "a rest day" is never printed about a day she never chose
+- turning up outranks the day it was: train on a rest day and it says done for today, not rest
+- a rest day gets a second line, `Rest is part of the training.`, because "Rest day" on its own reads like a telling-off
+- the first run never sees it. there is nothing true to put on it before she has told the app anything
+- it reads `Home.shape`, the same answer the home screen behind it draws, so the two cannot drift apart. the test that says so out loud is `testARestDayReadsTheSameOnBothScreens`
+- 1.6 seconds, and a tap goes straight through. it scrolls, because at the largest accessibility text size a fixed stack cut the headline to `Workout...` and her own sentence off halfway. `-uitest-hold-opening` holds it up so a test can read it, while every other suite skips it with `-uitest-skip-opening`
 
 ## three places, and the bar at the bottom
 
