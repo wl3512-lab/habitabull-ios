@@ -34,7 +34,12 @@ three screens, then you lift. a name, why you lift, and how long you rest, each 
 
 ## the home screen
 
-it has two faces, and which one you get is the one decision `Home.shape` makes
+it has two faces, and which one you get is the one decision `Home.shape` makes.
+rebuilt in November as **the day, then the proof**: the day's name and the one
+action at the top where the thumb is, and everything under it evidence. the
+complaint it answers is that the screen was bland, which it was because it was
+underfed: a date, a day name, two lifts, two buttons, seven circles and a bull,
+with the bottom half of the phone empty
 
 - **before you have agreed to a week** the headline is "Your first workout" and the one action is a quick workout, with the words `No plan needed. Pick a lift, log it, pick the next one.` under it. this is the 2023 interview finding, confirmed in the 2026 walkthroughs: people log a workout before they will set anything up. the week is one tap away on the empty lifts card and nowhere else
 - **after** it is the day's plan and a Start workout button, and the quick workout drops to a ghost
@@ -42,7 +47,11 @@ it has two faces, and which one you get is the one decision `Home.shape` makes
 - **on a day she did not pick** it is a rest day: the sleeping bull, `Rest is part of the training.` under the headline, no lifts card, and Train anyway as a ghost. a day off is not a locked door, it just does not get the orange button. before this the app named a workout every day of the week, which the launch screen would have contradicted one tap earlier
 - **once today is logged** there is no orange action at all. inventing "log another set" for somebody who has already finished argues against the app's own point, which is that turning up was the job
 - **this week** is seven circles under the action: filled for a day you showed up, ringed for today, outlined for a planned day still to come, quiet for a planned day already gone. absence, not failure. a workout you walked out of after two sets still counts, one opened and left empty does not
-- **today's lifts** sits directly under the day's name, because what you are about to lift belongs under the headline that names it. on the first run that card is the offer to build a week instead, and it stays at the bottom there: with no plan yet, the reason comes first and the plan is the thing at the end
+- **the date line** reads `WEDNESDAY, NOV 11 · WEEK 5`, counted from the day she signed up rather than from January, with `Change` on the right into the week
+- **one card** holds the workout: every lift with the weight she will actually put on the bar (`3 × 8 · 147.5 lb`), and Start workout inside the same box. they used to be two blocks with a gap, which read as a list and then an unrelated orange button. the weight is the reason to read the plan at all
+- **your goal** is one line, one percentage and a bar six points tall, under the week. `Set a goal` stands in its place until there is one, and it is not offered on day one, since a goal set before a single logged set is a number picked out of the air
+- **last time** names the last day she trained and her best set on it. the shortest honest answer to "am i actually doing this", and the one thing the phone knew and never said
+- **today's lifts** used to sit directly under the day's name, because what you are about to lift belongs under the headline that names it. on the first run that card is the offer to build a week instead, and it stays at the bottom there: with no plan yet, the reason comes first and the plan is the thing at the end
 - **the bull** is on the home screen every day, not only the first: a welcome under the headline on the first run, and at the end of the screen once there is a plan to read first. he is quiet, with nothing to say, and he is not there on a day already logged, where the finished card has him cheering
 - **you work out because** is not on this screen any more. it moved to the launch screen, under whether today is a workout day or a rest day, and it is changed from the profile. the dim line under the headline is now only the greeting on the day she signed up
 
@@ -55,7 +64,12 @@ the app opens on whether today is a workout day or a rest day, with her reason u
 - a rest day gets a second line, `Rest is part of the training.`, because "Rest day" on its own reads like a telling-off
 - the first run never sees it. there is nothing true to put on it before she has told the app anything
 - it reads `Home.shape`, the same answer the home screen behind it draws, so the two cannot drift apart. the test that says so out loud is `testARestDayReadsTheSameOnBothScreens`
-- 1.6 seconds, and a tap goes straight through. it scrolls, because at the largest accessibility text size a fixed stack cut the headline to `Workout...` and her own sentence off halfway. `-uitest-hold-opening` holds it up so a test can read it, while every other suite skips it with `-uitest-skip-opening`
+- 1.9 seconds, and a tap goes straight through. it scrolls, because at the largest accessibility text size a fixed stack cut the headline to `Workout...` and her own sentence off halfway. `-uitest-hold-opening` holds it up so a test can read it, while every other suite skips it with `-uitest-skip-opening`
+- the bull is the only thing that moves. he falls in speeding up, stops dead when his hooves reach the floor, squats as he takes his own weight for a tenth of a second, then comes slowly back up. the squash is anchored to the bottom of the image, which on all four mascot PNGs is exactly the hoof line, and it is damped sideways rather than equal and opposite, because a face that widens as much as the body shortens reads as rubber
+- liquid here is a way of moving, not a material: nothing on the screen is frosted, tinted or translucent, and the ground stays the app's own flat `#16181D`. what is borrowed is the weight and the never quite in step feel of one body arriving
+- the words arrive as one piece, in a short settle that starts as his feet hit. a line at a time made four small events out of one short sentence and pulled the eye off the one thing worth watching. `you work out because` is gone from over her sentence too: the quotation marks already say whose it is
+- reduce motion is not a slower version of it, it is a cross-fade. no keyframes run at all
+- `-uitest-slow-opening` stretches the same curves over four times the clock, because he has landed before a test runner can take its first screenshot. it changes nothing she will ever see
 
 ## three places, and the bar at the bottom
 
@@ -65,12 +79,52 @@ the bar is attached to each place's own scroll view, never to the navigation sta
 
 the web has two more tabs. the month lives inside Progress here rather than on a calendar tab, since on a phone "have i been going" and "which days did i go" are one question, and there is no crew on the phone yet. a tab that opens nothing is worse than a tab that is not there
 
-- **progress** is weeks in a row as the headline (counted in weeks so a rest day is never a miss), days this month and days in all, the month as a grid, and the heaviest set of every lift she has done. nothing on it asks for anything and there is no orange on it
+- **progress** is the day she keeps turning up on as the headline, days this month and days in all, the month as a grid she can open a day out of and page back through, the comebacks counted, and a line for every lift she has done. nothing on it asks for anything and there is no orange on it
 - **profile** is the three things the app knows: her name, her reason and her week, each changeable. no invented settings
 
 ## the week, agreed rather than assigned
 
-seven days to tap, opening on the three onboarding placed for her, so the quickest honest answer is one tap on Save. `Schedule.hasBackToBack` names the tradeoff out loud rather than refusing the choice. offered from the empty lifts card on the first run, and from the profile forever after, because people's weeks change
+seven days to tap, opening on the three onboarding placed for her, so the quickest honest answer is one tap on Save. `Schedule.hasBackToBack` names the tradeoff out loud rather than refusing the choice. offered from the empty lifts card on the first run, from `Change` on the home screen, and from the profile forever after, because people's weeks change
+
+under the circles the week now says **what each day is**, which is the half of a
+week the circles never showed. `Split.labels` in the package names them, the
+oldest and least clever answer there is: one day a week is a full body day,
+three is push, pull and legs, four repeats upper and lower. a split invented by
+an app is a split nobody can look up
+
+- **lifts belong to the workout's name, not to the weekday.** two Mondays called Push day are one decision, so editing one edits both, and the screen says so rather than letting her find out
+- **renaming takes the lifts with it.** she renamed the day, she did not empty it
+- **adding or dropping a day keeps everything she has already decided**, including workouts that are not on this week's days any more
+- the day editor edits the week screen's copy, not the saved profile. the week has one Save and the workout is part of the week, and the copy is read from the profile once, on open: rebuilding it from the saved week on every tap threw away a workout she had just edited
+- **a guess is allowed to be reconsidered, a decision is not.** until she has saved a week or opened one of its days, what is on screen is the app talking to itself, so cutting the suggested three days to one gives her a full body day rather than the push day it had got as far as naming. after that it is hers and it is kept
+
+## the goal
+
+one lift, one number, one date. `Goals` in the package does the arithmetic and
+`Profile.goal` holds it; the screen asks three questions and no more, because
+anything else on it is another chance to put the whole thing off
+
+- **how far along it reads is measured from where she started**, and the starting weight is written down the day she sets it rather than worked out again later. somebody who opened at 100 lb, is at 150 now and sets a 200 lb goal should open at 0%, not at 50%: a goal that congratulates her for last year is not a goal
+- a target is suggested about a tenth above her best, rounded onto plates she owns, rather than a round 200
+- bodyweight and held lifts are kept out of the picker. "200 lb plank" is not a sentence
+- it reads the same on Today (one line and a bar) and on Progress (the same row with the distance under it). a goal that reads one way in one place is two goals
+
+## the record, and the day behind it
+
+the web app's progress page is twelve weeks as a lattice, seven rows by twelve
+columns. this is not that, and the difference is the phone: a cell in a twelve
+week lattice is about twenty points wide, which is a picture you can read and
+not a thing you can tap. the month grid is the same argument at a size a thumb
+can hit, and every day she trained on opens
+
+- **one attendance picture, not two.** the month grid pages back a month at a time and never forward, because there is nothing in next month to look at. the tile above it still means this month however far back the grid has been paged
+- **a trained day opens that day.** `DayView` is a receipt: every session on it, what time it started, how long it ran or that she left it open, and the sets per lift. the last time row on Today opens the same screen, so the home screen's "last time" is a door rather than a label
+- **the headline is a fact about her, when there is one.** `Insight.reliableWeekday` stays quiet under six days of history or three on the same weekday, because two Wednesdays is a coincidence and an app that calls it a pattern is the kind that congratulates you for one jog. once it is real it takes the headline and the counts go back to being counts
+- **days, not sessions.** two workouts on one Wednesday is one Wednesday she turned up on
+- **comebacks are counted, and the reason is said once.** coming back after a week off is the harder skill and nothing else in the category counts it. a gap of a week or more is a comeback, which is the web's rule kept on purpose and the reason the test seed trains twice a week: at one day a week every session is its own comeback, which is a thing worth deciding about rather than discovering
+- **the grid says what its colours mean.** green is trained, cyan is a comeback, ringed is today. the comeback was a cyan ring around a green cell until a still showed it was not a difference anyone could see at 34 points. a missed day looks like any other empty day, which is the whole point: absence, not failure
+- **a lift is a line, not a number.** `Lifts.track` takes her heaviest finished set per day, oldest first, one point a day: three working sets at the same weight are one answer, not three. the card header carries where she is now and what she has added, and the line is left unlabelled along the bottom, since you train when you train and evenly spaced points are already a small lie
+- unfinished sessions count on the lines. a set she did and logged happened whether or not she tapped the end of the workout, and dropping those days would put gaps in the line on exactly the days she was fighting for it
 
 ## where a lift opens, and why
 
@@ -105,7 +159,7 @@ still open, both inherited from the web app and worth deciding rather than keepi
 ## plan
 
 - real gym test, then fix what it finds, and get someone else testing it (by dec 4)
-- the App Store version adds the planner, calendar, progress and photos
+- the planner, the calendar and the progress lines are in. photos are what the App Store version still adds
 
 ## sources / AI assistance
 

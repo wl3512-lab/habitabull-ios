@@ -16,6 +16,15 @@ struct WeekView: View {
     /// 0 = Sunday, matching the calendar, the strip and the rules package.
     @State private var days: Set<Int> = []
     @State private var started = false
+    /// The workout on each of those days, which is the half of the week the
+    /// circles never showed. Kept here while she is deciding so the list
+    /// under them answers to the days above as she taps.
+    @State private var routine = Routine()
+    /// Whether the week on screen is hers yet: a routine she has saved before,
+    /// or one she has opened a day of and changed. Until then it is the app's
+    /// own suggestion, and a suggestion is allowed to be reconsidered when she
+    /// changes how many days she is training.
+    @State private var mine = false
 
     private let initials = ["S", "M", "T", "W", "T", "F", "S"]
     private let names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
@@ -79,12 +88,15 @@ struct WeekView: View {
                     .foregroundStyle(.dim)
                     .padding(.top, 18)
 
+                workouts.padding(.top, 34)
+
                 Spacer(minLength: 40)
 
                 Pill(title: "Save my week") {
                     profiles.update {
                         $0.trainingDays = chosen
                         $0.weekChosen = true
+                        $0.routine = routine
                     }
                     dismiss()
                 }
@@ -104,7 +116,77 @@ struct WeekView: View {
             started = true
             let placed = profiles.profile?.trainingDays ?? []
             days = Set(placed.isEmpty ? Schedule.placeDays(3) : placed)
+            // the week she already agreed to is the draft from here on. read
+            // once: after this the draft is the only copy, or a workout she
+            // edits would be thrown away the moment she touches a day
+            if let saved = profiles.profile?.routine {
+                routine = saved
+                mine = true
+            }
+            replan()
         }
+        .onChange(of: days) { _, _ in replan() }
+    }
+
+    // MARK: - what each day actually is
+
+    /// The days as workouts. This is the half of a week that matters and the
+    /// screen used to leave out: seven circles said when she trains and
+    /// nothing at all said what she would be doing.
+    @ViewBuilder private var workouts: some View {
+        if !routine.days.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionLabel(text: "Your workouts")
+                Card {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(routine.inOrder.enumerated()), id: \.element.weekday) { index, day in
+                            NavigationLink {
+                                RoutineDayView(label: day.label, routine: $routine, mine: $mine)
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        SectionLabel(text: names[day.weekday])
+                                        Text(day.label)
+                                            .font(.head)
+                                            .foregroundStyle(.fg)
+                                    }
+                                    Spacer()
+                                    Text(count(day.label))
+                                        .font(.bodyText)
+                                        .foregroundStyle(.dim)
+                                    Image(systemName: "chevron.right")
+                                        .foregroundStyle(.dim)
+                                        .padding(.leading, 8)
+                                }
+                                .contentShape(.rect)
+                                .padding(.top, index == 0 ? 0 : 16)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("workout-\(day.weekday)")
+                        }
+                    }
+                }
+                Text("Two days with the same name are the same workout. Editing one edits both.")
+                    .font(.captionText)
+                    .foregroundStyle(.dim)
+            }
+        }
+    }
+
+    private func count(_ label: String) -> String {
+        let lifts = routine.library[label]?.count ?? 0
+        return "\(lifts) lift\(lifts == 1 ? "" : "s")"
+    }
+
+    /// Re-read the plan whenever the days change, keeping every name and
+    /// every lift she has already decided on, and only those: until she has
+    /// saved a week or opened one of its days, what is on screen is the app
+    /// talking to itself.
+    private func replan() {
+        // hers is kept, the app's own guess is made again. a suggested week of
+        // push, pull and legs cut down to one day should become a full body
+        // day, not a push day she never asked for
+        routine = Planner.plan(for: chosen, keeping: mine ? routine : nil)
     }
 }
 

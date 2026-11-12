@@ -3,12 +3,18 @@
 //
 // Before she has agreed to a week the answer is "one session, no setup",
 // which is the finding the whole screen is built on: people log a workout
-// before they will set anything up. After that the answer is the day's plan.
-// Either way the week she has actually kept sits under it, because turning
-// up is the thing the app is about and it used to be invisible here.
+// before they will set anything up. After that the answer is the day's plan,
+// and then everything under it is evidence: the week she kept, the goal she
+// set, what she did last time.
+//
+// The order is deliberate. The day and the one action are at the top, where
+// the thumb is. The measuring is below them, because a screen that opens on
+// how far along you are is a screen that asks you to feel something before it
+// lets you do anything.
 //
 // Her reason is not here: it is on the launch screen, under whether today is
-// a workout day or a rest day. The bull stayed, on his own.
+// a workout day or a rest day. The bull stayed, on the two screens where
+// there is no plan to look at.
 
 import SwiftUI
 import HabitaBullKit
@@ -22,6 +28,9 @@ struct TodayView: View {
     @Binding var place: Place
     @State private var logging = false
     @State private var buildingWeek = false
+    @State private var settingGoal = false
+    /// The day she has opened from the last time row.
+    @State private var openDay: String?
     /// Today, as a value the screen can be told to re-read.
     ///
     /// `Date.now` is not observable, so a phone left on the counter overnight
@@ -50,52 +59,42 @@ struct TodayView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    SectionLabel(text: day.formatted(.dateTime.weekday(.wide).month().day()))
+                    dayLine
 
                     Text(Home.headline(shape))
                         .font(.figure)
                         .foregroundStyle(.fg)
-                        .padding(.top, 14)
+                        .padding(.top, 10)
 
-                    // the same line the launch screen gives a rest day, for
-                    // the same reason: "Rest day" alone reads as a scolding
-                    if shape == .rest, let note = Launch.note(.rest) {
-                        Text(note)
-                            .font(.emphasis)
-                            .foregroundStyle(.dim)
-                            .padding(.top, 4)
-                    }
-
-                    if let aside {
-                        Text(aside)
-                            .font(.emphasis)
-                            .foregroundStyle(.brandCyan)
-                            .padding(.top, 4)
-                    }
+                    subtitle
 
                     unfinishedCard
 
-                    // Two orders, because the two screens are answering
+                    // Three orders, because the three screens are answering
                     // different questions. With no week yet the bull is a
                     // welcome and the plan is an offer at the bottom. With a
                     // plan, what you are about to lift sits under its own
-                    // name, where you look for it, and he waits at the end.
-                    if shape == .rest {
-                        // nothing is on today, so there is nothing to list
-                        mascot.padding(.top, 20)
-                        action.padding(.top, 20)
-                        weekStrip.padding(.top, 34)
-                    } else if firstRun {
+                    // name, where you look for it, and the proof follows. On
+                    // a rest day there is nothing to list, so he gets the
+                    // space the plan would have had.
+                    if firstRun {
                         mascot.padding(.top, 24)
                         action.padding(.top, 24)
-                        weekStrip.padding(.top, 34)
-                        todaysLifts.padding(.top, 34)
+                        weekBlock.padding(.top, 34)
+                        offerToBuildAWeek.padding(.top, 34)
                     } else {
-                        todaysLifts.padding(.top, 22)
-                        action.padding(.top, 26)
-                        weekStrip.padding(.top, 34)
-                        // clear of the raised circle in the bar below him
-                        mascot.padding(.top, 30).padding(.bottom, 26)
+                        if case .plan = shape {
+                            workCard.padding(.top, 20)
+                            quickInstead
+                        } else {
+                            mascot.padding(.top, 20)
+                            action.padding(.top, 20)
+                        }
+                        weekBlock.padding(.top, 34)
+                        goalBlock.padding(.top, 30)
+                        lastTimeBlock.padding(.top, 30)
+                            // clear of the raised circle in the bar below it
+                            .padding(.bottom, 20)
                     }
 
                     if store.saveFailed {
@@ -124,8 +123,66 @@ struct TodayView: View {
             .onChange(of: phase) { _, now in if now == .active { day = .now } }
             .navigationDestination(isPresented: $logging) { LogView() }
             .navigationDestination(isPresented: $buildingWeek) { WeekView() }
+            .navigationDestination(isPresented: $settingGoal) { GoalScreen() }
+            .navigationDestination(item: $openDay) { DayView(day: $0) }
         }
         .tint(.brandCyan)
+    }
+
+    // MARK: - the day, named and numbered
+
+    /// "Wednesday, Nov 11 · Week 5", and the way back to the week itself.
+    ///
+    /// The week number is counted from the day she signed up, not from the
+    /// first of January: the only week one she cares about is hers.
+    private var dayLine: some View {
+        HStack(alignment: .firstTextBaseline) {
+            SectionLabel(text: stamp)
+            Spacer()
+            if profiles.profile?.weekChosen == true {
+                Button("Change") { buildingWeek = true }
+                    .font(.captionText)
+                    .foregroundStyle(.brandCyan)
+                    .accessibilityIdentifier("change-week")
+            }
+        }
+    }
+
+    private var stamp: String {
+        let date = day.formatted(.dateTime.weekday(.wide).month().day())
+        guard let week = weekNumber else { return date }
+        return "\(date) · Week \(week)"
+    }
+
+    private var weekNumber: Int? {
+        guard let started = profiles.profile?.createdAt else { return nil }
+        let cal = Attendance.calendar()
+        let days = cal.dateComponents([.day], from: cal.startOfDay(for: started),
+                                      to: cal.startOfDay(for: day)).day ?? 0
+        return max(0, days) / 7 + 1
+    }
+
+    /// What the day costs, or the line a rest day needs so that "Rest day"
+    /// does not read as a scolding, or the greeting on her first day.
+    @ViewBuilder private var subtitle: some View {
+        if case .plan = shape {
+            Text("\(amount(plan.count, "lift")) · \(amount(plannedSets, "set"))")
+                .font(.emphasis)
+                .foregroundStyle(.dim)
+                .padding(.top, 4)
+        } else if shape == .rest, let note = Launch.note(.rest) {
+            Text(note)
+                .font(.emphasis)
+                .foregroundStyle(.dim)
+                .padding(.top, 4)
+        }
+
+        if let aside {
+            Text(aside)
+                .font(.emphasis)
+                .foregroundStyle(.brandCyan)
+                .padding(.top, 4)
+        }
     }
 
     /// On his own, with nothing to say. He is on the launch screen and in the
@@ -133,13 +190,82 @@ struct TodayView: View {
     /// the screen in front of her.
     @ViewBuilder private var mascot: some View {
         if !finished {
-            Bull(pose: shape == .rest ? .rest : .stand, size: firstRun || shape == .rest ? 132 : 104)
+            Bull(pose: shape == .rest ? .rest : .stand, size: 132)
                 .frame(maxWidth: .infinity)
                 .accessibilityHidden(true)
         }
     }
 
-    // MARK: - the one action
+    // MARK: - the workout, and the one action inside it
+
+    /// What today is, by her routine: the workout's name and what is in it.
+    /// Nil before she has agreed to a week, and on a day she does not train.
+    private var todayPlan: (label: String, lifts: [String])? {
+        let weekday = Attendance.calendar().component(.weekday, from: day) - 1
+        return Planner.today(profiles.profile?.routine, weekday: weekday)
+    }
+
+    private var plan: [LoggedExercise] {
+        if let session { return session.exercises }
+        // a phone that agreed to a week before routines existed has no
+        // routine to read, and still has to show today something
+        guard let lifts = todayPlan?.lifts else { return store.plannedToday }
+        return lifts.map(store.planned)
+    }
+    private var plannedSets: Int { plan.reduce(0) { $0 + $1.sets.count } }
+
+    /// One card: the lifts with the weight she will actually put on the bar,
+    /// and the button that starts them, inside the same box.
+    ///
+    /// They used to be two blocks with a gap between them, which read as a
+    /// list and then, separately, an unrelated orange button. The weights are
+    /// the reason to put them together: this is the workout, and that is the
+    /// button for this workout.
+    private var workCard: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(plan.enumerated()), id: \.element.exerciseId) { index, lift in
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(lift.name)
+                            .font(.head)
+                            .foregroundStyle(.fg)
+                        Spacer()
+                        Text(lift.planDetail)
+                            .font(.bodyText)
+                            .foregroundStyle(.dim)
+                            .monospacedDigit()
+                    }
+                    .padding(.top, index == 0 ? 0 : 12)
+                }
+
+                Rectangle()
+                    .fill(.raise)
+                    .frame(height: 1)
+                    .padding(.vertical, 18)
+
+                Pill(title: session == nil ? "Start workout" : "Continue workout") {
+                    store.startWorkout(label: todayPlan?.label ?? "Leg day",
+                                       lifts: todayPlan?.lifts)
+                    logging = true
+                }
+            }
+        }
+    }
+
+    /// The other way in, kept quiet and out of the card: the plan is the
+    /// offer, this is the exception to it.
+    @ViewBuilder private var quickInstead: some View {
+        if session == nil {
+            Button("Quick workout instead") {
+                store.startQuickWorkout()
+                logging = true
+            }
+            .font(.bodyText)
+            .foregroundStyle(.brandCyan)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 14)
+        }
+    }
 
     @ViewBuilder private var action: some View {
         switch shape {
@@ -184,18 +310,8 @@ struct TodayView: View {
             }
 
         case .plan:
-            VStack(spacing: 10) {
-                Pill(title: session == nil ? "Start workout" : "Continue workout") {
-                    store.startWorkout()
-                    logging = true
-                }
-                if session == nil {
-                    Pill(title: "Quick workout", variant: .ghost) {
-                        store.startQuickWorkout()
-                        logging = true
-                    }
-                }
-            }
+            // the plan's button lives inside its card
+            EmptyView()
         }
     }
 
@@ -205,9 +321,21 @@ struct TodayView: View {
         store.weekStrip(trainingDays: profiles.profile?.trainingDays ?? [])
     }
 
-    private var weekStrip: some View {
+    private var records: [SessionRecord] { store.sessions.map(\.asRecord) }
+    private var today: String { Attendance.day(day, Attendance.calendar()) }
+    private var runningWeeks: Int { Attendance.streakWeeks(records, today: today) }
+
+    private var weekBlock: some View {
         VStack(alignment: .leading, spacing: 14) {
-            SectionLabel(text: "This week")
+            HStack(alignment: .firstTextBaseline) {
+                SectionLabel(text: "This week")
+                Spacer()
+                if runningWeeks > 0 {
+                    Text("\(amount(runningWeeks, "week")) running")
+                        .font(.captionText)
+                        .foregroundStyle(.done)
+                }
+            }
             HStack(spacing: 6) {
                 ForEach(days, id: \.index) { day in
                     VStack(spacing: 9) {
@@ -238,59 +366,113 @@ struct TodayView: View {
 
     private var strippedForVoice: String {
         let trained = days.filter(\.trained).count
-        return "\(amount(trained, "session")) logged this week."
+        var said = "\(amount(trained, "session")) logged this week."
+        if runningWeeks > 0 { said += " \(amount(runningWeeks, "week")) running." }
+        return said
     }
 
-    // MARK: - today's lifts, or the offer to build a week
+    // MARK: - the goal, and what she did last time
 
-    @ViewBuilder private var todaysLifts: some View {
+    /// Slim on purpose. The goal is why today matters, not what today is, so
+    /// it gets one line, one number and a bar six points tall.
+    @ViewBuilder private var goalBlock: some View {
+        if let goal = profiles.profile?.goal {
+            GoalRow(goal: goal, history: store.sessions.map(\.asTrainingSession)) {
+                settingGoal = true
+            }
+        } else if !store.sessions.isEmpty {
+            // not offered on day one: a goal set before a single logged set
+            // is a number picked out of the air
+            GoalOffer { settingGoal = true }
+        }
+    }
+
+    /// The last day she trained, named. It is the shortest honest answer to
+    /// "am I actually doing this", and it is the one thing the phone knew and
+    /// never said.
+    @ViewBuilder private var lastTimeBlock: some View {
+        if let last = previous {
+            Button { openDay = last.date } label: {
+                VStack(alignment: .leading, spacing: 10) {
+                    SectionLabel(text: "Last time · \(stamp(last.date))")
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(last.label)
+                            .font(.head)
+                            .foregroundStyle(.fg)
+                        Spacer()
+                        if let best = bestSet(last) {
+                            Text(best)
+                                .font(.bodyText)
+                                .foregroundStyle(.dim)
+                                .monospacedDigit()
+                        }
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(.dim)
+                            .padding(.leading, 8)
+                    }
+                }
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("last-time")
+        }
+    }
+
+    /// The most recent day before today that she actually trained on.
+    private var previous: Session? {
+        store.sessions
+            .filter { $0.date < today && $0.asRecord.attended }
+            .max { $0.date < $1.date }
+    }
+
+    private func stamp(_ stored: String) -> String {
+        guard let date = Attendance.date(stored, Attendance.calendar()) else { return stored }
+        return date.formatted(.dateTime.month(.abbreviated).day())
+    }
+
+    /// The heaviest set she finished that day, said the way the log says it.
+    /// Bodyweight and held lifts have no weight to be best at, so they are
+    /// left out rather than reported as zero.
+    private func bestSet(_ session: Session) -> String? {
+        var best: (lift: LoggedExercise, set: LoggedSet)?
+        for lift in session.exercises where lift.usesWeight {
+            for set in lift.sets where set.done {
+                if best == nil || set.weight > best!.set.weight { best = (lift, set) }
+            }
+        }
+        guard let best else { return nil }
+        return "\(best.lift.name) \(best.lift.describe(best.set))"
+    }
+
+    // MARK: - the offer to build a week
+
+    private var offerToBuildAWeek: some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionLabel(text: "Today's lifts")
 
-            if shape == .firstWorkout {
-                Button { buildingWeek = true } label: {
-                    VStack(spacing: 6) {
-                        // no bull here: he is in the reason card already, and
-                        // two of him read as clutter
-                        Text("Nothing here yet")
-                            .font(.head)
-                            .foregroundStyle(.fg)
-                        Text("Say which days you can train and what each one is.")
-                            .font(.bodyText)
-                            .foregroundStyle(.dim)
-                            .multilineTextAlignment(.center)
-                        Text("Build your week →")
-                            .font(.bodyText)
-                            .foregroundStyle(.brandCyan)
-                            .padding(.top, 4)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(18)
-                    .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(.lineStrong))
-                    .contentShape(.rect(cornerRadius: 18))
+            Button { buildingWeek = true } label: {
+                VStack(spacing: 6) {
+                    // no bull here: he is already at the top of this screen,
+                    // and two of him read as clutter
+                    Text("Nothing here yet")
+                        .font(.head)
+                        .foregroundStyle(.fg)
+                    Text("Say which days you can train and what each one is.")
+                        .font(.bodyText)
+                        .foregroundStyle(.dim)
+                        .multilineTextAlignment(.center)
+                    Text("Build your week →")
+                        .font(.bodyText)
+                        .foregroundStyle(.brandCyan)
+                        .padding(.top, 4)
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("build-your-week")
-            } else {
-                Card {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array((session?.exercises ?? store.plannedToday).enumerated()),
-                                id: \.element.exerciseId) { index, exercise in
-                            HStack {
-                                Text(exercise.name)
-                                    .font(.head)
-                                    .foregroundStyle(.fg)
-                                Spacer()
-                                Text(exercise.planLine)
-                                    .font(.bodyText)
-                                    .foregroundStyle(.dim)
-                                    .monospacedDigit()
-                            }
-                            .padding(.top, index == 0 ? 0 : 10)
-                        }
-                    }
-                }
+                .frame(maxWidth: .infinity)
+                .padding(18)
+                .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(.lineStrong))
+                .contentShape(.rect(cornerRadius: 18))
             }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("build-your-week")
         }
     }
 

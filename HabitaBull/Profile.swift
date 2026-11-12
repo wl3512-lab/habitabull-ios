@@ -30,6 +30,17 @@ struct Profile: Codable, Equatable {
     /// but until this is true the home screen offers to build the week rather
     /// than pretending there is a plan she chose.
     var weekChosen = false
+    /// The one number she is working towards, or nothing.
+    ///
+    /// One at a time on purpose. A list of goals is a list of things to feel
+    /// behind on, and the screen that shows it is the screen she opens on a
+    /// day she already does not want to train.
+    var goal: Goal?
+    /// Which day of the week is which workout, and what is in each one.
+    ///
+    /// Nil until she has agreed to a week. Everything before that is a quick
+    /// workout, which has no plan by definition.
+    var routine: Routine?
     var createdAt = Date.now
 
     /// Written by hand because the synthesised one throws on a key that is
@@ -43,15 +54,20 @@ struct Profile: Codable, Equatable {
         motivation = try c.decodeIfPresent(String.self, forKey: .motivation) ?? ""
         trainingDays = try c.decodeIfPresent([Int].self, forKey: .trainingDays) ?? []
         weekChosen = try c.decodeIfPresent(Bool.self, forKey: .weekChosen) ?? false
+        goal = try c.decodeIfPresent(Goal.self, forKey: .goal)
+        routine = try c.decodeIfPresent(Routine.self, forKey: .routine)
         createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? .now
     }
 
     init(name: String = "", motivation: String = "", trainingDays: [Int] = [],
-         weekChosen: Bool = false, createdAt: Date = .now) {
+         weekChosen: Bool = false, goal: Goal? = nil, routine: Routine? = nil,
+         createdAt: Date = .now) {
         self.name = name
         self.motivation = motivation
         self.trainingDays = trainingDays
         self.weekChosen = weekChosen
+        self.goal = goal
+        self.routine = routine
         self.createdAt = createdAt
     }
 

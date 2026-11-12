@@ -40,7 +40,11 @@ enum Home {
         // is nothing to call a rest day.
         guard let profile, profile.weekChosen else { return .firstWorkout }
         let weekday = calendar.component(.weekday, from: now) - 1   // 0 = Sunday
-        return profile.trainingDays.contains(weekday) ? .plan(fallback) : .rest
+        guard profile.trainingDays.contains(weekday) else { return .rest }
+        // the day's own name, if she has a routine. `fallback` is what the
+        // app called every day before routines existed, and what a profile
+        // saved back then still reads as.
+        return .plan(profile.routine?.label(on: weekday) ?? fallback)
     }
 
     /// The headline, which is the one big thing on the screen.

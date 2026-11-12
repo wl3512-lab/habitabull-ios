@@ -8,6 +8,12 @@ import SwiftUI
 struct AddLiftView: View {
     let excluding: [String]
     var swapping: LoggedExercise? = nil     // set when replacing a lift
+    /// Whether picking a lift goes on to ask how many sets.
+    ///
+    /// False where the number of sets is not a thing being chosen: the goal
+    /// screen wants a lift and nothing else, and a "Sets" step there would be
+    /// a question with no use for its answer.
+    var picksSets = true
     var onCancel: (() -> Void)? = nil
     let onPick: (_ exerciseId: String, _ sets: Int) -> Void
 
@@ -75,7 +81,7 @@ struct AddLiftView: View {
             .scrollContentBackground(.hidden)
             .background(.ground)
             .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search lifts")
-            .navigationTitle(swapping.map { "Swap \($0.name)" } ?? "Add a lift")
+            .navigationTitle(swapping.map { "Swap \($0.name)" } ?? (picksSets ? "Add a lift" : "Pick a lift"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(item: $chosen) { choice in
                 setsStep(choice)
@@ -122,7 +128,7 @@ struct AddLiftView: View {
     // a swap takes the new lift straight away; adding asks for sets first,
     // opening on the count she did last time rather than on a flat three
     private func choose(_ id: String, _ name: String) {
-        if swapping != nil {
+        if swapping != nil || !picksSets {
             pick(id)
             return
         }

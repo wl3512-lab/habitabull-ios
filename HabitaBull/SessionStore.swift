@@ -25,6 +25,10 @@ final class SessionStore {
             // for a few weeks, which is the only way to see the record screen
             // full rather than empty
             if ProcessInfo.processInfo.arguments.contains("-uitest-history") { seedHistory() }
+            // and -uitest-pattern is months of it: long enough for the record
+            // screen to have a pattern to name and a comeback to count, which
+            // six scattered days cannot have
+            if ProcessInfo.processInfo.arguments.contains("-uitest-pattern") { seedPattern() }
             return
         }
         load()
@@ -70,15 +74,21 @@ final class SessionStore {
         return todays.first { $0.completedAt == nil } ?? todays.last
     }
 
-    func startWorkout() {
+    /// Start today's workout.
+    ///
+    /// The name and the lifts are handed in because they belong to the
+    /// routine, which is part of the profile, and this store is deliberately
+    /// the one that knows nothing about her. The defaults are what every day
+    /// was called before routines existed.
+    func startWorkout(label: String = "Leg day", lifts: [String]? = nil) {
         guard today == nil else { return }
         sessions.append(Session(
             id: UUID().uuidString,
             date: dayString(),
-            label: "Leg day",
+            label: label,
             // the same lifts every time, but not the same numbers: what you
             // lift today comes from what you did last time, through the rules
-            exercises: plannedToday,
+            exercises: (lifts.map { $0.map(planned) } ?? plannedToday),
             startedAt: .now
         ))
         save()
@@ -349,6 +359,45 @@ final class SessionStore {
                 completedAt: when
             )
         }
+        save()
+    }
+
+    /// Ten weeks of a real week, with three weeks missing out of the middle.
+    ///
+    /// Written as weeks rather than as dates so it is the same shape whenever
+    /// it runs. Two days a week, Wednesday always and Saturday nearly always,
+    /// which gives the record screen a weekday to name, one three week gap to
+    /// count as a comeback, and nothing else that looks like a break: a seven
+    /// day gap is itself a comeback by the rule, so a pattern of one day a
+    /// week would have made every session one.
+    private func seedPattern() {
+        let cal = Calendar.current
+        let wednesdays = [10, 9, 8, 5, 4, 3, 2, 1]        // 7 and 6 are the gap
+        let saturdays = [10, 9, 5, 4, 3, 2, 1]            // week 8 she went once
+        let days = wednesdays.map { ($0, 0) } + saturdays.map { ($0, 3) }
+        // counted back from the last Wednesday rather than from today, or the
+        // Wednesdays would be whatever weekday the test happened to run on
+        // and the screen would name that day instead
+        let wednesday = cal.component(.weekday, from: .now) - 4   // Sunday is 1
+        let anchor = cal.date(byAdding: .day, value: -((wednesday + 7) % 7), to: .now) ?? .now
+        sessions = days
+            .sorted { $0.0 * 7 - $0.1 > $1.0 * 7 - $1.1 }  // oldest first
+            .map { weeks, after in
+                let back = weeks * 7 - after
+                let when = cal.date(byAdding: .day, value: -back, to: anchor) ?? anchor
+                let weight = 95.0 + Double(10 - weeks) * 5 + Double(after > 0 ? 2.5 : 0)
+                return Session(
+                    id: UUID().uuidString,
+                    date: dayString(when),
+                    label: "Leg day",
+                    exercises: starterLifts.map { id in
+                        LoggedExercise(exerciseId: id,
+                                       sets: (0..<3).map { _ in LoggedSet(weight: weight, reps: 8, done: true) })
+                    },
+                    startedAt: when,
+                    completedAt: when
+                )
+            }
         save()
     }
 

@@ -104,6 +104,17 @@ struct LoggedExercise: Codable, Equatable {
         return counted == .reps ? "\(count) × \(first)" : "\(count) × \(first) \(unit)"
     }
 
+    /// How a planned lift reads before she starts it: "3 × 8 · 147.5 lb".
+    ///
+    /// The weight is the point of showing the plan at all. "3 × 8" is a
+    /// shape. "3 × 8 · 147.5 lb" is a workout she can decide she is up for,
+    /// and it is the one thing the web app's Today has always said and the
+    /// phone's did not.
+    var planDetail: String {
+        guard usesWeight, let weight = sets.first?.weight, weight > 0 else { return planLine }
+        return "\(planLine) · \(weight.formatted()) lb"
+    }
+
     // one set, said the way the screens say it
     func describe(_ set: LoggedSet) -> String {
         if usesWeight { return "\(set.weight.formatted()) lb × \(set.reps)" }

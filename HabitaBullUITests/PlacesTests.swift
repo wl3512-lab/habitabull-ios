@@ -70,7 +70,7 @@ final class PlacesTests: XCTestCase {
 
         app.buttons["tab-progress"].tap()
         XCTAssertTrue(app.staticTexts["YOUR RECORD"].waitForExistence(timeout: 8))
-        XCTAssertTrue(app.staticTexts["HEAVIEST SET"].exists,
+        XCTAssertTrue(app.staticTexts["LIFT BY LIFT"].exists,
                       "six logged workouts and nothing to show for them")
         still("23-progress-with-a-record")
     }
