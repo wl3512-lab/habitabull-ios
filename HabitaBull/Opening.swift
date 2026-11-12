@@ -73,27 +73,37 @@ struct OpeningView: View {
     let why: String?
     let done: () -> Void
 
-    /// Long enough to read a short line, short enough that nobody reaches to
-    /// tap through it. A tap goes through anyway.
+    /// Long enough to watch the bull land and read one line, short enough that
+    /// nobody reaches to tap through it. A tap goes through anyway.
     private var wait: Duration {
         ProcessInfo.processInfo.arguments.contains("-uitest-hold-opening")
-            ? .seconds(30) : .seconds(1.6)
+            ? .seconds(30) : .seconds(1.9)
+    }
+
+    /// The bull has landed before a test runner can take its first screenshot,
+    /// so the stills would all be the same settled screen. This stretches the
+    /// same curves over a longer clock. It changes nothing she will ever see.
+    private var tempo: Double {
+        ProcessInfo.processInfo.arguments.contains("-uitest-slow-opening") ? 4 : 1
     }
 
     /// A bull this big is the first thing to give up its space when the text
     /// needs it: the words are the screen, he is the welcome.
     @Environment(\.dynamicTypeSize) private var typeSize
 
-    /// The bull, the day, and her own words under it.
-    private var said: some View {
-        VStack(spacing: 0) {
-            Bull(pose: Launch.pose(opening), size: typeSize.isAccessibilitySize ? 84 : 132)
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    @State private var awake = false
+
+    /// The words, as one thing. They used to come in a line at a time, which
+    /// made four small events out of one short sentence and pulled the eye away
+    /// from the only thing on here that is actually moving.
+    private var words: some View {
+        VStack(spacing: 0) {
             Text(Launch.headline(opening))
                 .font(.figure)
                 .foregroundStyle(.fg)
                 .multilineTextAlignment(.center)
-                .padding(.top, 10)
 
             if let note = Launch.note(opening) {
                 Text(note)
@@ -104,14 +114,27 @@ struct OpeningView: View {
             }
 
             if let why {
-                SectionLabel(text: "You work out because")
-                    .padding(.top, 34)
+                // no label over it any more: the quotation marks already say
+                // whose sentence this is, and the screen was three stacked
+                // labels deep for one line of her own
                 Text("\u{201C}\(why)\u{201D}")
                     .font(.titleText)
                     .foregroundStyle(.brandCyan)
                     .multilineTextAlignment(.center)
-                    .padding(.top, 8)
+                    .padding(.top, 22)
             }
+        }
+        .padding(.top, 14)
+    }
+
+    /// The bull, and the day under him.
+    private var said: some View {
+        VStack(spacing: 0) {
+            Bull(pose: Launch.pose(opening), size: typeSize.isAccessibilitySize ? 84 : 132)
+                .wakes(awake: awake, calm: reduceMotion, tempo: tempo)
+
+            words
+                .asOnePiece(awake: awake, calm: reduceMotion, tempo: tempo)
         }
     }
 
@@ -137,6 +160,7 @@ struct OpeningView: View {
         }
         .background(.ground)
         .ignoresSafeArea()
+        .onAppear { awake = true }
         .task {
             // a cancelled sleep means the screen is already gone: calling
             // done() then would fight whatever replaced it
