@@ -95,10 +95,14 @@ struct OpeningView: View {
 
     @State private var awake = false
 
-    /// The words, as one thing. They used to come in a line at a time, which
-    /// made four small events out of one short sentence and pulled the eye away
-    /// from the only thing on here that is actually moving.
-    private var words: some View {
+    /// He is the picture in the middle, so he is drawn at the size a picture
+    /// is drawn at rather than the size an icon is. At the accessibility text
+    /// sizes he is the first thing to give the space back.
+    private var bullSize: CGFloat { typeSize.isAccessibilitySize ? 110 : 200 }
+
+    /// The day, and the line that keeps a rest day from reading as a telling
+    /// off. First, because it is the thing she opened the app to find out.
+    private var day: some View {
         VStack(spacing: 0) {
             Text(Launch.headline(opening))
                 .font(.figure)
@@ -110,31 +114,41 @@ struct OpeningView: View {
                     .font(.bodyText)
                     .foregroundStyle(.dim)
                     .multilineTextAlignment(.center)
-                    .padding(.top, 2)
-            }
-
-            if let why {
-                // no label over it any more: the quotation marks already say
-                // whose sentence this is, and the screen was three stacked
-                // labels deep for one line of her own
-                Text("\u{201C}\(why)\u{201D}")
-                    .font(.titleText)
-                    .foregroundStyle(.brandCyan)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 22)
+                    .padding(.top, 6)
             }
         }
-        .padding(.top, 14)
     }
 
-    /// The bull, and the day under him.
+    /// Her reason, last and quiet. No label over it any more: the quotation
+    /// marks already say whose sentence it is, and the screen was three
+    /// stacked blocks deep for one line of her own.
+    @ViewBuilder private var reason: some View {
+        if let why {
+            Text("\u{201C}\(why)\u{201D}")
+                .font(.emphasis)
+                .foregroundStyle(.dim)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 300)
+        }
+    }
+
+    /// Centred, in the order it is read: the day, him, her line. The words
+    /// used to come in a line at a time, which made four small events out of
+    /// one short sentence; both halves now settle together, as one piece, and
+    /// the only thing that actually moves is the bull between them.
     private var said: some View {
         VStack(spacing: 0) {
-            Bull(pose: Launch.pose(opening), size: typeSize.isAccessibilitySize ? 84 : 132)
-                .wakes(awake: awake, calm: reduceMotion, tempo: tempo)
+            day.asOnePiece(awake: awake, calm: reduceMotion, tempo: tempo)
 
-            words
-                .asOnePiece(awake: awake, calm: reduceMotion, tempo: tempo)
+            // the squash is anchored to the bottom of the image, so the
+            // spacing goes outside it: padded first, he would pivot on a line
+            // thirty points under his hooves
+            Bull(pose: Launch.pose(opening), size: bullSize)
+                .wakes(awake: awake, calm: reduceMotion, tempo: tempo)
+                .padding(.top, 26)
+                .padding(.bottom, 30)
+
+            reason.asOnePiece(awake: awake, calm: reduceMotion, tempo: tempo)
         }
     }
 
