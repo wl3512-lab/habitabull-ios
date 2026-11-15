@@ -122,6 +122,41 @@ final class RoutineTests: XCTestCase {
                       "the lift she added was thrown away by a tap on a day")
     }
 
+    /// The day she named, off the week and back on. The existing test takes a
+    /// different day off, which the planner survived; this takes off the one
+    /// carrying the workout. Replanning builds from the days that are on, so
+    /// her Monday came back as the app's default Push day with default lifts.
+    /// Found by a codex review 2026-11-15.
+    func testADayTurnedOffAndBackOnKeepsTheWorkoutShePutOnIt() {
+        openTheWeek()
+        app.buttons["workout-\(weekday)"].tap()
+
+        let field = app.textFields["day-name"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        let before = (field.value as? String) ?? ""
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: before.count))
+        field.typeText("Chest and arms")
+        app.buttons["save-day"].tap()
+
+        XCTAssertTrue(named("Chest and arms").waitForExistence(timeout: 5),
+                      "the rename never reached the week screen, so this test proves nothing")
+
+        let hers = app.buttons["day-\(weekday)"]
+        XCTAssertTrue(hers.waitForExistence(timeout: 5))
+        hers.tap()
+        hers.tap()
+
+        XCTAssertTrue(named("Chest and arms").waitForExistence(timeout: 5),
+                      "a day off the week came back as the app's own guess and her workout was gone")
+    }
+
+    private func named(_ text: String) -> XCUIElement {
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS %@", text))
+            .firstMatch
+    }
+
     /// Everything on the week screen before she touches it is the app talking
     /// to itself, and a guess is allowed to be reconsidered. Cutting the
     /// suggested three days to one should give her a full body day, not the

@@ -294,6 +294,11 @@ struct LogView: View {
             // was in her pocket
             restingOn = session?.restLift
             store.clearRest()
+            // this path never goes through RestTimerView.stop, which is what
+            // normally ends the countdown. without this an expired rest, on a
+            // phone that was killed and reopened, leaves a finished countdown
+            // sitting on the Lock Screen while she carries on lifting
+            RestActivityController.stop()
             askWhatIsNext()
         }
     }

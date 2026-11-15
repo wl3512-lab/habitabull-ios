@@ -146,6 +146,8 @@ struct RestTimerView: View {
                         HStack {
                             weightButton("minus", name: "Take \(upcoming.weightStep.formatted()) pounds off \(upcoming.name)", disabled: set.weight <= 0) {
                                 store.setUpcomingWeight(onExercise: upcomingLift, to: set.weight - upcoming.weightStep)
+                                // the lock screen is showing this same set
+                                RestActivityController.update(nextUp: nextUpLine)
                             }
                             Spacer()
                             Text("\(set.weight.formatted()) lb × \(set.reps)")
@@ -155,6 +157,7 @@ struct RestTimerView: View {
                             Spacer()
                             weightButton("plus", name: "Put \(upcoming.weightStep.formatted()) more pounds on \(upcoming.name)", disabled: false) {
                                 store.setUpcomingWeight(onExercise: upcomingLift, to: set.weight + upcoming.weightStep)
+                                RestActivityController.update(nextUp: nextUpLine)
                             }
                         }
                     } else {

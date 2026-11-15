@@ -70,7 +70,7 @@ struct RestLiveActivity: Widget {
 
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: RestActivityAttributes.self) { context in
-            RestLockScreenView(nextUp: context.attributes.nextUp,
+            RestLockScreenView(nextUp: context.state.nextUp,
                                endsAt: context.state.endsAt,
                                finished: isDone(context))
                 .activityBackgroundTint(WidgetColor.ground)
@@ -91,7 +91,7 @@ struct RestLiveActivity: Widget {
                     }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text(context.attributes.nextUp)
+                    Text(context.state.nextUp)
                         .font(.headline)
                         .foregroundStyle(WidgetColor.fg)
                 }

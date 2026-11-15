@@ -17,8 +17,25 @@ enum RestActivityController {
         // and it lands close to 0:00. the app can't be exact while locked, but
         // the lock screen alert still fires right on time
         let staleDate = max(endsAt.addingTimeInterval(-staleLead), .now.addingTimeInterval(1))
-        let content = ActivityContent(state: RestActivityAttributes.ContentState(endsAt: endsAt), staleDate: staleDate)
-        _ = try? Activity.request(attributes: RestActivityAttributes(nextUp: nextUp), content: content)
+        let state = RestActivityAttributes.ContentState(endsAt: endsAt, nextUp: nextUp)
+        let content = ActivityContent(state: state, staleDate: staleDate)
+        _ = try? Activity.request(attributes: RestActivityAttributes(), content: content)
+    }
+
+    /// The next set changed while she was resting. The countdown carries on,
+    /// the words under it catch up.
+    static func update(nextUp: String) {
+        let running = Activity<RestActivityAttributes>.activities
+        guard !running.isEmpty else { return }
+        Task {
+            for activity in running {
+                var state = activity.content.state
+                guard state.nextUp != nextUp else { continue }
+                state.nextUp = nextUp
+                await activity.update(ActivityContent(state: state,
+                                                      staleDate: activity.content.staleDate))
+            }
+        }
     }
 
     // with the app open it can say Ready the moment the timer hits 0:00
