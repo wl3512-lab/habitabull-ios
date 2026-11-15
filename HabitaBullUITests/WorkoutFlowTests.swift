@@ -215,6 +215,31 @@ final class WorkoutFlowTests: XCTestCase {
         }
     }
 
+    /// The rest length has to be changeable after the first run. Every way
+    /// into the rest screen in the real app arrives already resting, and the
+    /// plus and minus row used to be hidden whenever it was, so whatever
+    /// onboarding set was what she kept for good. Found by a codex review
+    /// 2026-11-15.
+    func testTheRestLengthCanStillBeChangedInTheMiddleOfAWorkout() {
+        start()
+        logSet()
+
+        XCTAssertTrue(app.staticTexts["Resting"].waitForExistence(timeout: 8),
+                      "the rest screen never arrived")
+        let longer = app.buttons["+15s"]
+        XCTAssertTrue(longer.waitForExistence(timeout: 5),
+                      "no way to change the rest length while resting")
+
+        let before = app.staticTexts.matching(
+            NSPredicate(format: "label MATCHES '[0-9]+:[0-9][0-9]'")
+        ).firstMatch.label
+        longer.tap()
+        let after = app.staticTexts.matching(
+            NSPredicate(format: "label MATCHES '[0-9]+:[0-9][0-9]'")
+        ).firstMatch.label
+        XCTAssertNotEqual(before, after, "fifteen more seconds changed nothing on the clock")
+    }
+
     private func start() {
         let begin = app.buttons["Start workout"]
         // thirty, not ten. the first test in a suite runs right after a build

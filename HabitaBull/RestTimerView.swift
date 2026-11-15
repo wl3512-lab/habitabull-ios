@@ -70,10 +70,16 @@ struct RestTimerView: View {
             .frame(width: 220, height: 220)
             .padding(.top, 8)
 
-            if !resting {
+            // during the rest as well as before it. every way into this screen
+            // in the real app either starts the timer or restores a running
+            // one, so hiding these while resting left no way at all to change
+            // the rest length after the first run: whatever onboarding set was
+            // what she was stuck with. hidden only at 0:00, where there is no
+            // rest left to lengthen.
+            if !done {
                 HStack(spacing: 40) {
-                    Button("−15s") { restSeconds = max(15, restSeconds - 15) }
-                    Button("+15s") { restSeconds = min(600, restSeconds + 15) }
+                    Button("−15s") { adjust(by: -15) }
+                    Button("+15s") { adjust(by: 15) }
                 }
                 .font(.head)
                 .foregroundStyle(.brandCyan)
@@ -195,6 +201,33 @@ struct RestTimerView: View {
                 .frame(minHeight: 44)
             }
         }
+    }
+
+    /// Fifteen seconds on or off. Before a rest it sets the one about to
+    /// start. During a rest it moves the rest she is standing in too, because
+    /// the moment you find out ninety seconds is not enough is the moment you
+    /// are standing in it. Both change the saved length: the rest she just
+    /// decided she needed is the rest she gets next set.
+    private func adjust(by seconds: Int) {
+        let next = min(600, max(15, restSeconds + seconds))
+        guard next != restSeconds else { return }
+        let moved = next - restSeconds
+        restSeconds = next
+
+        guard resting, let current = endsAt else { return }
+        let when = max(.now, current.addingTimeInterval(TimeInterval(moved)))
+        endsAt = when
+        left = max(0, Int(when.timeIntervalSinceNow.rounded(.up)))
+        if left > 0 {
+            scheduleRestAlert(in: left)
+        } else {
+            // no trigger can be scheduled for zero seconds, and there is
+            // nothing left to be alerted about
+            UNUserNotificationCenter.current()
+                .removePendingNotificationRequests(withIdentifiers: ["rest"])
+        }
+        store.setRest(endsAt: when, lift: exerciseIndex)
+        RestActivityController.start(endsAt: when, nextUp: nextUpLine)
     }
 
     private func start() {

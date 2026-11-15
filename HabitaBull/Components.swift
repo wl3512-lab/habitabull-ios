@@ -185,9 +185,25 @@ struct NumberStepper: View {
 
     // whole numbers for a count, halves for weight, and always inside the limits
     private func commit() {
-        guard let typed = Double(draft) else { return }
+        guard let typed = Self.number(from: draft) else { return }
         let rounded = halves ? (typed * 2).rounded() / 2 : typed.rounded()
         value = min(maximum, max(minimum, rounded))
+    }
+
+    /// Reads the number the way the phone wrote it. `Double(_:)` only knows a
+    /// dot, but a decimal pad in Germany gives a comma and `formatted()`
+    /// writes one, so 22,5 was rejected and the old weight silently kept.
+    /// The locale goes first and plain parsing second: reading a German
+    /// "1.000" with `Double` would give 1, which is the same silent wrong
+    /// number in a worse disguise.
+    static func number(from text: String, locale: Locale = .current) -> Double? {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.locale = locale
+        if let n = f.number(from: text) { return n.doubleValue }
+        // half typed input like "22." has no locale reading, and a dot typed
+        // on a hardware keyboard anywhere should still mean a dot
+        return Double(text)
     }
 
     private func roundButton(_ symbol: String, name: String, disabled: Bool, action: @escaping () -> Void) -> some View {

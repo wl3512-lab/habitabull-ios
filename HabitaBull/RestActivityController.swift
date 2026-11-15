@@ -33,8 +33,13 @@ enum RestActivityController {
     }
 
     static func stop() {
+        // read the list now and end them later. enumerating inside the task
+        // meant it could run after start() had already requested the
+        // replacement, so stopping the old countdown ended the new one and
+        // the Dynamic Island went blank the moment rest began.
+        let running = Activity<RestActivityAttributes>.activities
         Task {
-            for activity in Activity<RestActivityAttributes>.activities {
+            for activity in running {
                 await activity.end(nil, dismissalPolicy: .immediate)
             }
         }
