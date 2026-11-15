@@ -181,13 +181,20 @@ xcodebuild test -scheme HabitaBull \
   ui run at a time on this machine
 - the ui suites drive a real simulator and seed themselves through launch
   arguments, so they never touch a real phone's data and never need the clock
-  faked. `-uitest-reset` wipes and is the switchboard the others hang off,
-  `-uitest-onboarded` skips the three questions, `-uitest-noweek` leaves the
-  week unagreed, `-uitest-restday` puts today outside the week,
-  `-uitest-history` and `-uitest-pattern` and `-uitest-weekly` each seed a
-  different shape of past. they are read in `SessionStore` and `Profile` for the
-  data, and in `HabitaBullApp`, `Opening` and `Confirmations` for what the
-  screens skip. `grep -rn '"-uitest-' HabitaBull/` finds every one
+  faked. eleven of them, in three groups. state: `-uitest-reset` wipes and is
+  the switchboard the rest hang off, `-uitest-onboarded` skips the three
+  questions, `-uitest-noweek` leaves the week unagreed, `-uitest-restday` puts
+  today outside the week. history: `-uitest-history` is a few weeks,
+  `-uitest-pattern` is months with a comeback in it, `-uitest-weekly` is the
+  once a week person and sets her week as well as her past. timing:
+  `-uitest-skip-opening`, `-uitest-hold-opening` holds it thirty seconds,
+  `-uitest-slow-opening` stretches the same curves four times longer for
+  stills, and `-uitest-hold-beats` keeps a confirmation up for thirty seconds
+  because an accessibility snapshot can outlast the beat and the suite was
+  losing that race. they are read in `SessionStore` and `Profile` for the data,
+  and in `HabitaBullApp`, `Opening` and `Confirmations` for the timing.
+  `grep -rhoE '"-uitest-[a-z-]+"' HabitaBull/ | sort -u` lists every one, and
+  note the inner hyphens: a pattern of `[a-z]+` misses four of them
 
 ## plan
 
