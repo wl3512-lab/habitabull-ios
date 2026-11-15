@@ -198,12 +198,21 @@ struct RestTimerView: View {
                 SetCountRow(
                     setsLeft: lift.setsLeft,
                     canDrop: lift.canDropSet,
-                    onDrop: { store.dropSet(fromExercise: exerciseIndex) },
-                    onAdd: { store.addSet(toExercise: exerciseIndex) }
+                    onDrop: {
+                        store.dropSet(fromExercise: exerciseIndex)
+                        RestActivityController.update(nextUp: nextUpLine)
+                    },
+                    onAdd: {
+                        store.addSet(toExercise: exerciseIndex)
+                        RestActivityController.update(nextUp: nextUpLine)
+                    }
                 )
             } else {
+                // one more set changes what is next, and the Lock Screen was
+                // left naming the lift she had already moved on from
                 Button("One more set of \(lift.name)") {
                     store.addSet(toExercise: exerciseIndex)
+                    RestActivityController.update(nextUp: nextUpLine)
                 }
                 .font(.head)
                 .foregroundStyle(.brandCyan)

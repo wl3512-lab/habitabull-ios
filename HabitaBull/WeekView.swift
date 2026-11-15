@@ -25,13 +25,6 @@ struct WeekView: View {
     /// own suggestion, and a suggestion is allowed to be reconsidered when she
     /// changes how many days she is training.
     @State private var mine = false
-    /// Every weekday she has named, including ones currently switched off.
-    /// Replanning is built from the days that are on, so the assignment on a
-    /// day she turns off is gone by the time she turns it back on: Monday,
-    /// renamed to "Chest and arms", came back as the app's default Push day
-    /// with default lifts. She took a day off the week, she did not throw its
-    /// workout away.
-    @State private var remembered: [Int: String] = [:]
 
     private let initials = ["S", "M", "T", "W", "T", "F", "S"]
     private let names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
@@ -191,12 +184,18 @@ struct WeekView: View {
     /// talking to itself.
     private func replan() {
         let before = routine
+        // every weekday she has named, on or off. this rides on the routine
+        // rather than on the screen, so it is still here after she closes the
+        // app: Monday, renamed to "Chest and arms", taken out of the week and
+        // put back a day later came back as the app's default Push day
+        var remembered = before.remembered
         for day in before.days { remembered[day.weekday] = day.label }
 
         // hers is kept, the app's own guess is made again. a suggested week of
         // push, pull and legs cut down to one day should become a full body
         // day, not a push day she never asked for
         var next = Planner.plan(for: chosen, keeping: mine ? before : nil)
+        next.remembered = remembered
 
         // and a day coming back gets what she put on it, not a fresh guess.
         // only for a week that is hers: the app's own suggestion is allowed to

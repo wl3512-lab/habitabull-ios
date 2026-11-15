@@ -33,6 +33,33 @@ final class WorkoutFlowTests: XCTestCase {
         app.launch()
     }
 
+    /// The plate picker, with a bar in her hands.
+    ///
+    /// 45 and two fives is 65, which the bar shows as a ten a side, because
+    /// that is how a bar is actually loaded. Undo went looking for the five it
+    /// had written down, found none on the bar, and took the ten off instead:
+    /// one tap from 65 to the empty bar, with 55 nowhere on the way.
+    /// Found by a codex review 2026-11-15.
+    func testUndoingAPlateGoesBackToTheWeightBeforeIt() {
+        app.terminate()
+        // the plate picker rather than the steppers, which is a saved choice
+        app.launchArguments += ["-loadTheBar", "YES"]
+        app.launch()
+        start()
+
+        let five = app.buttons["Add one 5 pound plate to each side"]
+        XCTAssertTrue(five.waitForExistence(timeout: 30), "the plate picker never opened")
+        five.tap()
+        XCTAssertTrue(app.staticTexts["55"].waitForExistence(timeout: 5), "one five a side is not 55")
+        five.tap()
+        XCTAssertTrue(app.staticTexts["65"].waitForExistence(timeout: 5), "two fives a side is not 65")
+
+        app.buttons["Remove last plate"].tap()
+
+        XCTAssertTrue(app.staticTexts["55"].waitForExistence(timeout: 5),
+                      "undo took the whole ten off instead of the five she had just put on")
+    }
+
     func testAddingALiftDoesNotEndTheWorkout() {
         start()
 

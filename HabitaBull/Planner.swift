@@ -24,6 +24,32 @@ struct Routine: Codable, Equatable {
     var days: [Day] = []
     /// Workout name to the lifts in it.
     var library: [String: [String]] = [:]
+    /// Workouts she has named on days that are currently switched off.
+    ///
+    /// Replanning builds the week from the days that are on, so a day taken
+    /// out of it lost its assignment: Monday, renamed to "Chest and arms",
+    /// came back as the app's default Push day with default lifts. She took a
+    /// day off the week, she did not throw its workout away. Keeping this on
+    /// the routine rather than in the screen means it survives closing the
+    /// app, which is the half the first fix missed.
+    var remembered: [Int: String] = [:]
+
+    init(days: [Day] = [], library: [String: [String]] = [:], remembered: [Int: String] = [:]) {
+        self.days = days
+        self.library = library
+        self.remembered = remembered
+    }
+
+    enum CodingKeys: String, CodingKey { case days, library, remembered }
+
+    /// Lenient, like the profile around it: a routine saved before a field
+    /// existed still opens, rather than taking her whole week with it.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        days = try c.decodeIfPresent([Day].self, forKey: .days) ?? []
+        library = try c.decodeIfPresent([String: [String]].self, forKey: .library) ?? [:]
+        remembered = try c.decodeIfPresent([Int: String].self, forKey: .remembered) ?? [:]
+    }
 
     func label(on weekday: Int) -> String? {
         days.first { $0.weekday == weekday }?.label

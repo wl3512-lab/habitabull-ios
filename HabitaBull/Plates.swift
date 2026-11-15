@@ -96,7 +96,15 @@ struct PlateBar: View {
     // the bar for this lift. a weight lighter than your usual bar means a lighter
     // bar (a 30 lb squat is a 30 lb bar, no plates), without changing the saved one
     @State private var bar = 45.0
-    @State private var added: [Double] = []   // newest last, so "remove last" takes it off
+    /// What the bar read before each plate she added, newest last.
+    ///
+    /// This used to hold the plate sizes, and undo went looking on the bar for
+    /// the size it was holding. The bar does not keep the plates you put on
+    /// it: 45 and two fives is 65, which loads as a single ten a side, so undo
+    /// looked for a five, found none, and took the ten off instead. One tap
+    /// back to the empty bar from 65. The weight before the tap is the only
+    /// thing undo needs to know.
+    @State private var before: [Double] = []
 
     private var loaded: (perSide: [Double], achieved: Double, exact: Bool) {
         Plates.load(weight, bar: bar)
@@ -142,8 +150,8 @@ struct PlateBar: View {
                     ForEach(Plates.sizes, id: \.self) { size in
                         let fits = Plates.fits(size, on: loaded.perSide)
                         Button(size.formatted()) {
+                            before.append(weight)
                             weight = Plates.total(loaded.perSide + [size], bar: bar)
-                            added.append(size)
                         }
                         .font(.head).foregroundStyle(.fg).monospacedDigit()
                         .frame(maxWidth: .infinity, minHeight: 48)
@@ -167,7 +175,7 @@ struct PlateBar: View {
                         }
                         .foregroundStyle(.brandCyan)
                         .accessibilityLabel("Remove last plate")
-                        Button("Strip") { weight = bar; added = [] }
+                        Button("Strip") { weight = bar; before = [] }
                             .foregroundStyle(.dim)
                     }
                     .font(.head)
@@ -206,6 +214,8 @@ struct PlateBar: View {
     // the bar you set here is saved for every barbell lift
     private func setBar(_ b: Double) {
         let plates = loaded.perSide
+        // those weights were against the old bar
+        before = []
         bar = min(100, max(0, b))
         savedBar = bar
         weight = Plates.total(plates, bar: bar)
@@ -214,20 +224,22 @@ struct PlateBar: View {
     // tapping an end takes off its outer plate, the way a bar is unloaded
     private func removeOuter() {
         var plates = loaded.perSide
-        guard let gone = plates.popLast() else { return }
-        if let k = added.lastIndex(of: gone) { added.remove(at: k) }
+        guard plates.popLast() != nil else { return }
+        // she unloaded the bar herself, so the trail no longer describes it
+        before = []
         weight = Plates.total(plates, bar: bar)
     }
 
-    // takes off the plate you added last; with nothing added here, the outer one
+    // puts the bar back to what it read before the last plate she added; with
+    // nothing added here, the outer one comes off
     private func removeLast() {
+        if let was = before.popLast() {
+            weight = was
+            return
+        }
         var plates = loaded.perSide
         guard !plates.isEmpty else { return }
-        if let last = added.popLast(), let k = plates.lastIndex(of: last) {
-            plates.remove(at: k)
-        } else {
-            plates.removeLast()
-        }
+        plates.removeLast()
         weight = Plates.total(plates, bar: bar)
     }
 }

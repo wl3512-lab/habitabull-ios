@@ -122,6 +122,30 @@ final class SessionStoreTests: XCTestCase {
                        "the set went nowhere")
     }
 
+    /// The receipt is for the workout she just finished, not whichever one the
+    /// store can still write to.
+    ///
+    /// With last night's workout still open, finishing today's clears the
+    /// open id and the store falls back to last night's, which is right for
+    /// writes and wrong for a receipt: the screen said "that's the workout"
+    /// over yesterday's lifts. This is why the log screen holds the id of the
+    /// one it finished rather than asking again. Found by a codex review
+    /// 2026-11-15.
+    func testTheReceiptIsForTheWorkoutSheJustFinished() {
+        seedWorkoutStartedLastNight(done: true)   // last night's, walked away from
+        store.startWorkout()
+        let todays = store.openSessionId
+        store.logSet(onExercise: indexOf("back-squat"), weight: 100, reps: 5)
+
+        store.finishWorkout()
+
+        let receipt = store.session(id: todays)
+        XCTAssertNotNil(receipt?.completedAt, "today's workout is not the one that got finished")
+        XCTAssertEqual(receipt?.date, dayString(), "the receipt is for another day")
+        XCTAssertNotEqual(store.openSession?.id, todays,
+                          "asking the store again lands on last night's, which is the trap")
+    }
+
     /// The receipt after a workout that ran past midnight.
     ///
     /// Finishing closes the open session, and `today` is already a different

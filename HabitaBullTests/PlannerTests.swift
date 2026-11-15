@@ -11,6 +11,36 @@ import HabitaBullKit
 @testable import HabitaBull
 
 final class PlannerTests: XCTestCase {
+    /// A day she takes out of the week keeps what she put on it, and keeps it
+    /// after she closes the app. The first fix for this lived in the week
+    /// screen's own state, so Monday renamed to "Chest and arms", switched
+    /// off, saved and reopened came back as the app's default Push day.
+    /// Found by a codex review 2026-11-15.
+    func testADayShePutAwayIsStillHersAfterTheAppCloses() {
+        var week = Planner.plan(for: [1, 3, 5])
+        week.remembered[1] = "Chest and arms"
+
+        let reopened = try! JSONDecoder().decode(Routine.self, from: JSONEncoder().encode(week))
+
+        XCTAssertEqual(reopened.remembered[1], "Chest and arms",
+                       "the name she gave Monday did not survive being saved")
+    }
+
+    /// And a week saved before the app remembered any of this still opens,
+    /// rather than taking her whole routine down with it.
+    func testAWeekSavedBeforeThisStillOpens() throws {
+        let old = Data("""
+        {"days":[{"weekday":1,"label":"Push day"}],"library":{"Push day":["bench-press"]}}
+        """.utf8)
+
+        let week = try XCTUnwrap(try? JSONDecoder().decode(Routine.self, from: old),
+                                 "a week saved before this would not open at all")
+
+        XCTAssertEqual(week.label(on: 1), "Push day")
+        XCTAssertEqual(week.lifts(on: 1), ["bench-press"])
+        XCTAssertTrue(week.remembered.isEmpty)
+    }
+
     func testThreeDaysBecomePushPullAndLegs() {
         let week = Planner.plan(for: [1, 3, 5])
         XCTAssertEqual(week.inOrder.map(\.label), ["Push day", "Pull day", "Leg day"])

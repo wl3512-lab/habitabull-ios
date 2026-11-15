@@ -42,7 +42,12 @@ struct LogView: View {
     // session all day and stop being at midnight, when `today` goes nil on a
     // workout she is still standing in the middle of
     private var session: Session? {
-        store.openSession ?? store.session(id: finishedId) ?? store.today
+        // the one she just finished comes first. putting `openSession` first
+        // meant that with a workout left open from last night still inside the
+        // store's 24 hour window, finishing today's handed the receipt that
+        // old workout instead: she saw yesterday's lifts under "that's the
+        // workout", with today's nowhere
+        store.session(id: finishedId) ?? store.openSession ?? store.today
     }
 
     // the lift you picked while it has sets left, otherwise the next one in order
