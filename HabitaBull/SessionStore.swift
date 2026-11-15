@@ -10,7 +10,16 @@ import HabitaBullKit
 @Observable
 final class SessionStore {
     private(set) var sessions: [Session] = []
+    /// True while the most recent write failed, which is what the line on
+    /// Today reads. Not a latch: every later write tries again and clears it
+    /// on success. Storage that is full or busy for a moment comes back, and
+    /// a phone that has started saving again should stop saying it has not.
     private(set) var saveFailed = false
+    /// The file on disk could not be read. Nothing is ever written over it.
+    /// An unreadable file is far more likely to be a history worth recovering
+    /// by hand than something to clobber, and that is a separate decision
+    /// from a write that failed once.
+    private var fileUnreadable = false
 
     private let fileURL: URL
 
@@ -48,7 +57,19 @@ final class SessionStore {
         if let resumedId, let i = sessions.firstIndex(where: { $0.id == resumedId && $0.completedAt == nil }) {
             return i
         }
-        return sessions.lastIndex { $0.date == dayString() && $0.completedAt == nil }
+        if let i = sessions.lastIndex(where: { $0.date == dayString() && $0.completedAt == nil }) {
+            return i
+        }
+        // midnight is not the end of a workout. finding the open session by
+        // today's date meant that at 00:00 the store stopped finding the one
+        // she was standing in the middle of: logSet and finishWorkout quietly
+        // did nothing while the screen still looked fine, and the only way out
+        // was to leave and resume yesterday. the date rolled over, she did not
+        // put the bar down. twenty four hours is the same window `unfinished`
+        // already uses to offer a workout back to her.
+        return sessions.lastIndex {
+            $0.completedAt == nil && Date.now.timeIntervalSince($0.startedAt) < 24 * 60 * 60
+        }
     }
 
     // a workout left open from an earlier day, for up to 24 hours. this also
@@ -438,16 +459,23 @@ final class SessionStore {
         } catch {
             // an unreadable file stays on disk and doesn't get saved over silently
             print("could not read sessions: \(error)")
+            fileUnreadable = true
             saveFailed = true
         }
     }
 
     private func save() {
-        guard !saveFailed else { return }
+        // only an unreadable file stops a write. a write that failed once does
+        // not: this used to guard on saveFailed, so the first failure disabled
+        // every save for the life of the app. logging carried on updating
+        // memory, the screen looked right, and the whole rest of the workout
+        // was gone on relaunch.
+        guard !fileUnreadable else { return }
         do {
             let data = try Self.encoder.encode(sessions)
             // atomic: the old file stays until the new one is fully written
             try data.write(to: fileURL, options: .atomic)
+            saveFailed = false
         } catch {
             print("could not save sessions: \(error)")
             saveFailed = true

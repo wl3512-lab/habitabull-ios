@@ -23,6 +23,98 @@ final class SessionStoreTests: XCTestCase {
         try? FileManager.default.removeItem(at: file)
     }
 
+    // MARK: - saving after a save has failed
+
+    /// A write can fail for a moment: storage full, the file busy, the phone
+    /// mid backup. The store used to latch on the first failure and refuse
+    /// every write after it, so logging carried on updating memory, the
+    /// screen looked right, and the rest of the workout was gone on relaunch.
+    /// Losing the sets after a hiccup is far worse than the hiccup.
+    /// Found by a codex review 2026-11-15.
+    func testSavingComesBackAfterAWriteFails() {
+        // a file inside a directory that is not there yet: every write fails
+        let missing = URL.temporaryDirectory.appending(path: "gone-\(UUID().uuidString)")
+        let path = missing.appending(path: "sessions.json")
+        let store = SessionStore(fileURL: path)
+
+        store.startWorkout()
+        store.addLift("hammer-curl", sets: 3)
+        store.logSet(onExercise: indexOf("hammer-curl", in: store), weight: 25, reps: 12)
+        XCTAssertTrue(store.saveFailed, "a failed write should say so")
+
+        // the phone starts saving again
+        try! FileManager.default.createDirectory(at: missing, withIntermediateDirectories: true)
+        store.logSet(onExercise: indexOf("hammer-curl", in: store), weight: 25, reps: 12)
+
+        XCTAssertFalse(store.saveFailed, "it is saving again and still says it is not")
+        let reopened = SessionStore(fileURL: path)
+        XCTAssertEqual(reopened.sessions.flatMap(\.exercises).flatMap(\.sets).filter(\.done).count, 2,
+                       "the sets she did after the hiccup did not survive a relaunch")
+        try? FileManager.default.removeItem(at: missing)
+    }
+
+    /// The other half of the same decision: a file that could not be read is
+    /// never written over, so a history worth recovering by hand stays put.
+    func testAnUnreadableFileIsNeverSavedOver() {
+        let path = URL.temporaryDirectory.appending(path: "junk-\(UUID().uuidString).json")
+        let junk = Data("this is not a workout".utf8)
+        try! junk.write(to: path)
+
+        let store = SessionStore(fileURL: path)
+        XCTAssertTrue(store.saveFailed, "it could not read the file and did not say so")
+        store.startWorkout()
+
+        XCTAssertEqual(try! Data(contentsOf: path), junk, "it wrote over a file it could not read")
+        try? FileManager.default.removeItem(at: path)
+    }
+
+    // MARK: - a workout that runs past midnight
+
+    /// Seeds one open workout that began at 23:50 and is still open now, which
+    /// is exactly what the store sees the moment the date rolls over. No clock
+    /// is faked: the session is written to disk the way it would already be.
+    private func seedWorkoutStartedLastNight(lift: String = "back-squat") {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .current
+        let tenToMidnight = cal.startOfDay(for: .now).addingTimeInterval(-10 * 60)
+        let session = Session(
+            id: UUID().uuidString,
+            date: dayString(tenToMidnight),
+            label: "Leg day",
+            exercises: [LoggedExercise(exerciseId: lift,
+                                       sets: Array(repeating: LoggedSet(weight: 95, reps: 8), count: 3))],
+            startedAt: tenToMidnight
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try! encoder.encode([session]).write(to: file)
+        store = SessionStore(fileURL: file)
+    }
+
+    /// Midnight is not the end of a workout. The store used to find the open
+    /// session by today's date, so at 00:00 it stopped finding the one she was
+    /// standing in the middle of: logSet and finishWorkout quietly did nothing
+    /// while the screen still looked fine. Found by a codex review 2026-11-15.
+    func testASetLoggedAfterMidnightLandsOnTheWorkoutSheIsStillDoing() {
+        seedWorkoutStartedLastNight()
+        XCTAssertNotNil(store.openSessionId, "the workout she is in the middle of went missing at midnight")
+
+        store.logSet(onExercise: 0, weight: 100, reps: 5)
+
+        let done = store.sessions.flatMap(\.exercises).flatMap(\.sets).filter(\.done)
+        XCTAssertEqual(done.count, 1, "the set went nowhere")
+        XCTAssertEqual(done.first?.weight, 100)
+    }
+
+    func testAWorkoutThatRanPastMidnightCanStillBeFinished() {
+        seedWorkoutStartedLastNight()
+        store.logSet(onExercise: 0, weight: 100, reps: 5)
+        store.finishWorkout()
+
+        XCTAssertNotNil(store.sessions.first?.completedAt,
+                        "she finished it and it stayed open for ever")
+    }
+
     // MARK: - how many sets a lift comes back with
 
     func testSetCountComesBackFromTheLastTimeYouDidIt() {
@@ -414,6 +506,11 @@ final class SessionStoreTests: XCTestCase {
     }
 
     private func indexOf(_ id: String) -> Int {
+        indexOf(id, in: store)
+    }
+
+    // the same, for a test that builds its own store on a different file
+    private func indexOf(_ id: String, in store: SessionStore) -> Int {
         store.today?.exercises.firstIndex { $0.exerciseId == id } ?? -1
     }
 }
