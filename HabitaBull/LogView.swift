@@ -32,7 +32,10 @@ struct LogView: View {
     @State private var beat: SetOutcome? = nil   // the confirmation on screen
     @State private var finished = false
 
-    private var session: Session? { store.today }
+    // the open workout first, and only then today's. they are the same
+    // session all day and stop being at midnight, when `today` goes nil on a
+    // workout she is still standing in the middle of
+    private var session: Session? { store.openSession ?? store.today }
 
     // the lift you picked while it has sets left, otherwise the next one in order
     private var currentLift: Int? {

@@ -113,7 +113,7 @@ struct NumberStepper: View {
                 }
                 HStack(spacing: 8) {
                     roundButton("minus", name: "Decrease \(label)", disabled: value <= minimum) {
-                        value = max(minimum, value - step)
+                        settle(on: max(minimum, value - step))
                     }
                     // the unit sits beside the number in the short version
                     Group {
@@ -133,7 +133,7 @@ struct NumberStepper: View {
                     }
                     .frame(maxWidth: .infinity)
                     roundButton("plus", name: "Increase \(label)", disabled: value >= maximum) {
-                        value = min(maximum, value + step)
+                        settle(on: min(maximum, value + step))
                     }
                 }
             }
@@ -181,6 +181,16 @@ struct NumberStepper: View {
                 }
             }
         }
+    }
+
+    /// The buttons and the keyboard are two ways to set one number, so they
+    /// have to agree. Stepping while the field was focused moved the value
+    /// behind a draft still showing the old text: the screen said 100 and the
+    /// set was 102.5, and tapping Done then committed the stale 100 back over
+    /// the step. Same bug as the one before it, read the other way round.
+    private func settle(on next: Double) {
+        value = next
+        if typing { draft = next.formatted() }
     }
 
     // whole numbers for a count, halves for weight, and always inside the limits

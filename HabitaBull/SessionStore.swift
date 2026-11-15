@@ -53,6 +53,13 @@ final class SessionStore {
     /// the open one.
     var openSessionId: String? { openIndex.map { sessions[$0].id } }
 
+    /// The same workout, read back. `today` answers "what happened on this
+    /// calendar day", which stops being the same question the moment a
+    /// workout runs past midnight: the writes kept landing and the screen
+    /// that reads `today` went empty and said "That's every set" with sets
+    /// still left. Anything following the open workout wants this one.
+    var openSession: Session? { openIndex.map { sessions[$0] } }
+
     private var openIndex: Int? {
         if let resumedId, let i = sessions.firstIndex(where: { $0.id == resumedId && $0.completedAt == nil }) {
             return i

@@ -240,6 +240,36 @@ final class WorkoutFlowTests: XCTestCase {
         XCTAssertNotEqual(before, after, "fifteen more seconds changed nothing on the clock")
     }
 
+    /// The buttons and the keyboard set the same number and have to agree.
+    /// Typing a weight and then tapping the plus moved the value behind a
+    /// field still showing the old text, so the screen said one weight and
+    /// the set saved another. Found by the second codex pass, 2026-11-15.
+    func testSteppingAWeightSheHasTypedMovesWhatSheCanSee() {
+        start()
+
+        app.staticTexts["Type Weight instead"].tap()
+        let field = app.textFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "the weight field never took focus")
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 8))
+        field.typeText("100")
+
+        app.buttons["Increase Weight"].tap()
+        XCTAssertNotEqual(field.value as? String, "100",
+                          "the plus moved the weight and left the screen saying 100")
+
+        // and what it says is what gets logged, with Done never tapped
+        let shown = (field.value as? String) ?? ""
+        app.buttons["Log set"].tap()
+        app.tap()
+        let logged = app.staticTexts.matching(
+            NSPredicate(format: "label BEGINSWITH %@", shown + " lb")
+        ).firstMatch
+        if !logged.waitForExistence(timeout: 8) {
+            let all = app.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: " | ")
+            XCTFail("the screen said \(shown) and logged something else. on screen: \(all)")
+        }
+    }
+
     private func start() {
         let begin = app.buttons["Start workout"]
         // thirty, not ten. the first test in a suite runs right after a build

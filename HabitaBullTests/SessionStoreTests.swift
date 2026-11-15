@@ -106,6 +106,19 @@ final class SessionStoreTests: XCTestCase {
         XCTAssertEqual(done.first?.weight, 100)
     }
 
+    /// The write path was fixed first and the read path was not, which a
+    /// second codex pass caught: the logging screen reads the session back and
+    /// was still asking for today's, so it emptied out and said "That's every
+    /// set" on a workout with sets left in it.
+    func testTheWorkoutSheIsStillDoingCanBeReadBackAfterMidnight() {
+        seedWorkoutStartedLastNight()
+        XCTAssertNil(store.today, "this test is pointless if today still finds it")
+        let open = store.openSession
+        XCTAssertNotNil(open, "the screen asking for the open workout got nothing")
+        XCTAssertEqual(open?.exercises.first?.exerciseId, "back-squat")
+        XCTAssertEqual(open?.exercises.first?.setsLeft, 3, "it lost the sets she has left")
+    }
+
     func testAWorkoutThatRanPastMidnightCanStillBeFinished() {
         seedWorkoutStartedLastNight()
         store.logSet(onExercise: 0, weight: 100, reps: 5)
