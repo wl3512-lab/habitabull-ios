@@ -141,6 +141,15 @@ struct NumberStepper: View {
         .onChange(of: typing) { _, isTyping in
             if !isTyping { commit() }
         }
+        // and on every valid keystroke, not only when the field loses focus.
+        // tapping Log set with the keyboard still up is the ordinary way to do
+        // this when you are holding a bar, and it never takes focus away
+        // first. Reading the number only on blur meant she typed 100, the set
+        // saved 45, and the rest screen showed 45 back to her as if she had
+        // asked for it. a wrong number she trusts is worse than no number.
+        .onChange(of: draft) { _, _ in
+            if typing { commit() }
+        }
     }
 
     // the field stays on screen but invisible, so focus can land on it at once

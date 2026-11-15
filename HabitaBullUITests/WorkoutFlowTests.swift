@@ -181,9 +181,48 @@ final class WorkoutFlowTests: XCTestCase {
 
     // MARK: - the flow, in the app's own words
 
+    /// Type a weight, tap Log set, never tap Done. That is how it goes when
+    /// you are holding a bar: the keyboard is still up and the next thing you
+    /// want is the set logged. The typed number used to only be read when the
+    /// field lost focus, so this logged whatever was there before and then
+    /// showed that back on the rest screen as if she had asked for it. A
+    /// wrong number she trusts is worse than no number. Found by a codex
+    /// review on 2026-11-15.
+    func testATypedWeightIsTheOneThatGetsLogged() {
+        start()
+
+        let tapToType = app.staticTexts["Type Weight instead"]
+        XCTAssertTrue(tapToType.waitForExistence(timeout: 5), "no weight to tap")
+        tapToType.tap()
+
+        let field = app.textFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "the weight field never took focus")
+        // clear the plan's suggestion, then ask for a weight nothing else on
+        // this screen could have produced on its own
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 8))
+        field.typeText("100")
+
+        app.buttons["Log set"].tap()
+        // the beat clears itself; tapping only gets there sooner
+        app.tap()
+
+        let logged = app.staticTexts.matching(
+            NSPredicate(format: "label BEGINSWITH '100 lb'")
+        ).firstMatch
+        if !logged.waitForExistence(timeout: 8) {
+            let shown = app.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: " | ")
+            XCTFail("logged a weight she did not type. on screen: \(shown)")
+        }
+    }
+
     private func start() {
         let begin = app.buttons["Start workout"]
-        XCTAssertTrue(begin.waitForExistence(timeout: 10), "Today never appeared")
+        // thirty, not ten. the first test in a suite runs right after a build
+        // and install, and that launch has taken over forty seconds on this
+        // machine. ten seconds made this suite fail at random on whichever
+        // test happened to go first, which is worse than slow: a suite that
+        // goes red for no reason stops being read
+        XCTAssertTrue(begin.waitForExistence(timeout: 30), "Today never appeared")
         begin.tap()
         XCTAssertTrue(app.buttons["Log set"].waitForExistence(timeout: 5), "the log screen never opened")
     }
