@@ -11,6 +11,28 @@ import HabitaBullKit
 @testable import HabitaBull
 
 final class PlannerTests: XCTestCase {
+    /// A rename follows the days she has switched off, the same as the ones
+    /// she has not.
+    ///
+    /// Monday and Thursday sharing Upper day, Thursday switched off and
+    /// Monday renamed, left Thursday pointing at a name nothing answers to
+    /// any more: turning it back on gave her the old name with default lifts,
+    /// which is her workout quietly thrown away. Found by a codex review
+    /// 2026-11-15.
+    func testRenamingAWorkoutFollowsADayShePutAway() {
+        var week = Routine(days: [Routine.Day(weekday: 1, label: "Upper day")],
+                           library: ["Upper day": ["bench-press", "barbell-row"]],
+                           remembered: [4: "Upper day"])
+
+        week.rename("Upper day", to: "Chest and arms")
+
+        XCTAssertEqual(week.remembered[4], "Chest and arms",
+                       "Thursday still points at a workout that no longer exists")
+        XCTAssertEqual(week.library["Chest and arms"], ["bench-press", "barbell-row"],
+                       "the lifts did not move with the name")
+        XCTAssertNil(week.library["Upper day"])
+    }
+
     /// A day she takes out of the week keeps what she put on it, and keeps it
     /// after she closes the app. The first fix for this lived in the week
     /// screen's own state, so Monday renamed to "Chest and arms", switched

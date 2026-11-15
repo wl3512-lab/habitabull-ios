@@ -144,8 +144,11 @@ struct LogView: View {
                 askWhatIsNext()
             }
         }
-        .sheet(isPresented: $addingLift) {
-            AddLiftView(excluding: session?.exercises.map(\.exerciseId) ?? [], onCancel: leaveIfEmpty) { id, sets in
+        // on dismiss rather than on Cancel: swiping the sheet away is also
+        // leaving it, and that path left a quick workout open with nothing in
+        // it and no way to add anything without backing out of the screen
+        .sheet(isPresented: $addingLift, onDismiss: leaveIfEmpty) {
+            AddLiftView(excluding: session?.exercises.map(\.exerciseId) ?? []) { id, sets in
                 store.addLift(id, sets: sets)
                 chosenLift = (session?.exercises.count ?? 1) - 1
                 confirmingFinish = false

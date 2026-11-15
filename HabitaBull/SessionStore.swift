@@ -514,7 +514,21 @@ final class SessionStore {
     }
 
     private func load() {
-        guard let data = try? Data(contentsOf: fileURL) else { return }
+        let data: Data
+        do {
+            data = try Data(contentsOf: fileURL)
+        } catch {
+            // a file that is not there yet is an ordinary first run. a file
+            // that is there and will not open is a history worth keeping, and
+            // this used to treat them as the same thing: one unreadable file
+            // and the store started empty, said nothing, and the first set she
+            // logged wrote over every workout she had ever done.
+            if !FileManager.default.fileExists(atPath: fileURL.path) { return }
+            print("could not read sessions: \(error)")
+            fileUnreadable = true
+            saveFailed = true
+            return
+        }
         do {
             sessions = try Self.decoder.decode([Session].self, from: data)
             migrateDays()

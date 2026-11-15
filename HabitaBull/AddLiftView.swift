@@ -14,7 +14,6 @@ struct AddLiftView: View {
     /// screen wants a lift and nothing else, and a "Sets" step there would be
     /// a question with no use for its answer.
     var picksSets = true
-    var onCancel: (() -> Void)? = nil
     let onPick: (_ exerciseId: String, _ sets: Int) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -88,10 +87,9 @@ struct AddLiftView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        onCancel?()
-                        dismiss()
-                    }
+                    // the screen that opened this cleans up on dismiss, which
+                    // catches a swipe down as well as this button
+                    Button("Cancel") { dismiss() }
                 }
             }
         }

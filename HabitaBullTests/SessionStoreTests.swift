@@ -53,6 +53,40 @@ final class SessionStoreTests: XCTestCase {
         try? FileManager.default.removeItem(at: missing)
     }
 
+    /// And a file that will not open is not a file that is not there.
+    ///
+    /// Every read failure went down the same path as an ordinary first run:
+    /// the store came up empty, said nothing about it, and the first set she
+    /// logged wrote over every workout she had ever done. A file she has no
+    /// permission to read is the cheapest way to stand in for a disk going
+    /// wrong. Found by a codex review 2026-11-15.
+    func testHistoryIsNotWrittenOverWhenTheFileWillNotOpen() throws {
+        let path = URL.temporaryDirectory.appending(path: "locked-\(UUID().uuidString).json")
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode([day("2026-11-01", "back-squat", weight: 95, reps: 8)]).write(to: path)
+        let fm = FileManager.default
+        try fm.setAttributes([.posixPermissions: 0], ofItemAtPath: path.path)
+        defer {
+            try? fm.setAttributes([.posixPermissions: 0o644], ofItemAtPath: path.path)
+            try? fm.removeItem(at: path)
+        }
+
+        let store = SessionStore(fileURL: path)
+        XCTAssertTrue(store.sessions.isEmpty, "it read a file it cannot read")
+        XCTAssertTrue(store.saveFailed, "it could not open her history and said nothing")
+
+        store.startQuickWorkout()
+        store.addLift("hammer-curl", sets: 3)
+
+        try fm.setAttributes([.posixPermissions: 0o644], ofItemAtPath: path.path)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let back = try decoder.decode([Session].self, from: Data(contentsOf: path))
+        XCTAssertEqual(back.count, 1, "her history was written over by a workout started on top of it")
+        XCTAssertEqual(back.first?.exercises.first?.exerciseId, "back-squat")
+    }
+
     /// The other half of the same decision: a file that could not be read is
     /// never written over, so a history worth recovering by hand stays put.
     func testAnUnreadableFileIsNeverSavedOver() {

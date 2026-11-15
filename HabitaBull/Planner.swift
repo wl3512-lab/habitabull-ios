@@ -71,6 +71,11 @@ struct Routine: Codable, Equatable {
             if library[name] == nil { library[name] = lifts }
         }
         days = days.map { $0.label == old ? Day(weekday: $0.weekday, label: name) : $0 }
+        remembered = remembered.mapValues { $0 == old ? name : $0 }
+        // and the days she has switched off, which hold a name too. without
+        // this, Monday and Thursday sharing Upper day, Thursday off and Monday
+        // renamed left Thursday pointing at a name nothing answers to any
+        // more: turning it back on gave her the old name and default lifts.
     }
 
     /// Change what is in a workout. Every day with that name changes with it.

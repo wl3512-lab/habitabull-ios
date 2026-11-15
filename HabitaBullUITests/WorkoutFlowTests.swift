@@ -33,6 +33,30 @@ final class WorkoutFlowTests: XCTestCase {
         app.launch()
     }
 
+    /// Swiping the first lift picker away is leaving it.
+    ///
+    /// A quick workout opens the picker on itself, and backing out of it drops
+    /// the empty workout and goes back. That cleanup hung off the Cancel
+    /// button, so swiping the sheet down instead left her standing in a
+    /// workout with nothing in it: a spacer and End, and no way to add a lift
+    /// without leaving the screen and coming back.
+    /// Found by a codex review 2026-11-15.
+    func testSwipingTheFirstLiftPickerAwayDoesNotStrandHerInAnEmptyWorkout() {
+        let quick = app.buttons["Quick workout instead"]
+        XCTAssertTrue(quick.waitForExistence(timeout: 30), "no way into a quick workout")
+        quick.tap()
+
+        let picker = app.navigationBars["Add a lift"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 10), "the lift picker never opened itself")
+
+        // down, rather than Cancel
+        app.swipeDown(velocity: .fast)
+        XCTAssertTrue(picker.waitForNonExistence(timeout: 10), "the sheet did not go away")
+
+        XCTAssertTrue(quick.waitForExistence(timeout: 10),
+                      "she was left in a workout with nothing in it and no way to put anything in it")
+    }
+
     /// The plate picker, with a bar in her hands.
     ///
     /// 45 and two fives is 65, which the bar shows as a ten a side, because
