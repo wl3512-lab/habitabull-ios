@@ -153,6 +153,14 @@ public enum Attendance {
     /// It is her cadence that is read, never which weekdays she picked. A
     /// person on a three day week who only ever manages two is under-training,
     /// not coming back, and the grid should not keep congratulating her for it.
+    ///
+    /// The week she keeps now judges all of her history, and that is the
+    /// decision rather than an oversight. People get busier and goals change,
+    /// and somebody who has come down from six days a week to two is a
+    /// different person with a different idea of what a break is. So a
+    /// fortnight off can stop being a comeback, or start being one, when she
+    /// changes her week. Freezing the old verdicts would mean a record that
+    /// disagrees with the person reading it.
     public static func comebackDates(
         _ sessions: [SessionRecord], trainingDays: [Int] = [],
         missedAtLeast: Int = 2, zone: TimeZone = .current

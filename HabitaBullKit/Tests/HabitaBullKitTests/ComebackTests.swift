@@ -122,6 +122,22 @@ final class ComebackTests: XCTestCase {
         XCTAssertEqual(Attendance.longestComebackGap(days([0]), trainingDays: [1], zone: utc), 0)
     }
 
+    /// Changing her week re-reads her whole history, and that is the rule
+    /// working. Somebody who has come down from six days a week to two has a
+    /// different idea of what a break is, so the same gap is allowed to change
+    /// its answer. Decided 2026-11-15.
+    func testTheWeekSheKeepsNowJudgesAllOfIt() {
+        // Monday and Thursday for a month: nothing missed at two days a week
+        let steady = days([28, 25, 21, 18, 14, 11, 7, 4, 0])
+        XCTAssertEqual(Attendance.comebackDates(steady, trainingDays: [1, 4], zone: utc), [],
+                       "a kept two day week has no breaks in it")
+
+        // the same history, read by somebody who now means to train six days
+        let harder = Attendance.comebackDates(steady, trainingDays: [0, 1, 2, 3, 4, 5], zone: utc)
+        XCTAssertFalse(harder.isEmpty,
+                       "four days off is two missed workouts to somebody training six days a week")
+    }
+
     // MARK: - the longest break she came back from
 
     func testTheLongestGapOnlyCountsBreaksSheCameBackFrom() {

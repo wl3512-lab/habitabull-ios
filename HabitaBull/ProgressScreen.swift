@@ -34,6 +34,10 @@ struct ProgressScreen: View {
     /// here would hold her to a week she never chose and call somebody who
     /// does one quick workout a week a comeback every single week, which is
     /// the exact thing this rule was changed to stop.
+    ///
+    /// The week she keeps now, not the one she kept then: changing it
+    /// re-judges every gap in her history, on purpose. See
+    /// Attendance.comebackDates for why.
     private var week: [Int] {
         guard let profile = profiles.profile, profile.weekChosen else { return [] }
         return profile.trainingDays
