@@ -18,9 +18,15 @@ struct RestTimerView: View {
 
     @Environment(SessionStore.self) private var store
 
+    // the workout she is in, the same one LogView is showing. `today` goes
+    // nil at midnight on a workout still in progress, which took the next-up
+    // card and the set controls off this screen and left the Lock Screen
+    // saying "Next set" with the real lift one tap away
+    private var session: Session? { store.openSession ?? store.today }
+
     // the lift you just did, if this rest came after a logged set
     private var upcomingLift: Int? {
-        guard let session = store.today else { return nil }
+        guard let session else { return nil }
         if let exerciseIndex, session.exercises.indices.contains(exerciseIndex),
            session.exercises[exerciseIndex].setsLeft > 0 {
             return exerciseIndex
@@ -29,7 +35,7 @@ struct RestTimerView: View {
     }
 
     private var lift: LoggedExercise? {
-        guard let exerciseIndex, let exercises = store.today?.exercises,
+        guard let exerciseIndex, let exercises = session?.exercises,
               exercises.indices.contains(exerciseIndex) else { return nil }
         return exercises[exerciseIndex]
     }
@@ -128,7 +134,7 @@ struct RestTimerView: View {
 
     // the words on the Lock Screen
     private var nextUpLine: String {
-        guard let upcomingLift, let upcoming = store.today?.exercises[upcomingLift],
+        guard let upcomingLift, let upcoming = session?.exercises[upcomingLift],
               let set = upcoming.sets.first(where: { !$0.done }) else { return "Next set" }
         return "\(upcoming.name), \(upcoming.describe(set))"
     }
@@ -136,7 +142,7 @@ struct RestTimerView: View {
     // what's coming, so you can load the bar while you rest. the weight can
     // change right here, where you find out it was wrong
     @ViewBuilder private var nextUp: some View {
-        if let upcomingLift, let upcoming = store.today?.exercises[upcomingLift],
+        if let upcomingLift, let upcoming = session?.exercises[upcomingLift],
            let set = upcoming.sets.first(where: { !$0.done }) {
             Card {
                 VStack(alignment: .leading, spacing: 10) {

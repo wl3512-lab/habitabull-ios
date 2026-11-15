@@ -60,23 +60,65 @@ final class SessionStore {
     /// still left. Anything following the open workout wants this one.
     var openSession: Session? { openIndex.map { sessions[$0] } }
 
+    /// The workout she started or resumed in this run of the app.
+    ///
+    /// This is the only thing that can tell a workout running past midnight
+    /// apart from one she walked away from last night: in the data they are
+    /// the same shape, unfinished and begun before 00:00. It is deliberately
+    /// not saved. If the app was killed she is not standing in anything, and
+    /// the resume prompt is how an old workout comes back, in the open.
+    private(set) var openId: String? = nil
+
+    /// Which workout a logged set goes to.
+    ///
+    /// Midnight is not the end of a workout. Finding the open session by
+    /// today's date meant that at 00:00 the store stopped finding the one she
+    /// was standing in the middle of: logSet and finishWorkout quietly did
+    /// nothing while the screen still looked fine, and the only way out was to
+    /// leave and resume yesterday. The date rolled over, she did not put the
+    /// bar down. The last clause catches the same workout after the app was
+    /// killed and reopened, so the sets still land while she decides.
     private var openIndex: Int? {
         if let resumedId, let i = sessions.firstIndex(where: { $0.id == resumedId && $0.completedAt == nil }) {
+            return i
+        }
+        if let openId, let i = sessions.firstIndex(where: { $0.id == openId && $0.completedAt == nil }) {
             return i
         }
         if let i = sessions.lastIndex(where: { $0.date == dayString() && $0.completedAt == nil }) {
             return i
         }
-        // midnight is not the end of a workout. finding the open session by
-        // today's date meant that at 00:00 the store stopped finding the one
-        // she was standing in the middle of: logSet and finishWorkout quietly
-        // did nothing while the screen still looked fine, and the only way out
-        // was to leave and resume yesterday. the date rolled over, she did not
-        // put the bar down. twenty four hours is the same window `unfinished`
-        // already uses to offer a workout back to her.
         return sessions.lastIndex {
             $0.completedAt == nil && Date.now.timeIntervalSince($0.startedAt) < 24 * 60 * 60
         }
+    }
+
+    /// Which workout the rules must leave out of its own history, which is a
+    /// narrower question than which one a set goes to.
+    ///
+    /// The open workout is left out so the first set she logs does not decide
+    /// what the rest of that same lift should be. Answering it with
+    /// `openSessionId` meant that the morning after she walked away from a
+    /// workout, that workout was both unfinished and inside the 24 hours, so
+    /// the planner left it out of the history it was planning from: three sets
+    /// of 95 on the board and today's squat opened at the empty bar while the
+    /// line under it recommended 100. Only a workout she is actually in, or
+    /// one filed under today, is a workout to leave out.
+    var sessionInHandId: String? {
+        if let resumedId, let s = sessions.first(where: { $0.id == resumedId && $0.completedAt == nil }) {
+            return s.id
+        }
+        if let openId, let s = sessions.first(where: { $0.id == openId && $0.completedAt == nil }) {
+            return s.id
+        }
+        return sessions.last { $0.date == dayString() && $0.completedAt == nil }?.id
+    }
+
+    /// A workout by name, finished or not, for a screen that has to keep
+    /// showing one after it stops being the open one.
+    func session(id: String?) -> Session? {
+        guard let id else { return nil }
+        return sessions.first { $0.id == id }
     }
 
     // a workout left open from an earlier day, for up to 24 hours. this also
@@ -90,10 +132,12 @@ final class SessionStore {
 
     func resume(_ session: Session) {
         resumedId = session.id
+        openId = session.id
     }
 
     func endResume() {
         resumedId = nil
+        openId = nil
     }
 
     // today's workout: an unfinished one first, otherwise the latest finished one
@@ -113,8 +157,12 @@ final class SessionStore {
     /// was called before routines existed.
     func startWorkout(label: String = "Leg day", lifts: [String]? = nil) {
         guard today == nil else { return }
+        // nothing is open if a new one is starting, and the lifts below are
+        // planned from history: a stale id here would hide yesterday from it
+        openId = nil
+        let id = UUID().uuidString
         sessions.append(Session(
-            id: UUID().uuidString,
+            id: id,
             date: dayString(),
             label: label,
             // the same lifts every time, but not the same numbers: what you
@@ -122,25 +170,30 @@ final class SessionStore {
             exercises: (lifts.map { $0.map(planned) } ?? plannedToday),
             startedAt: .now
         ))
+        openId = id
         save()
     }
 
     // a workout with no plan. it starts empty, and the first lift is yours to pick
     func startQuickWorkout() {
         guard today == nil else { return }
+        openId = nil
+        let id = UUID().uuidString
         sessions.append(Session(
-            id: UUID().uuidString,
+            id: id,
             date: dayString(),
             label: "Quick workout",
             exercises: [],
             startedAt: .now
         ))
+        openId = id
         save()
     }
 
     // a quick workout you backed out of before picking anything leaves no trace
     func dropEmptyWorkout() {
         guard let i = openIndex, sessions[i].exercises.isEmpty else { return }
+        openId = nil
         sessions.remove(at: i)
         save()
     }
@@ -320,6 +373,7 @@ final class SessionStore {
         sessions[i].completedAt = .now
         sessions[i].restEndsAt = nil
         sessions[i].restLift = nil
+        openId = nil
         save()
     }
 
@@ -329,6 +383,7 @@ final class SessionStore {
     func resetToday() {
         sessions.removeAll { $0.date == dayString() || $0.id == resumedId }
         resumedId = nil
+        openId = nil
         save()
     }
     #endif

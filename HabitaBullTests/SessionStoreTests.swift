@@ -73,7 +73,7 @@ final class SessionStoreTests: XCTestCase {
     /// Seeds one open workout that began at 23:50 and is still open now, which
     /// is exactly what the store sees the moment the date rolls over. No clock
     /// is faked: the session is written to disk the way it would already be.
-    private func seedWorkoutStartedLastNight(lift: String = "back-squat") {
+    private func seedWorkoutStartedLastNight(lift: String = "back-squat", done: Bool = false) {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = .current
         let tenToMidnight = cal.startOfDay(for: .now).addingTimeInterval(-10 * 60)
@@ -82,13 +82,67 @@ final class SessionStoreTests: XCTestCase {
             date: dayString(tenToMidnight),
             label: "Leg day",
             exercises: [LoggedExercise(exerciseId: lift,
-                                       sets: Array(repeating: LoggedSet(weight: 95, reps: 8), count: 3))],
+                                       sets: Array(repeating: LoggedSet(weight: 95, reps: 8, done: done),
+                                                   count: 3))],
             startedAt: tenToMidnight
         )
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         try! encoder.encode([session]).write(to: file)
         store = SessionStore(fileURL: file)
+    }
+
+    /// The morning after a workout she walked away from.
+    ///
+    /// The fix above left every unfinished workout from the last 24 hours
+    /// looking open, and the rules leave the open workout out of its own
+    /// history. So the planner left last night's three sets of 95 out of the
+    /// history it was planning from: today's squat opened at the empty bar
+    /// while the line underneath recommended 100. A workout she is not in is
+    /// history like any other. Found by a codex review 2026-11-15.
+    func testPlanningAfterAWorkoutSheWalkedAwayFromStillCountsIt() {
+        seedWorkoutStartedLastNight(done: true)
+        XCTAssertNil(store.sessionInHandId, "she is not standing in last night's workout")
+
+        store.startWorkout()
+
+        let squat = store.today!.exercises[indexOf("back-squat")]
+        XCTAssertEqual(squat.sets.first?.weight, 97.5,
+                       "last night's 95 was left out of its own history and the bar fell to the floor")
+        XCTAssertEqual(store.reasonForNext(of: "back-squat"), "Up 2.5 lb. You earned it.")
+    }
+
+    /// Sets she logs now still go to last night's workout, because the app can
+    /// be killed mid workout and reopened and the sets have to land somewhere
+    /// she can see them.
+    func testASetStillLandsOnLastNightsWorkoutAfterTheAppWasKilled() {
+        seedWorkoutStartedLastNight()
+        store.logSet(onExercise: 0, weight: 100, reps: 5)
+        XCTAssertEqual(store.sessions.flatMap(\.exercises).flatMap(\.sets).filter(\.done).count, 1,
+                       "the set went nowhere")
+    }
+
+    /// The receipt after a workout that ran past midnight.
+    ///
+    /// Finishing closes the open session, and `today` is already a different
+    /// day, so the screen that says "that's the workout" had nothing left to
+    /// name: no receipt, and the toolbar hidden behind the same flag, which
+    /// left her on a blank screen with no way back. The id is hers to hold.
+    /// Found by a codex review 2026-11-15.
+    func testTheWorkoutIsStillThereToShowHerAfterSheFinishesItPastMidnight() {
+        seedWorkoutStartedLastNight()
+        store.logSet(onExercise: 0, weight: 100, reps: 5)
+        let id = store.openSessionId
+        XCTAssertNotNil(id)
+
+        store.finishWorkout()
+
+        XCTAssertNil(store.today, "it is a different day: today has nothing to show")
+        XCTAssertNil(store.openSessionId, "it is finished and should not read as open")
+        let receipt = store.session(id: id)
+        XCTAssertNotNil(receipt, "the workout she just finished could not be shown back to her")
+        XCTAssertNotNil(receipt?.completedAt)
+        XCTAssertEqual(receipt?.exercises.first?.sets.filter(\.done).count, 1)
     }
 
     /// Midnight is not the end of a workout. The store used to find the open

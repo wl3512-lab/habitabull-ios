@@ -62,9 +62,11 @@ extension SessionStore {
     /// The open workout is left out of its own history, or the first set you
     /// log would decide what the rest of that same lift should be.
     func nextTarget(of id: String, planningSets planned: Int? = nil) -> Target {
-        // the workout being written to is the one to leave out, which is the
-        // one `logSet` writes to and not simply the first of today's
-        let past = sessions.filter { $0.id != openSessionId }.map(\.asTrainingSession)
+        // the workout she is in is the one to leave out, and not simply the
+        // first of today's, nor every unfinished workout the store can still
+        // write to: one she walked away from last night is history, not the
+        // workout in her hands
+        let past = sessions.filter { $0.id != sessionInHandId }.map(\.asTrainingSession)
         let shape = ExerciseLibrary.find(id)?.shape ?? liftOfHerOwn
         return Progression.next(shape, history: Progression.history(of: id, in: past),
                                 level: level, planned: planned ?? setsLastTime(of: id))

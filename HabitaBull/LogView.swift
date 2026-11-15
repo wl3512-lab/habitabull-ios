@@ -31,11 +31,19 @@ struct LogView: View {
     @State private var picking: Picking? = nil
     @State private var beat: SetOutcome? = nil   // the confirmation on screen
     @State private var finished = false
+    /// The workout the receipt is for. Finishing closes the open session and,
+    /// past midnight, `today` is already a different day, so without a name
+    /// held on to here the screen that says "that's the workout" had nothing
+    /// to say it about: no receipt, and the toolbar hidden behind `finished`,
+    /// which left her on a blank screen with no way back.
+    @State private var finishedId: String? = nil
 
     // the open workout first, and only then today's. they are the same
     // session all day and stop being at midnight, when `today` goes nil on a
     // workout she is still standing in the middle of
-    private var session: Session? { store.openSession ?? store.today }
+    private var session: Session? {
+        store.openSession ?? store.session(id: finishedId) ?? store.today
+    }
 
     // the lift you picked while it has sets left, otherwise the next one in order
     private var currentLift: Int? {
@@ -134,7 +142,7 @@ struct LogView: View {
         .sheet(isPresented: $addingLift) {
             AddLiftView(excluding: session?.exercises.map(\.exerciseId) ?? [], onCancel: leaveIfEmpty) { id, sets in
                 store.addLift(id, sets: sets)
-                chosenLift = (store.today?.exercises.count ?? 1) - 1
+                chosenLift = (session?.exercises.count ?? 1) - 1
                 confirmingFinish = false
                 picking = nil
             }
@@ -362,6 +370,7 @@ struct LogView: View {
     }
 
     private func finish() {
+        finishedId = store.openSessionId
         store.finishWorkout()
         finished = true
     }
