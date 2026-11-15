@@ -145,10 +145,16 @@ final class ProfileStore {
     /// is the only way to see a rest day without waiting for one.
     private static func testDays(_ launched: [String]) -> [Int] {
         let today = Attendance.calendar().component(.weekday, from: .now) - 1
-        guard launched.contains("-uitest-restday") else {
-            return Schedule.placeDays(3, today: today)
+        if launched.contains("-uitest-restday") {
+            return [(today + 2) % 7, (today + 4) % 7]
         }
-        return [(today + 2) % 7, (today + 4) % 7]
+        // -uitest-weekly is the once a week person, and her week has to say so
+        // as well as her history: against a three day week, seven days off is
+        // two workouts missed, which is a comeback and correctly so
+        if launched.contains("-uitest-weekly") {
+            return Schedule.placeDays(1, today: today)
+        }
+        return Schedule.placeDays(3, today: today)
     }
 
     func save(_ profile: Profile) {

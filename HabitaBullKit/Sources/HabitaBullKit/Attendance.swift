@@ -51,7 +51,7 @@ public struct MonthCell: Sendable, Equatable {
     public var date: String?
     public var day: Int?
     public var trained: Bool
-    /// First session back after a gap of a week or more.
+    /// First session back after a break that skipped two workouts or more.
     public var comeback: Bool
     public var isToday: Bool
     public var future: Bool
@@ -119,28 +119,75 @@ public enum Attendance {
         }
     }
 
-    /// Dates that were the first session back after a break.
-    public static func comebackDates(_ sessions: [SessionRecord], gapDays: Int = 7, zone: TimeZone = .current) -> Set<String> {
+    /// How many days a week she means to train, as the comeback rule reads it.
+    ///
+    /// An empty week is somebody who has not agreed to one yet, and the
+    /// gentlest honest assumption about her is once a week.
+    static func weeklyIntent(_ trainingDays: [Int]) -> Int {
+        max(1, min(7, Set(trainingDays).count))
+    }
+
+    /// Whether a break of `gap` days skipped `missedAtLeast` workouts or more.
+    ///
+    /// Kept in whole numbers on purpose: a two day a week plan means a
+    /// workout every three and a half days, and rounding that first would
+    /// make the answer depend on which way it went.
+    static func isComeback(gapDays gap: Int, trainingDays: [Int], missedAtLeast: Int) -> Bool {
+        gap * weeklyIntent(trainingDays) >= 7 * (missedAtLeast + 1)
+    }
+
+    /// Dates that were the first session back after a real break.
+    ///
+    /// Lucy's rule, decided November 13 2026: a comeback is two or more
+    /// workouts she meant to do and did not. It is read against her own week,
+    /// not against a fixed number of days, because the same fortnight means
+    /// different things to different people. Once a week is two weeks away and
+    /// back on the third. Three times a week is a week off. Six times a week
+    /// is four days.
+    ///
+    /// The web app counts any gap of seven days or more, which calls somebody
+    /// who trains every Sunday, on schedule, never missing, a comeback every
+    /// single week. Three days a week happens to land on that same seven day
+    /// threshold, which is what the parity fixture is checked at.
+    ///
+    /// It is her cadence that is read, never which weekdays she picked. A
+    /// person on a three day week who only ever manages two is under-training,
+    /// not coming back, and the grid should not keep congratulating her for it.
+    public static func comebackDates(
+        _ sessions: [SessionRecord], trainingDays: [Int] = [],
+        missedAtLeast: Int = 2, zone: TimeZone = .current
+    ) -> Set<String> {
         let cal = calendar(zone)
-        let days = sessions.filter(\.attended).map(\.date).sorted()
+        let days = Set(sessions.filter(\.attended).map(\.date)).sorted()
+        guard days.count > 1 else { return [] }
         var out = Set<String>()
-        for i in 1..<max(1, days.count) {
+        for i in 1..<days.count {
             guard let a = date(days[i - 1], cal), let b = date(days[i], cal) else { continue }
             let gap = Int((b.timeIntervalSince(a) / 86_400).rounded())
-            if gap >= gapDays { out.insert(days[i]) }
+            if isComeback(gapDays: gap, trainingDays: trainingDays, missedAtLeast: missedAtLeast) {
+                out.insert(days[i])
+            }
         }
         return out
     }
 
-    /// The biggest break she has actually come back from. Zero if she never has.
-    public static func longestComebackGap(_ sessions: [SessionRecord], zone: TimeZone = .current) -> Int {
+    /// The biggest break she has actually come back from. Zero if she never
+    /// has. Judged by the same rule as `comebackDates`, so the two cannot
+    /// disagree about what counted.
+    public static func longestComebackGap(
+        _ sessions: [SessionRecord], trainingDays: [Int] = [],
+        missedAtLeast: Int = 2, zone: TimeZone = .current
+    ) -> Int {
         let cal = calendar(zone)
-        let days = sessions.filter(\.attended).map(\.date).sorted()
+        let days = Set(sessions.filter(\.attended).map(\.date)).sorted()
+        guard days.count > 1 else { return 0 }
         var longest = 0
-        for i in 1..<max(1, days.count) {
+        for i in 1..<days.count {
             guard let a = date(days[i - 1], cal), let b = date(days[i], cal) else { continue }
             let gap = Int((b.timeIntervalSince(a) / 86_400).rounded())
-            if gap >= 7 { longest = max(longest, gap) }
+            if isComeback(gapDays: gap, trainingDays: trainingDays, missedAtLeast: missedAtLeast) {
+                longest = max(longest, gap)
+            }
         }
         return longest
     }
@@ -148,7 +195,7 @@ public enum Attendance {
     /// A month as calendar rows, Sunday-first, padded to whole weeks so the
     /// grid stays rectangular. `month` is 1-12.
     public static func monthMatrix(
-        year: Int, month: Int, sessions: [SessionRecord],
+        year: Int, month: Int, sessions: [SessionRecord], trainingDays: [Int] = [],
         photoDates: [String] = [], today: String, zone: TimeZone = .current
     ) -> [[MonthCell]] {
         // 1-12, unlike the web's 0-11. Rolling over would quietly return a
@@ -156,7 +203,7 @@ public enum Attendance {
         guard (1...12).contains(month) else { return [] }
         let cal = calendar(zone)
         let trained = Set(sessions.filter(\.attended).map(\.date))
-        let comebacks = comebackDates(sessions, zone: zone)
+        let comebacks = comebackDates(sessions, trainingDays: trainingDays, zone: zone)
         let photos = Set(photoDates)
 
         guard let first = cal.date(from: DateComponents(year: year, month: month, day: 1)),

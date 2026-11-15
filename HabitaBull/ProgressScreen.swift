@@ -26,6 +26,18 @@ struct ProgressScreen: View {
     @State private var monthsBack = 0
 
     private var records: [SessionRecord] { store.sessions.map(\.asRecord) }
+    /// The week she agreed to, which is what a comeback is measured against.
+    /// Two weeks off means nothing until you know how often she meant to go.
+    ///
+    /// Agreed to, not suggested. Onboarding writes three days in before she
+    /// has picked anything, and a suggestion is not an intention: reading it
+    /// here would hold her to a week she never chose and call somebody who
+    /// does one quick workout a week a comeback every single week, which is
+    /// the exact thing this rule was changed to stop.
+    private var week: [Int] {
+        guard let profile = profiles.profile, profile.weekChosen else { return [] }
+        return profile.trainingDays
+    }
     private var today: String { Attendance.day(.now, Attendance.calendar()) }
 
     /// Asked of the same calendar the days are stored in, or a phone set to
@@ -174,7 +186,8 @@ struct ProgressScreen: View {
 
     private var monthGrid: some View {
         let rows = Attendance.monthMatrix(year: month.year, month: month.month,
-                                          sessions: records, today: today)
+                                          sessions: records, trainingDays: week,
+                                          today: today)
         return VStack(alignment: .leading, spacing: 14) {
             HStack {
                 SectionLabel(text: monthTitle)
@@ -259,10 +272,11 @@ struct ProgressScreen: View {
     }
 
     /// Comebacks get counted here and nowhere else in the category. Coming
-    /// back after a week off is the harder skill, and an app that only counts
-    /// unbroken runs tells the person who came back that she is at zero.
+    /// back after a real break is the harder skill, and an app that only
+    /// counts unbroken runs tells the person who came back that she is at
+    /// zero. Real is read against her own week: see Attendance.comebackDates.
     @ViewBuilder private var comebackLine: some View {
-        let comebacks = Attendance.comebackDates(records).count
+        let comebacks = Attendance.comebackDates(records, trainingDays: week).count
         if comebacks > 0 {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(comebacks) \(comebacks == 1 ? "comeback" : "comebacks")")

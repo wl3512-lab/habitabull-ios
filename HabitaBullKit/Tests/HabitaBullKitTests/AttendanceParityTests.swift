@@ -98,11 +98,20 @@ final class AttendanceParityTests: XCTestCase {
         }
     }
 
+    /// The web counts any gap of seven days or more. The app counts two
+    /// missed workouts or more, read against the week she agreed to, so the
+    /// two only line up at three days a week: three a week is a workout every
+    /// 2 1/3 days, and two of those missed is seven days. That is the week the
+    /// fixture is checked at, deliberately, because it is the one cadence
+    /// where the port is still provably faithful. Away from it the app is
+    /// meant to differ, and ComebackTests is where that is pinned.
     func testComebacksAndTheLongestGap() throws {
         for c in try load() {
             let sessions = records(c.rows)
-            XCTAssertEqual(Attendance.comebackDates(sessions, zone: utc).sorted(), c.comebacks)
-            XCTAssertEqual(Attendance.longestComebackGap(sessions, zone: utc), c.longest)
+            XCTAssertEqual(Attendance.comebackDates(sessions, trainingDays: [1, 3, 5], zone: utc).sorted(),
+                           c.comebacks)
+            XCTAssertEqual(Attendance.longestComebackGap(sessions, trainingDays: [1, 3, 5], zone: utc),
+                           c.longest)
         }
     }
 
@@ -111,7 +120,9 @@ final class AttendanceParityTests: XCTestCase {
             let sessions = records(c.rows)
             for month in c.months {
                 // the web's month is 0-indexed, this one is 1-12
+                // three days a week, for the reason in testComebacksAndTheLongestGap
                 let grid = Attendance.monthMatrix(year: month.y, month: month.m + 1, sessions: sessions,
+                                                  trainingDays: [1, 3, 5],
                                                   photoDates: ["2026-11-03"], today: "2026-11-06", zone: utc)
                 XCTAssertEqual(grid.count, month.grid.count, "rows in \(month.y)-\(month.m + 1)")
                 for (row, want) in zip(grid, month.grid) {

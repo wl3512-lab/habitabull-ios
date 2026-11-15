@@ -29,6 +29,9 @@ final class SessionStore {
             // screen to have a pattern to name and a comeback to count, which
             // six scattered days cannot have
             if ProcessInfo.processInfo.arguments.contains("-uitest-pattern") { seedPattern() }
+            // and -uitest-weekly is the person the comeback rule was changed
+            // for: one workout a week, every week, never missing one
+            if ProcessInfo.processInfo.arguments.contains("-uitest-weekly") { seedWeekly() }
             return
         }
         load()
@@ -367,9 +370,35 @@ final class SessionStore {
     /// Written as weeks rather than as dates so it is the same shape whenever
     /// it runs. Two days a week, Wednesday always and Saturday nearly always,
     /// which gives the record screen a weekday to name, one three week gap to
-    /// count as a comeback, and nothing else that looks like a break: a seven
-    /// day gap is itself a comeback by the rule, so a pattern of one day a
-    /// week would have made every session one.
+    /// count as a comeback, and nothing else that looks like a break. The test
+    /// phone's week is three days, so a comeback is seven days off: the gap is
+    /// twenty one and every other gap here is three or four.
+    /// Eight weeks of one workout a week, every week, on the same weekday.
+    ///
+    /// Nothing is missed in it, so a screen that claims a comeback off this
+    /// history is reading a week she never agreed to. That was a real bug:
+    /// onboarding writes three suggested days in before she picks any, and
+    /// against three a week every one of these seven day gaps looks like a
+    /// break.
+    private func seedWeekly() {
+        let cal = Calendar.current
+        sessions = (0..<8).reversed().map { weeks in
+            let when = cal.date(byAdding: .day, value: -weeks * 7, to: .now) ?? .now
+            return Session(
+                id: UUID().uuidString,
+                date: dayString(when),
+                label: "Full body",
+                exercises: starterLifts.map { id in
+                    LoggedExercise(exerciseId: id,
+                                   sets: (0..<3).map { _ in LoggedSet(weight: 95, reps: 8, done: true) })
+                },
+                startedAt: when,
+                completedAt: when
+            )
+        }
+        save()
+    }
+
     private func seedPattern() {
         let cal = Calendar.current
         let wednesdays = [10, 9, 8, 5, 4, 3, 2, 1]        // 7 and 6 are the gap
