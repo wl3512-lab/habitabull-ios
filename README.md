@@ -157,6 +157,38 @@ still open, both inherited from the web app and worth deciding rather than keepi
 - a hold and a cardio block want a **timer** that runs while you do them, not a stepper you type into. that is a feature slice, after the planner
 - **cardio never progresses on its own.** it keeps the incline you set and leaves the time to you. every other lift climbs when you clear it
 
+## running it
+
+- open `HabitaBull.xcodeproj` in xcode and run on any iphone simulator, or on a phone
+- the rules on their own, in about three seconds: `cd HabitaBullKit && swift test`
+- everything, rules and screens and the ten ui suites, about nine minutes:
+
+```
+xcodebuild test -scheme HabitaBull \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+```
+
+- the simulator name has to be one `xcrun simctl list devices available` actually
+  prints. a name that is not installed fails with "unable to find a device
+  matching the provided destination specifier" before a single test runs, which
+  reads like a broken build and is not one
+- read the `Failing tests:` block at the very end, not the per suite counts. if
+  the runner crashes or times out, xcodebuild prints "restarting after
+  unexpected exit, crash, or test timeout", silently skips the test it died on,
+  and every suite still reports `0 failures`. the executed total drops and
+  nothing else says so, so check it against the number of `func test` methods.
+  the usual cause is something else driving a simulator at the same time: one
+  ui run at a time on this machine
+- the ui suites drive a real simulator and seed themselves through launch
+  arguments, so they never touch a real phone's data and never need the clock
+  faked. `-uitest-reset` wipes and is the switchboard the others hang off,
+  `-uitest-onboarded` skips the three questions, `-uitest-noweek` leaves the
+  week unagreed, `-uitest-restday` puts today outside the week,
+  `-uitest-history` and `-uitest-pattern` and `-uitest-weekly` each seed a
+  different shape of past. they are read in `SessionStore` and `Profile` for the
+  data, and in `HabitaBullApp`, `Opening` and `Confirmations` for what the
+  screens skip. `grep -rn '"-uitest-' HabitaBull/` finds every one
+
 ## plan
 
 - real gym test, then fix what it finds, and get someone else testing it (by dec 4)
