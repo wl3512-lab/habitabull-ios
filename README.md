@@ -172,6 +172,18 @@ xcodebuild test -scheme HabitaBull \
   prints. a name that is not installed fails with "unable to find a device
   matching the provided destination specifier" before a single test runs, which
   reads like a broken build and is not one
+- the build that ships is a different one. running from xcode is a debug
+  build; testflight and the app store take an archive. check it still makes
+  one, since nothing else does:
+
+```
+xcodebuild archive -scheme HabitaBull -destination 'generic/platform=iOS' \
+  -archivePath /tmp/hb.xcarchive CODE_SIGNING_ALLOWED=NO
+```
+
+  it should end `** ARCHIVE SUCCEEDED **`, and
+  `/tmp/hb.xcarchive/Products/Applications/HabitaBull.app/PlugIns` should hold
+  `RestWidget.appex`, or the rest countdown is not in the build
 - read the `Failing tests:` block at the very end, not the per suite counts. if
   the runner crashes or times out, xcodebuild prints "restarting after
   unexpected exit, crash, or test timeout", silently skips the test it died on,
