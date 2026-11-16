@@ -121,6 +121,11 @@ struct TodayView: View {
                 .publisher(for: .NSCalendarDayChanged)
                 .receive(on: RunLoop.main)) { _ in day = .now }
             .onChange(of: phase) { _, now in if now == .active { day = .now } }
+            // and midnight while she is looking at it, which coming back to
+            // the app does not cover
+            .onReceive(NotificationCenter.default
+                .publisher(for: .NSCalendarDayChanged)
+                .receive(on: RunLoop.main)) { _ in day = .now }
             .navigationDestination(isPresented: $logging) { LogView() }
             .navigationDestination(isPresented: $buildingWeek) { WeekView() }
             .navigationDestination(isPresented: $settingGoal) { GoalScreen() }

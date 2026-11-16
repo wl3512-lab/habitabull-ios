@@ -53,6 +53,42 @@ final class SessionStoreTests: XCTestCase {
         try? FileManager.default.removeItem(at: missing)
     }
 
+    /// Redoing a set she has already logged corrects that set and leaves the
+    /// rest of them alone.
+    ///
+    /// Tapping a logged set used to mark it not-done in the store and save
+    /// that straight away, so a correction she had not finished was already a
+    /// fact about the workout: put the phone down in the middle of one and the
+    /// set she had done came back as one she had not. The correction lives on
+    /// the screen now, and the store is told which set to write.
+    /// Found by a codex audit 2026-11-15.
+    func testRedoingASetCorrectsThatOneAndCountsTheRest() {
+        store.startWorkout()
+        let squat = indexOf("back-squat")
+        store.logSet(onExercise: squat, weight: 95, reps: 8)
+        store.logSet(onExercise: squat, weight: 95, reps: 5)
+
+        store.logSet(onExercise: squat, weight: 100, reps: 8, replacing: 0)
+
+        let sets = store.today!.exercises[squat].sets
+        XCTAssertEqual(sets[0].weight, 100, "the correction went to the wrong set")
+        XCTAssertEqual(sets[0].reps, 8)
+        XCTAssertTrue(sets[0].done)
+        XCTAssertTrue(sets[1].done, "the set she was not correcting stopped counting")
+        XCTAssertEqual(sets.filter(\.done).count, 2)
+    }
+
+    /// A set index that is not there falls back to the next one she has not
+    /// done, rather than losing the set.
+    func testRedoingASetThatIsNotThereLogsTheNextOne() {
+        store.startWorkout()
+        let squat = indexOf("back-squat")
+
+        store.logSet(onExercise: squat, weight: 95, reps: 8, replacing: 99)
+
+        XCTAssertEqual(store.today!.exercises[squat].sets.filter(\.done).count, 1)
+    }
+
     /// And a file that will not open is not a file that is not there.
     ///
     /// Every read failure went down the same path as an ordinary first run:

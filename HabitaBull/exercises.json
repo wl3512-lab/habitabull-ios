@@ -639,6 +639,7 @@
   "heavy": false,
   "cardio": false,
   "hold": false,
+  "assisted": true,
   "incline": false,
   "startWeight": 45,
   "startReps": 8
@@ -653,6 +654,7 @@
   "heavy": false,
   "cardio": false,
   "hold": false,
+  "assisted": true,
   "incline": false,
   "startWeight": 45,
   "startReps": 8

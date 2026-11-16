@@ -42,14 +42,23 @@ struct ProgressScreen: View {
         guard let profile = profiles.profile, profile.weekChosen else { return [] }
         return profile.trainingDays
     }
-    private var today: String { Attendance.day(.now, Attendance.calendar()) }
+    /// Today, as a thing the screen watches rather than reads once.
+    ///
+    /// These used to ask `.now` straight out, which SwiftUI has no reason to
+    /// look at again: left open across midnight the screen kept the old day
+    /// marked and the old streak, and across the end of a month it kept
+    /// drawing the month that had just ended.
+    @State private var day = Date.now
+    @Environment(\.scenePhase) private var phase
+
+    private var today: String { Attendance.day(day, Attendance.calendar()) }
 
     /// Asked of the same calendar the days are stored in, or a phone set to
     /// a non-Gregorian calendar would draw a grid for a month its own history
     /// is not filed under.
     private var monthDate: Date {
         let cal = Attendance.calendar()
-        return cal.date(byAdding: .month, value: -monthsBack, to: .now) ?? .now
+        return cal.date(byAdding: .month, value: -monthsBack, to: day) ?? day
     }
 
     private var month: (year: Int, month: Int) {
@@ -65,7 +74,7 @@ struct ProgressScreen: View {
     /// The tile above the grid says "this month" and has to mean it, so it
     /// reads today's month however far back the grid has been paged.
     private var countedThisMonth: Int {
-        let parts = Attendance.calendar().dateComponents([.year, .month], from: .now)
+        let parts = Attendance.calendar().dateComponents([.year, .month], from: day)
         return Attendance.sessionsInMonth(records, year: parts.year ?? 2026,
                                           month: parts.month ?? 1)
     }
@@ -117,6 +126,13 @@ struct ProgressScreen: View {
             .navigationDestination(item: $openDay) { DayView(day: $0) }
         }
         .tint(.brandCyan)
+        // midnight while the screen is open, and coming back to the app on a
+        // later day. without both, the day marked today and the streak under
+        // it are whichever day the screen happened to open on.
+        .onChange(of: phase) { _, now in if now == .active { day = .now } }
+        .onReceive(NotificationCenter.default
+            .publisher(for: .NSCalendarDayChanged)
+            .receive(on: RunLoop.main)) { _ in day = .now }
     }
 
     /// The weekday she keeps turning up on, if there is one yet.

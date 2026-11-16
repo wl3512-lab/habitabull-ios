@@ -14,6 +14,14 @@ struct LogView: View {
     @State private var reps = 0.0
 
     @State private var chosenLift: Int? = nil   // a lift you jumped to
+    /// A logged set she tapped to redo, until she logs it again.
+    ///
+    /// This used to be written down: tapping a set marked it not-done in the
+    /// store and saved that straight away. Put the phone down mid correction
+    /// and the set she had already done came back as one she had not, gone
+    /// from her totals and out of what the next session is planned from. A
+    /// correction she has not finished is not a fact about the workout.
+    @State private var correcting: Int? = nil
     // the lift the rest is for. optional like every other lift index here:
     // "none" and "the first one" are different answers, and a save from an
     // older build has a running rest with no lift recorded against it
@@ -62,6 +70,9 @@ struct LogView: View {
 
     private var currentSet: Int? {
         guard let session, let currentLift else { return nil }
+        if let correcting, session.exercises[currentLift].sets.indices.contains(correcting) {
+            return correcting
+        }
         return session.exercises[currentLift].sets.firstIndex { !$0.done }
     }
 
@@ -131,7 +142,11 @@ struct LogView: View {
         // a new position brings its own numbers. adding a set doesn't move you,
         // so it leaves whatever you've dialed in alone
         .onChange(of: position) { fillIn() }
-        .onChange(of: chosenLift) { _, lift in store.setChosenLift(lift) }
+        .onChange(of: chosenLift) { _, lift in
+            store.setChosenLift(lift)
+            // a correction belongs to the lift she started it on
+            correcting = nil
+        }
         // the rest screen can change the next weight without moving you
         .onChange(of: resting) { if !resting { fillIn() } }
         .fullScreenCover(isPresented: $resting) {
@@ -178,7 +193,7 @@ struct LogView: View {
                         SetBar(sets: exercise.sets, current: currentSet,
                                spoken: exercise.spoken) { tapped in
                             chosenLift = currentLift
-                            store.reopenSet(exercise: currentLift, set: tapped)
+                            correcting = tapped
                         }
                         SectionLabel(text: setLine(exercise, set: currentSet))
                         // tapping the name opens the picker. the thing you
@@ -230,9 +245,21 @@ struct LogView: View {
                 if confirmingFinish {
                     finishCheck(session)
                 } else {
+                    // the only warning about this used to live on Today,
+                    // which is behind this screen for the whole workout: the
+                    // phone stopped saving, every set still said it logged,
+                    // and she found out when she reopened the app
+                    if store.saveFailed {
+                        Text("This phone isn't saving right now. What you log here may not be here later.")
+                            .font(.bodyText)
+                            .foregroundStyle(.fault)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     Pill(title: "Log set") {
                         restingOn = currentLift
-                        beat = store.logSet(onExercise: currentLift, weight: weight, reps: Int(reps))
+                        beat = store.logSet(onExercise: currentLift, weight: weight,
+                                            reps: Int(reps), replacing: correcting)
+                        correcting = nil
                     }
                 }
             } else if session?.exercises.isEmpty == true {

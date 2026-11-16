@@ -111,11 +111,6 @@ struct RestTimerView: View {
         }
         // one buzz, only on the change to done
         .sensoryFeedback(.success, trigger: done) { _, isDone in isDone }
-        // iOS only shows the permission popup once, after that this just returns
-        .task {
-            _ = try? await UNUserNotificationCenter.current()
-                .requestAuthorization(options: [.alert, .sound])
-        }
         .onAppear {
             if let resumeUntil {
                 endsAt = resumeUntil
@@ -282,7 +277,17 @@ func scheduleRestAlert(in seconds: Int) {
     let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(seconds), repeats: false)
     // same id every time, so starting a new rest replaces the old alert
     let request = UNNotificationRequest(identifier: "rest", content: content, trigger: trigger)
-    UNUserNotificationCenter.current().add(request)
+    let center = UNUserNotificationCenter.current()
+    Task {
+        // ask first, and add only once the answer is in. this used to submit
+        // the alert while the permission sheet was still on screen, so the one
+        // rest most likely to go off silently was the very first one on a new
+        // phone, which is the rest she would judge the app on.
+        // iOS only shows the popup once; after that this returns the answer.
+        let allowed = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+        guard allowed else { return }
+        try? await center.add(request)
+    }
 }
 
 #Preview {

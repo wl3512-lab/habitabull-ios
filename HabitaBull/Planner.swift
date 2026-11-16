@@ -83,6 +83,21 @@ struct Routine: Codable, Equatable {
         library[label] = lifts
     }
 
+    /// A day she has finished editing: its new name, and the lifts she just
+    /// built, in the order that keeps the lifts.
+    ///
+    /// The other order filed them under the old name and left `rename` to
+    /// move them, and `rename` keeps what is already at a name she is merging
+    /// into. Editing Push day and renaming it Pull day gave her two Pull days
+    /// holding the old Pull day lifts, with the list she had just built gone
+    /// and nothing said about it.
+    mutating func save(_ lifts: [String], of old: String, renamedTo fresh: String) {
+        let wanted = fresh.trimmingCharacters(in: .whitespacesAndNewlines)
+        let settled = (wanted.isEmpty || wanted == old) ? old : wanted
+        rename(old, to: fresh)
+        setLifts(lifts, of: settled)
+    }
+
     /// The days in the order they are read: Sunday first, like everything else.
     var inOrder: [Day] { days.sorted { $0.weekday < $1.weekday } }
 }

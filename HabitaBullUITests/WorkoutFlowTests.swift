@@ -33,6 +33,31 @@ final class WorkoutFlowTests: XCTestCase {
         app.launch()
     }
 
+    /// Tapping a logged set to redo it does not take it off her record.
+    ///
+    /// It used to mark the set not-done in the store and save that straight
+    /// away, so a correction she had not finished was already a fact about
+    /// the workout: put the phone down in the middle of one and the set she
+    /// had done came back as one she had not, gone from her totals and out of
+    /// what the next session is planned from. Found by a codex audit
+    /// 2026-11-15.
+    func testTappingALoggedSetToRedoItDoesNotUnlogIt() {
+        start()
+        logSet(expecting: "New lift")
+        leaveRest()
+
+        let logged = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Set 1, logged")).firstMatch
+        XCTAssertTrue(logged.waitForExistence(timeout: 10), "the first set never read as logged")
+
+        logged.tap()
+
+        XCTAssertTrue(app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Set 1, logged")).firstMatch
+            .waitForExistence(timeout: 5),
+            "tapping a set to redo it took it off her record before she had redone it")
+    }
+
     /// Swiping the first lift picker away is leaving it.
     ///
     /// A quick workout opens the picker on itself, and backing out of it drops

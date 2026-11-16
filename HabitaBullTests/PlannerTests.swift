@@ -11,6 +11,37 @@ import HabitaBullKit
 @testable import HabitaBull
 
 final class PlannerTests: XCTestCase {
+    /// The lifts she just built are the ones that survive a merge.
+    ///
+    /// Editing Push day and renaming it Pull day gave her two Pull days
+    /// holding the old Pull day lifts, with the list she had just built gone
+    /// and nothing said about it. Found by a codex audit 2026-11-15.
+    func testRenamingOntoAnExistingWorkoutKeepsTheListSheJustEdited() {
+        var week = Routine(days: [Routine.Day(weekday: 1, label: "Push day"),
+                                  Routine.Day(weekday: 4, label: "Pull day")],
+                           library: ["Push day": ["bench-press"],
+                                     "Pull day": ["barbell-row"]])
+
+        week.save(["bench-press", "overhead-press", "db-curl"], of: "Push day", renamedTo: "Pull day")
+
+        XCTAssertEqual(week.library["Pull day"], ["bench-press", "overhead-press", "db-curl"],
+                       "the list she had just built was thrown away by the merge")
+        XCTAssertNil(week.library["Push day"])
+        XCTAssertEqual(week.label(on: 1), "Pull day")
+        XCTAssertEqual(week.label(on: 4), "Pull day")
+    }
+
+    /// And saving a day without renaming it still writes where it should.
+    func testSavingADayWithoutRenamingItKeepsItsName() {
+        var week = Routine(days: [Routine.Day(weekday: 1, label: "Push day")],
+                           library: ["Push day": ["bench-press"]])
+
+        week.save(["bench-press", "db-curl"], of: "Push day", renamedTo: "  ")
+
+        XCTAssertEqual(week.library["Push day"], ["bench-press", "db-curl"])
+        XCTAssertEqual(week.label(on: 1), "Push day")
+    }
+
     /// A rename follows the days she has switched off, the same as the ones
     /// she has not.
     ///

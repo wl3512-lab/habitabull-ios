@@ -21,6 +21,8 @@ struct Exercise: Codable, Identifiable {
     var heavy: Bool = false
     /// A cardio machine whose incline you can set.
     var incline: Bool = false
+    /// The number on this machine is help, not load. More of it is easier.
+    var assisted: Bool = false
 
     // Written by hand rather than synthesised so a library file saved before
     // these three existed still reads, instead of failing the whole decode and
@@ -39,6 +41,7 @@ struct Exercise: Codable, Identifiable {
         compound = try c.decodeIfPresent(Bool.self, forKey: .compound) ?? false
         heavy = try c.decodeIfPresent(Bool.self, forKey: .heavy) ?? false
         incline = try c.decodeIfPresent(Bool.self, forKey: .incline) ?? false
+        assisted = try c.decodeIfPresent(Bool.self, forKey: .assisted) ?? false
     }
 }
 

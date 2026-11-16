@@ -16,7 +16,7 @@ extension Exercise {
     /// lift it is. The name, the muscle and the equipment stay here.
     var shape: LiftShape {
         LiftShape(increment: increment, compound: compound, heavy: heavy, hold: hold, cardio: cardio,
-                  floor: LiftShape.floor(for: equipment))
+                  floor: LiftShape.floor(for: equipment), assisted: assisted)
     }
 }
 

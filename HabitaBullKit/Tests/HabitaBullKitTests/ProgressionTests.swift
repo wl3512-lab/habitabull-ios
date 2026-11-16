@@ -18,6 +18,9 @@ final class ProgressionTests: XCTestCase {
     let plank = LiftShape(increment: 0, hold: true)
     let bike = LiftShape(increment: 0, cardio: true)
     let deadlift = LiftShape(increment: 2.5, compound: true, heavy: true)
+    /// The counterweight on an assisted pull-up machine. The number is help,
+    /// so every rule about it runs the other way.
+    let assistedPullUp = LiftShape(increment: 2.5, compound: true, assisted: true)
 
     /// One session of `count` sets at the same weight and reps, as history.
     func did(_ count: Int, _ reps: Int, _ weight: Double) -> [DoneSet] {
@@ -38,6 +41,45 @@ final class ProgressionTests: XCTestCase {
     func testAnExperiencedLifterStartsHeavier() {
         XCTAssertGreaterThan(Progression.startingWeight(squat, level: .experienced),
                              Progression.startingWeight(squat, level: .new))
+    }
+
+    // MARK: - a machine that counts help rather than load
+    //
+    // These ran through the ordinary weighted path, which rewarded a good
+    // session with more counterweight and answered three bad ones by taking
+    // help away. Both backwards, and the second one is backwards at the
+    // moment someone is already struggling.
+    // Found by a codex review 2026-11-15.
+
+    func testClearingAnAssistedLiftTakesHelpAway() {
+        let target = Progression.next(assistedPullUp, history: [did(3, 8, 45)], level: .new)
+        XCTAssertEqual(target.weight, 42.5, "it gave her more help for clearing the set")
+        XCTAssertEqual(target.note, "Down 2.5 lb of help. You earned it.")
+    }
+
+    func testTheLastOfTheHelpIsAPullUp() {
+        let target = Progression.next(assistedPullUp, history: [did(3, 8, 2.5)], level: .new)
+        XCTAssertEqual(target.weight, 0)
+        XCTAssertEqual(target.note, "No help left. That is a pull-up.")
+    }
+
+    func testHelpNeverGoesBelowNothing() {
+        let target = Progression.next(assistedPullUp, history: [did(3, 8, 0)], level: .new)
+        XCTAssertEqual(target.weight, 0, "an unassisted pull-up cannot be helped less than not at all")
+    }
+
+    func testThreeHardSessionsOnAnAssistedLiftGiveMoreHelp() {
+        let hard = did(3, 4, 45)
+        let target = Progression.next(assistedPullUp, history: [hard, hard, hard], level: .new)
+        XCTAssertGreaterThan(target.weight, 45,
+                             "it took help away from someone who missed three sessions running")
+        XCTAssertEqual(target.note, "More help for now. Three tough sessions is a signal, not a failure.")
+    }
+
+    func testMissingRepsOnAnAssistedLiftHoldsTheHelpWhereItIs() {
+        let target = Progression.next(assistedPullUp, history: [did(3, 5, 45)], level: .new)
+        XCTAssertEqual(target.weight, 45)
+        XCTAssertEqual(target.note, "Same help. Own it this time.")
     }
 
     // MARK: - what to lift next

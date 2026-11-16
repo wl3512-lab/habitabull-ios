@@ -46,9 +46,16 @@ public struct LiftShape: Sendable, Equatable {
     /// the 10%, and a compliant lifter is squatting an unloadable 17.5 lb six
     /// weeks later. Zero means no floor, which is what bodyweight wants.
     public var floor: Double
+    /// The number is help, not load: an assisted pull-up machine counts the
+    /// counterweight, so more of it is easier. Everything about progress runs
+    /// the other way on one of these, and reading it as an ordinary weighted
+    /// lift rewarded a good session with more help and answered a bad
+    /// fortnight by taking help away.
+    public var assisted: Bool
 
     public init(increment: Double, compound: Bool = false, heavy: Bool = false, hold: Bool = false,
-                cardio: Bool = false, floor: Double = 0) {
+                cardio: Bool = false, floor: Double = 0, assisted: Bool = false) {
+        self.assisted = assisted
         self.increment = increment
         self.compound = compound
         self.heavy = heavy
@@ -226,6 +233,33 @@ public enum Progression {
         }
 
         let clearedAll = last.count >= setCount && last.allSatisfy { $0.reps >= targetReps }
+
+        // An assisted machine counts help rather than load, so every rule
+        // below points the wrong way on one. Clearing the set earned her more
+        // counterweight, which is the machine doing more of the pull-up, and
+        // three hard sessions took help away from someone already struggling.
+        // Found by a codex review 2026-11-15.
+        if lift.assisted, lift.increment > 0 {
+            if clearedAll {
+                let next = Swift.max(0, lastWeight - lift.increment)
+                return Target(weight: next, reps: targetReps, sets: setCount,
+                              note: next == 0
+                                ? "No help left. That is a pull-up."
+                                : "Down \(trim(lift.increment)) lb of help. You earned it.")
+            }
+            let tough = history.prefix(3)
+            let short = tough.filter { !($0.isEmpty == false && $0.allSatisfy { $0.reps >= targetReps }) }.count
+            if short >= 3 && history.count >= 3 {
+                // more help, which is the same mercy as taking weight off a bar
+                let eased = Swift.max(round(lastWeight * 1.1, to: lift.increment),
+                                      lastWeight + lift.increment)
+                return Target(weight: eased, reps: targetReps, sets: setCount,
+                              note: "More help for now. Three tough sessions is a signal, not a failure.")
+            }
+            return Target(weight: round(lastWeight, to: lift.increment), reps: targetReps,
+                          sets: setCount, note: "Same help. Own it this time.")
+        }
+
         if clearedAll {
             let weight = lift.increment == 0 ? 0 : round(lastWeight + lift.increment, to: lift.increment)
             // What "more" means depends on what the lift is counted in. On a

@@ -103,6 +103,9 @@ struct NumberStepper: View {
     var compact = false     // one short row, for when the screen is already full
 
     @State private var draft = ""
+    /// The last number this editor itself put into `value`, so it can tell a
+    /// keystroke of her own from the screen changing underneath her.
+    @State private var mine: Double? = nil
     @FocusState private var typing: Bool
 
     var body: some View {
@@ -150,6 +153,16 @@ struct NumberStepper: View {
         .onChange(of: draft) { _, _ in
             if typing { commit() }
         }
+        // the number moved from somewhere other than this editor: she switched
+        // lifts, or jumped to a set she had already done. the text under her
+        // fingers is about the lift she just left, and the next tap on Log set
+        // would have saved it against this one. Typing 100 on Back Squat and
+        // switching to Leg Press left 100 on the screen with 45 underneath it.
+        .onChange(of: value) { _, now in
+            guard now != mine else { return }
+            mine = now
+            if typing { draft = now.formatted() }
+        }
     }
 
     // the field stays on screen but invisible, so focus can land on it at once
@@ -190,6 +203,7 @@ struct NumberStepper: View {
     /// the step. Same bug as the one before it, read the other way round.
     private func settle(on next: Double) {
         value = next
+        mine = next
         if typing { draft = next.formatted() }
     }
 
@@ -198,6 +212,7 @@ struct NumberStepper: View {
         guard let typed = Self.number(from: draft) else { return }
         let rounded = halves ? (typed * 2).rounded() / 2 : typed.rounded()
         value = min(maximum, max(minimum, rounded))
+        mine = value
     }
 
     /// Reads the number the way the phone wrote it. `Double(_:)` only knows a

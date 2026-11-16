@@ -139,8 +139,7 @@ struct RoutineDayView: View {
         // a rule, it is a hint. a workout with nothing in it would reach
         // Today as a plan with no lifts on it.
         guard !lifts.isEmpty else { return }
-        routine.setLifts(lifts, of: label)
-        routine.rename(label, to: name)
+        routine.save(lifts, of: label, renamedTo: name)
         mine = true
         dismiss()
     }

@@ -202,9 +202,13 @@ final class SessionStore {
     // the weight and reps you just did become the plan for the sets left on
     // that lift: if you dropped down, you're tired, and you won't go back up
     @discardableResult
-    func logSet(onExercise e: Int, weight: Double, reps: Int) -> SetOutcome? {
-        guard let i = openIndex, sessions[i].exercises.indices.contains(e),
-              let s = sessions[i].exercises[e].sets.firstIndex(where: { !$0.done }) else { return nil }
+    /// `replacing` is a set she tapped to redo. Without it this writes to the
+    /// next set she has not done, which is the ordinary way through.
+    func logSet(onExercise e: Int, weight: Double, reps: Int, replacing: Int? = nil) -> SetOutcome? {
+        guard let i = openIndex, sessions[i].exercises.indices.contains(e) else { return nil }
+        let sets = sessions[i].exercises[e].sets
+        let redo = replacing.flatMap { sets.indices.contains($0) ? $0 : nil }
+        guard let s = redo ?? sets.firstIndex(where: { !$0.done }) else { return nil }
         var exercise = sessions[i].exercises[e]
 
         // judged before this set is saved. a best needs a number to beat, so
@@ -278,14 +282,6 @@ final class SessionStore {
         return session.exercises
             .filter { $0.sets.contains(where: \.done) && heaviestWeight(of: $0.exerciseId, in: others) == nil }
             .map(\.name)
-    }
-
-    // tap a logged set on the bar to redo it. its numbers come back to edit
-    func reopenSet(exercise e: Int, set s: Int) {
-        guard let i = openIndex, sessions[i].exercises.indices.contains(e),
-              sessions[i].exercises[e].sets.indices.contains(s) else { return }
-        sessions[i].exercises[e].sets[s].done = false
-        save()
     }
 
     // a lift you've done before comes back the way you did it, otherwise it
