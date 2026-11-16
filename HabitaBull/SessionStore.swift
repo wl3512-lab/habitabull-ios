@@ -213,11 +213,11 @@ final class SessionStore {
 
         // judged before this set is saved. a best needs a number to beat, so
         // the first time you ever log a lift is never called one
-        let heaviest = heaviestWeight(of: exercise.exerciseId)
+        let held = record(of: exercise.exerciseId)
         let kind: SetOutcome.Kind
-        if heaviest == nil {
+        if held == nil {
             kind = .first
-        } else if let heaviest, heaviest > 0, weight > heaviest {
+        } else if let held, held > 0, beats(weight, held, exercise.exerciseId) {
             kind = .best
         } else {
             kind = .routine
@@ -235,7 +235,9 @@ final class SessionStore {
             liftName: exercise.name,
             resting: sessions[i].nextSet != nil,
             newBest: kind == .best ? weight : nil,
-            gain: kind == .best ? heaviest.map { weight - $0 } : nil
+            gain: kind == .best
+                ? held.map { assisted(exercise.exerciseId) ? $0 - weight : weight - $0 }
+                : nil
         )
     }
 
@@ -253,6 +255,36 @@ final class SessionStore {
         save()
     }
 
+    /// Her record on a lift: the heaviest she has done, or on a machine that
+    /// counts help, the least help she has needed.
+    ///
+    /// Reading an assisted lift the ordinary way congratulated her for taking
+    /// more help than last time and never noticed when she took less.
+    /// Found by a codex review 2026-11-16.
+    private func record(of id: String, in list: [Session]? = nil) -> Double? {
+        assisted(id) ? lightestWeight(of: id, in: list) : heaviestWeight(of: id, in: list)
+    }
+
+    /// Does this one beat that one, in whichever direction the lift runs.
+    private func beats(_ now: Double, _ was: Double, _ id: String) -> Bool {
+        assisted(id) ? now < was : now > was
+    }
+
+    func assisted(_ id: String) -> Bool { ExerciseLibrary.find(id)?.assisted ?? false }
+
+    private func lightestWeight(of id: String, in list: [Session]? = nil) -> Double? {
+        weights(of: id, in: list).min()
+    }
+
+    private func weights(of id: String, in list: [Session]? = nil) -> [Double] {
+        (list ?? sessions)
+            .flatMap(\.exercises)
+            .filter { $0.exerciseId == id }
+            .flatMap(\.sets)
+            .filter(\.done)
+            .map(\.weight)
+    }
+
     // the heaviest logged weight of a lift, or nil if it was never logged
     private func heaviestWeight(of id: String, in list: [Session]? = nil) -> Double? {
         let weights = (list ?? sessions)
@@ -268,10 +300,11 @@ final class SessionStore {
     func bests(in session: Session) -> [SessionBest] {
         let others = sessions.filter { $0.id != session.id }
         return session.exercises.compactMap { exercise -> SessionBest? in
-            guard let now = heaviestWeight(of: exercise.exerciseId, in: [session]),
-                  let was = heaviestWeight(of: exercise.exerciseId, in: others),
-                  was > 0, now > was else { return nil }
-            return SessionBest(liftName: exercise.name, was: was, now: now)
+            guard let now = record(of: exercise.exerciseId, in: [session]),
+                  let was = record(of: exercise.exerciseId, in: others),
+                  was > 0, beats(now, was, exercise.exerciseId) else { return nil }
+            return SessionBest(liftName: exercise.name, was: was, now: now,
+                               assisted: assisted(exercise.exerciseId))
         }
         .sorted { $0.gain > $1.gain }
     }

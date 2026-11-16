@@ -188,8 +188,11 @@ struct SessionBest: Equatable {
     var liftName: String
     var was: Double
     var now: Double
+    /// On an assisted machine the number is help, so a record is a smaller
+    /// one and the gain is what she stopped needing.
+    var assisted = false
 
-    var gain: Double { now - was }
+    var gain: Double { assisted ? was - now : now - was }
 }
 
 // one fixed workout for now, so the loop can be tried before the planner

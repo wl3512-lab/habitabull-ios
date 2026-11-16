@@ -274,9 +274,11 @@ func scheduleRestAlert(in seconds: Int) {
     content.title = "Ready when you are"
     content.body = "Rest's over. Next set whenever you are."
     content.sound = UNNotificationSound(named: UNNotificationSoundName("chime.wav"))
-    let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(seconds), repeats: false)
-    // same id every time, so starting a new rest replaces the old alert
-    let request = UNNotificationRequest(identifier: "rest", content: content, trigger: trigger)
+    // when this rest is actually over, fixed now. the interval used to be
+    // measured from whenever the permission answer came back, so saying yes
+    // twenty seconds into a ninety second rest moved the alert twenty seconds
+    // past the end of it.
+    let endsAt = Date.now.addingTimeInterval(TimeInterval(seconds))
     let center = UNUserNotificationCenter.current()
     Task {
         // ask first, and add only once the answer is in. this used to submit
@@ -286,6 +288,13 @@ func scheduleRestAlert(in seconds: Int) {
         // iOS only shows the popup once; after that this returns the answer.
         let allowed = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
         guard allowed else { return }
+        // a rest that ended while she was reading the permission sheet needs
+        // no alert: she is already looking at the phone
+        let left = endsAt.timeIntervalSinceNow
+        guard left > 0.5 else { return }
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: left, repeats: false)
+        // same id every time, so starting a new rest replaces the old alert
+        let request = UNNotificationRequest(identifier: "rest", content: content, trigger: trigger)
         try? await center.add(request)
     }
 }

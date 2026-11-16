@@ -142,11 +142,14 @@ struct LogView: View {
         // a new position brings its own numbers. adding a set doesn't move you,
         // so it leaves whatever you've dialed in alone
         .onChange(of: position) { fillIn() }
-        .onChange(of: chosenLift) { _, lift in
-            store.setChosenLift(lift)
-            // a correction belongs to the lift she started it on
-            correcting = nil
-        }
+        .onChange(of: chosenLift) { _, lift in store.setChosenLift(lift) }
+        // a correction belongs to the lift she started it on. watching
+        // `chosenLift` for that was wrong: tapping a logged set pins the lift
+        // she is already on, which moved `chosenLift` from nil to that lift
+        // and threw the correction away in the same gesture that started it.
+        // The next Log set then added a set instead of fixing the one she
+        // tapped. Only leaving the lift ends a correction.
+        .onChange(of: currentLift) { _, _ in correcting = nil }
         // the rest screen can change the next weight without moving you
         .onChange(of: resting) { if !resting { fillIn() } }
         .fullScreenCover(isPresented: $resting) {

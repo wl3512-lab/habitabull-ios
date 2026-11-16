@@ -79,7 +79,7 @@ struct GoalScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $picking) {
             // no sets step: how many sets of it she does is not part of a goal
-            AddLiftView(excluding: bodyweightLifts, picksSets: false) { id, _ in
+            AddLiftView(excluding: notForGoals, picksSets: false) { id, _ in
                 choose(id)
             }
         }
@@ -91,8 +91,14 @@ struct GoalScreen: View {
     /// Bodyweight and held lifts are kept out of the picker: a goal measured
     /// in pounds needs a lift that is loaded in pounds, and "200 lb plank" is
     /// not a sentence.
-    private var bodyweightLifts: [String] {
-        ExerciseLibrary.liftable.filter { $0.increment <= 0 }.map(\.id)
+    ///
+    /// So are the assisted machines. Their number is help, so every part of a
+    /// goal runs backwards on one: the suggestion offered her more help as
+    /// something to aim for, and a real target of 40 lb of help after logging
+    /// 45 counted as already met, because met is `>=`.
+    private var notForGoals: [String] {
+        let allowed = Set(ExerciseLibrary.forGoals.map(\.id))
+        return ExerciseLibrary.liftable.map(\.id).filter { !allowed.contains($0) }
     }
 
     private var liftRow: some View {

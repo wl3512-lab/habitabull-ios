@@ -53,6 +53,35 @@ final class SessionStoreTests: XCTestCase {
         try? FileManager.default.removeItem(at: missing)
     }
 
+    /// On a machine that counts help, a record is needing less of it.
+    ///
+    /// Reading those lifts the ordinary way congratulated her for taking more
+    /// help than last time, and never noticed when she took less.
+    /// Found by a codex review 2026-11-16.
+    func testARecordOnAnAssistedLiftIsLessHelpNotMore() {
+        store.startWorkout()
+        store.addLift("assisted-pull-up", sets: 3)
+        let pullUp = indexOf("assisted-pull-up")
+
+        let first = store.logSet(onExercise: pullUp, weight: 45, reps: 8)
+        XCTAssertEqual(first?.kind, .first, "the first time on a lift is never a record")
+
+        let moreHelp = store.logSet(onExercise: pullUp, weight: 50, reps: 8)
+        XCTAssertEqual(moreHelp?.kind, .routine, "it called taking more help a record")
+
+        let lessHelp = store.logSet(onExercise: pullUp, weight: 40, reps: 8)
+        XCTAssertEqual(lessHelp?.kind, .best, "needing less help than ever did not count")
+        XCTAssertEqual(lessHelp?.gain, 5, "the gain is the help she stopped needing")
+    }
+
+    /// A goal is a number of pounds to reach, which an assisted lift cannot be.
+    func testAnAssistedLiftIsNotSomethingToSetAGoalOn() {
+        let allowed = ExerciseLibrary.forGoals.map(\.id)
+        XCTAssertFalse(allowed.contains("assisted-pull-up"))
+        XCTAssertFalse(allowed.contains("assisted-dip"))
+        XCTAssertTrue(allowed.contains("back-squat"), "it kept out a lift a goal belongs on")
+    }
+
     /// Redoing a set she has already logged corrects that set and leaves the
     /// rest of them alone.
     ///

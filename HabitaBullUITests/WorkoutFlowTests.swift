@@ -41,7 +41,7 @@ final class WorkoutFlowTests: XCTestCase {
     /// had done came back as one she had not, gone from her totals and out of
     /// what the next session is planned from. Found by a codex audit
     /// 2026-11-15.
-    func testTappingALoggedSetToRedoItDoesNotUnlogIt() {
+    func testRedoingALoggedSetCorrectsThatSetAndNotTheNextOne() {
         start()
         logSet(expecting: "New lift")
         leaveRest()
@@ -52,10 +52,23 @@ final class WorkoutFlowTests: XCTestCase {
 
         logged.tap()
 
+        // it is still on her record while she is in the middle of redoing it
         XCTAssertTrue(app.buttons.matching(
             NSPredicate(format: "label BEGINSWITH %@", "Set 1, logged")).firstMatch
             .waitForExistence(timeout: 5),
             "tapping a set to redo it took it off her record before she had redone it")
+
+        // and logging now fixes the set she tapped rather than adding another.
+        // the first version of this test stopped at the line above, which the
+        // broken version passed: nothing was written either way, and the
+        // correction was being thrown away in the same gesture that started it
+        logSet()
+        leaveRest()
+
+        XCTAssertTrue(app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Set 2, not logged")).firstMatch
+            .waitForExistence(timeout: 10),
+            "redoing set 1 logged a new set instead of correcting the one she tapped")
     }
 
     /// Swiping the first lift picker away is leaving it.
