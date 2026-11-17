@@ -172,6 +172,9 @@ struct ProgressScreen: View {
 
     // MARK: - the goal
 
+    /// Every session in the shape the rules read. This copies the whole
+    /// history, sets and all, so anything that needs it more than once reads
+    /// it into a `let` first. The lift charts used to call it once per lift.
     private var history: [TrainingSession] { store.sessions.map(\.asTrainingSession) }
 
     /// The goal, on the screen that is already about measuring. It is the
@@ -180,24 +183,32 @@ struct ProgressScreen: View {
     /// screen is the one you read.
     @ViewBuilder private var goalCard: some View {
         if let goal = profiles.profile?.goal {
-            Card {
-                VStack(alignment: .leading, spacing: 14) {
-                    GoalRow(goal: goal, history: history) { settingGoal = true }
-                    Text(distance(goal))
-                        .font(.bodyText)
-                        .foregroundStyle(.dim)
-                }
-            }
+            goalCard(for: goal)
         } else {
             GoalOffer { settingGoal = true }
         }
     }
 
-    private func distance(_ goal: Goal) -> String {
-        let best = Goals.best(history, goal.exerciseId)
+    /// Split out so the row and the line under it share one copy of the
+    /// history. They each asked for their own, and asking copies every
+    /// session and every set in it.
+    private func goalCard(for goal: Goal) -> some View {
+        let past = history
+        return Card {
+            VStack(alignment: .leading, spacing: 14) {
+                GoalRow(goal: goal, history: past) { settingGoal = true }
+                Text(distance(goal, in: past))
+                    .font(.bodyText)
+                    .foregroundStyle(.dim)
+            }
+        }
+    }
+
+    private func distance(_ goal: Goal, in past: [TrainingSession]) -> String {
+        let best = Goals.best(past, goal.exerciseId)
         guard best > 0 else { return "Nothing logged for this lift yet." }
-        if Goals.met(history, goal) { return "You got there. Set the next one when you are ready." }
-        let start = Goals.baseline(history, goal)
+        if Goals.met(past, goal) { return "You got there. Set the next one when you are ready." }
+        let start = Goals.baseline(past, goal)
         let left = goal.targetWeight - best
         return "Started at \(start.formatted()) lb, now \(best.formatted()) lb. \(left.formatted()) lb to go."
     }
@@ -317,8 +328,12 @@ struct ProgressScreen: View {
     private func spoken(_ cell: MonthCell) -> String {
         guard let day = cell.day else { return "" }
         var said = cell.isToday ? "Today, \(monthName) \(day)" : "\(monthName) \(day)"
-        if cell.trained { said += ", trained" }
-        else if cell.comeback { said += ", came back" }
+        // comeback first, the order the grid itself draws in. every comeback
+        // day is a day she trained, so asking `trained` first made the
+        // `comeback` branch unreachable: the tile was cyan and the speech said
+        // "trained", which is the one distinction the grid exists to show.
+        if cell.comeback { said += ", came back" }
+        else if cell.trained { said += ", trained" }
         else if cell.future { said += ", still to come" }
         return said
     }
@@ -388,8 +403,17 @@ struct ProgressScreen: View {
         let lifts = store.sessions.reversed().flatMap(\.exercises)
         var seen = Set<String>()
         let ordered = lifts.filter { seen.insert($0.exerciseId).inserted }
+        // read once, outside the loop. `history` copies every session and
+        // every set in it, and this asked for a fresh copy per lift: five
+        // lifts meant five full copies of two years, every time the screen
+        // redrew. Found by a codex audit 2026-11-16.
+        // read once, outside the loop. `history` copies every session and
+        // every set in it, and this asked for a fresh copy per lift: five
+        // lifts meant five full copies of two years, every time the screen
+        // redrew. Found by a codex audit 2026-11-16.
+        let past = history
         let tracked = ordered.compactMap { lift -> (name: String, points: [LiftPoint])? in
-            let track = Lifts.track(history, lift.exerciseId)
+            let track = Lifts.track(past, lift.exerciseId)
             return track.isEmpty ? nil : (lift.name, track)
         }
         // most days first: that is the line with something to say. ties keep

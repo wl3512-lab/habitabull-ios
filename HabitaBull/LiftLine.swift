@@ -18,6 +18,38 @@ struct LiftLine: View {
     /// What the line is, for anyone who cannot see it.
     let lift: String
 
+    /// The readings and their range, worked out once when the view is made.
+    ///
+    /// These used to be computed properties. `bounds` mapped every point
+    /// through `value`, `value` asked `byReps`, and `byReps` scanned every
+    /// point; then `at` read `bounds` again for each point it placed, and both
+    /// the line and the fill placed every point. Two years of bodyweight
+    /// chin-ups is 300 points, which came to tens of millions of checks to
+    /// draw one chart, every time Progress redrew.
+    /// Found by a codex audit 2026-11-16.
+    private let readings: [Double]
+    private let byReps: Bool
+    private let bounds: (low: Double, high: Double)
+
+    init(points: [LiftPoint], lift: String) {
+        self.points = points
+        self.lift = lift
+        let reps = points.allSatisfy { $0.weight == 0 }
+        self.byReps = reps
+        let readings = points.map { reps ? Double($0.reps) : $0.weight }
+        self.readings = readings
+        let low = readings.min() ?? 0
+        let high = readings.max() ?? 0
+        // a flat run is the common case early on, three days at the same
+        // weight, and it would divide by zero. a span of one puts the line
+        // through the middle of the box, which is the honest picture: nothing
+        // moved. padding the range otherwise keeps the peak off the ceiling,
+        // where a line touching the edge reads as clipped.
+        let span = high - low == 0 ? 1 : high - low
+        let pad = span * 0.1
+        self.bounds = (low - pad, high + pad)
+    }
+
     private var height: CGFloat { 116 }
 
     var body: some View {
@@ -66,8 +98,7 @@ struct LiftLine: View {
     /// A lift with no weight on it is not a flat line at zero, it is a line
     /// drawn in reps. Chin-ups and push-ups get better by the rep, and a line
     /// that cannot say so is worse than no line: it says nothing is happening.
-    private var byReps: Bool { points.allSatisfy { $0.weight == 0 } }
-
+    /// Decided once, in `init`.
     private var unit: String { byReps ? "reps" : "lb" }
 
     private func value(_ point: LiftPoint) -> Double {
@@ -75,20 +106,6 @@ struct LiftLine: View {
     }
 
     // MARK: - geometry
-
-    /// A flat run is the common case early on, three days at the same weight,
-    /// and it would divide by zero. A span of one puts the line through the
-    /// middle of the box, which is the honest picture: nothing moved. Padding
-    /// the range otherwise keeps the peak off the ceiling, where a line
-    /// touching the edge reads as clipped.
-    private var bounds: (low: Double, high: Double) {
-        let weights = points.map(value)
-        let low = weights.min() ?? 0
-        let high = weights.max() ?? 0
-        let span = high - low == 0 ? 1 : high - low
-        let pad = span * 0.1
-        return (low - pad, high + pad)
-    }
 
     private func at(_ index: Int, _ reading: Double, in box: CGSize) -> CGPoint {
         let x = points.count == 1
@@ -101,8 +118,8 @@ struct LiftLine: View {
 
     private func line(in box: CGSize) -> Path {
         Path { path in
-            for (index, point) in points.enumerated() {
-                let spot = at(index, value(point), in: box)
+            for (index, reading) in readings.enumerated() {
+                let spot = at(index, reading, in: box)
                 index == 0 ? path.move(to: spot) : path.addLine(to: spot)
             }
         }

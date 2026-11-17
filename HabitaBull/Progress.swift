@@ -66,7 +66,12 @@ extension SessionStore {
         // first of today's, nor every unfinished workout the store can still
         // write to: one she walked away from last night is history, not the
         // workout in her hands
-        let past = sessions.filter { $0.id != sessionInHandId }.map(\.asTrainingSession)
+        // read once. inside the closure this re-derives per session, and
+        // deriving it scans the sessions and builds a Calendar, so planning one
+        // lift against two years of history was ninety thousand calendar
+        // builds. Today reads this for every lift on the card, every redraw.
+        let inHand = sessionInHandId
+        let past = sessions.filter { $0.id != inHand }.map(\.asTrainingSession)
         let shape = ExerciseLibrary.find(id)?.shape ?? liftOfHerOwn
         return Progression.next(shape, history: Progression.history(of: id, in: past),
                                 level: level, planned: planned ?? setsLastTime(of: id))

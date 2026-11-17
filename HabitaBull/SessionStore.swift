@@ -41,6 +41,11 @@ final class SessionStore {
             // and -uitest-weekly is the person the comeback rule was changed
             // for: one workout a week, every week, never missing one
             if ProcessInfo.processInfo.arguments.contains("-uitest-weekly") { seedWeekly() }
+            // and -uitest-longhistory is two years of it. the point is not the
+            // numbers but the size: screens that work out their answer by
+            // walking the whole history have to stay quick when there is a lot
+            // of it
+            if ProcessInfo.processInfo.arguments.contains("-uitest-longhistory") { seedLongHistory() }
             return
         }
         load()
@@ -85,11 +90,13 @@ final class SessionStore {
         if let openId, let i = sessions.firstIndex(where: { $0.id == openId && $0.completedAt == nil }) {
             return i
         }
-        if let i = sessions.lastIndex(where: { $0.date == dayString() && $0.completedAt == nil }) {
+        let today = dayString()
+        if let i = sessions.lastIndex(where: { $0.date == today && $0.completedAt == nil }) {
             return i
         }
+        let now = Date.now
         return sessions.lastIndex {
-            $0.completedAt == nil && Date.now.timeIntervalSince($0.startedAt) < 24 * 60 * 60
+            $0.completedAt == nil && now.timeIntervalSince($0.startedAt) < 24 * 60 * 60
         }
     }
 
@@ -111,7 +118,8 @@ final class SessionStore {
         if let openId, let s = sessions.first(where: { $0.id == openId && $0.completedAt == nil }) {
             return s.id
         }
-        return sessions.last { $0.date == dayString() && $0.completedAt == nil }?.id
+        let today = dayString()
+        return sessions.last { $0.date == today && $0.completedAt == nil }?.id
     }
 
     /// A workout by name, finished or not, for a screen that has to keep
@@ -124,9 +132,13 @@ final class SessionStore {
     // a workout left open from an earlier day, for up to 24 hours. this also
     // catches one that ran past midnight
     var unfinished: Session? {
-        sessions
-            .filter { $0.date < dayString() && $0.completedAt == nil && !$0.exercises.isEmpty }
-            .filter { Date.now.timeIntervalSince($0.startedAt) < 24 * 60 * 60 }
+        // both read once. in the closures they are rebuilt per session, and
+        // dayString builds a Calendar every call
+        let today = dayString()
+        let now = Date.now
+        return sessions
+            .filter { $0.date < today && $0.completedAt == nil && !$0.exercises.isEmpty }
+            .filter { now.timeIntervalSince($0.startedAt) < 24 * 60 * 60 }
             .max { $0.startedAt < $1.startedAt }
     }
 
@@ -145,7 +157,8 @@ final class SessionStore {
         if let resumedId, let session = sessions.first(where: { $0.id == resumedId }) {
             return session
         }
-        let todays = sessions.filter { $0.date == dayString() }
+        let today = dayString()
+        let todays = sessions.filter { $0.date == today }
         return todays.first { $0.completedAt == nil } ?? todays.last
     }
 
@@ -410,7 +423,8 @@ final class SessionStore {
     // for demos: wipes today so the app starts fresh. test builds only, so it
     // can't reach the App Store version
     func resetToday() {
-        sessions.removeAll { $0.date == dayString() || $0.id == resumedId }
+        let today = dayString()
+        sessions.removeAll { $0.date == today || $0.id == resumedId }
         resumedId = nil
         openId = nil
         save()
@@ -503,6 +517,36 @@ final class SessionStore {
                 exercises: starterLifts.map { id in
                     LoggedExercise(exerciseId: id,
                                    sets: (0..<3).map { _ in LoggedSet(weight: 95, reps: 8, done: true) })
+                },
+                startedAt: when,
+                completedAt: when
+            )
+        }
+        save()
+    }
+
+    /// Two years of lifting: 300 workouts, five lifts each, four sets each.
+    /// Every set the same, because the shape of the numbers does not matter
+    /// here, only how many of them there are.
+    private func seedLongHistory() {
+        let cal = Calendar.current
+        // push-up last, and it carries no weight: a line drawn in reps is the
+        // expensive case for the chart, because deciding that a lift is
+        // measured in reps means checking every point
+        let lifts = ["back-squat", "bench-press", "deadlift", "barbell-row", "push-up"]
+        sessions = (1...300).reversed().map { back in
+            let when = cal.date(byAdding: .day, value: -back, to: .now) ?? .now
+            return Session(
+                id: UUID().uuidString,
+                date: dayString(when),
+                label: "Full body",
+                exercises: lifts.map { id in
+                    let loaded = id != "push-up"
+                    return LoggedExercise(
+                        exerciseId: id,
+                        sets: (0..<4).map { _ in
+                            LoggedSet(weight: loaded ? 135 : 0, reps: loaded ? 5 : 15, done: true)
+                        })
                 },
                 startedAt: when,
                 completedAt: when

@@ -60,6 +60,37 @@ final class ComebackTests: XCTestCase {
                       "the pattern phone has a three week gap in it and the probe missed it")
     }
 
+    /// A day in the grid that she came back on has to say so out loud, not
+    /// just be cyan.
+    ///
+    /// The speech asked `trained` first and `comeback` second, and every
+    /// comeback day is a day she trained, so the comeback branch could never
+    /// run: the tile was cyan and VoiceOver said "trained". The grid draws
+    /// comeback first, so the screen and the speech disagreed about the one
+    /// distinction the grid exists to make.
+    /// Found by a codex audit 2026-11-16.
+    func testADaySheCameBackOnSaysSoOutLoud() {
+        launch(["-uitest-pattern"])
+        // the gap is weeks back, so the day may be in an earlier month
+        var said = cameBack()
+        var steps = 0
+        while !said && steps < 4 {
+            app.buttons["month-back"].tap()
+            said = cameBack()
+            steps += 1
+        }
+        XCTAssertTrue(said,
+                      "a comeback day in the grid is cyan and VoiceOver still calls it trained")
+    }
+
+    /// A day she trained on is wrapped in a button, so that is where the
+    /// label lives. Only days she did not train stay plain text.
+    private func cameBack() -> Bool {
+        app.buttons.matching(
+            NSPredicate(format: "label ENDSWITH ', came back'")
+        ).count > 0
+    }
+
     func testTheGridDoesNotMarkThemEither() {
         launch(["-uitest-weekly"])
         // the legend still says what the colour would mean, so this checks the

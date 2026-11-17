@@ -280,7 +280,7 @@ final class WorkoutFlowTests: XCTestCase {
     func testATypedWeightIsTheOneThatGetsLogged() {
         start()
 
-        let tapToType = app.staticTexts["Type Weight instead"]
+        let tapToType = app.staticTexts["Weight-number"]
         XCTAssertTrue(tapToType.waitForExistence(timeout: 5), "no weight to tap")
         tapToType.tap()
 
@@ -336,7 +336,7 @@ final class WorkoutFlowTests: XCTestCase {
     func testSteppingAWeightSheHasTypedMovesWhatSheCanSee() {
         start()
 
-        app.staticTexts["Type Weight instead"].tap()
+        app.staticTexts["Weight-number"].tap()
         let field = app.textFields.firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5), "the weight field never took focus")
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 8))
@@ -357,6 +357,33 @@ final class WorkoutFlowTests: XCTestCase {
             let all = app.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: " | ")
             XCTFail("the screen said \(shown) and logged something else. on screen: \(all)")
         }
+    }
+
+    /// The weight on the bar has to be readable without sight.
+    ///
+    /// The number carried the label "Type Weight instead" and no accessibility
+    /// value, so VoiceOver answered "what is the weight?" with the instruction
+    /// for replacing it. The plus and minus buttons are named, so she could
+    /// move the number by ear and never hear where it had got to.
+    /// Found by a codex audit 2026-11-16.
+    func testTheWeightOnTheBarCanBeHeard() {
+        start()
+        XCTAssertTrue(app.buttons["Increase Weight"].waitForExistence(timeout: 10))
+
+        let number = app.staticTexts["Weight-number"]
+        XCTAssertTrue(number.waitForExistence(timeout: 10),
+                      "VoiceOver has nothing to land on for the weight")
+        XCTAssertEqual(number.label, "Weight",
+                       "the weight announces itself as \(number.label), not as what it is")
+
+        let before = (number.value as? String) ?? ""
+        XCTAssertFalse(before.isEmpty,
+                       "the weight says what it is called and never what it is, "
+                       + "so she can move the number by ear and never hear it")
+
+        app.buttons["Increase Weight"].tap()
+        XCTAssertNotEqual((number.value as? String) ?? "", before,
+                          "the number moved and its spoken value did not")
     }
 
     private func start() {

@@ -174,7 +174,16 @@ struct NumberStepper: View {
                     draft = value.formatted()
                     typing = true
                 }
-                .accessibilityLabel("Type \(label) instead")
+                // the number itself, then how to change it. this used to be
+                // only the instruction, so VoiceOver answered "what is the
+                // weight?" with "Type Weight instead" and she could move the
+                // number by ear but never hear where it had got to.
+                .accessibilityLabel(label)
+                .accessibilityValue(value.formatted())
+                .accessibilityHint("Opens the keyboard to type a number")
+                // the heading over this stepper says "Weight" too, so the
+                // tests need something that can only be the number
+                .accessibilityIdentifier("\(label)-number")
             TextField("", text: $draft)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.center)

@@ -172,6 +172,57 @@ final class SessionStoreTests: XCTestCase {
     /// Seeds one open workout that began at 23:50 and is still open now, which
     /// is exactly what the store sees the moment the date rolls over. No clock
     /// is faked: the session is written to disk the way it would already be.
+    /// Two years of lifting: 300 workouts, five lifts each, four sets each.
+    /// Roughly what she will have if the app is any good.
+    private func seedTwoYears() {
+        let lifts = ["back-squat", "bench-press", "deadlift", "barbell-row", "overhead-press"]
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .current
+        let sessions: [Session] = (1...300).map { back in
+            let day = cal.date(byAdding: .day, value: -back, to: .now)!
+            return Session(
+                id: UUID().uuidString,
+                date: dayString(day),
+                label: "Full body",
+                exercises: lifts.map { id in
+                    LoggedExercise(exerciseId: id,
+                                   sets: Array(repeating: LoggedSet(weight: 135, reps: 5, done: true),
+                                               count: 4))
+                },
+                startedAt: day,
+                completedAt: day.addingTimeInterval(3600)
+            )
+        }
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try! encoder.encode(sessions).write(to: file)
+        store = SessionStore(fileURL: file)
+    }
+
+    /// Planning today's lifts against two years of history must not take
+    /// longer than a blink, because Today works it out again on every redraw
+    /// and the logging screen asks for it while she is typing a weight.
+    ///
+    /// `nextTarget` filtered the sessions with `sessionInHandId` written
+    /// inside the closure, so it was re-derived once per session, and
+    /// deriving it scans the sessions and builds a `Calendar` for each one.
+    /// At 300 sessions that is about ninety thousand calendar builds for one
+    /// lift, and Today asks for every lift on the card.
+    /// Found by a codex audit 2026-11-16.
+    func testPlanningAgainstTwoYearsOfHistoryIsQuick() {
+        seedTwoYears()
+        let lifts = ["back-squat", "bench-press", "deadlift", "barbell-row", "overhead-press"]
+
+        let began = Date.now
+        for _ in 0..<3 {            // Today reads the plan more than once per redraw
+            for id in lifts { _ = store.planned(id) }
+        }
+        let took = Date.now.timeIntervalSince(began)
+
+        XCTAssertLessThan(took, 0.5,
+                          "planning five lifts three times took \(took)s against 300 sessions")
+    }
+
     private func seedWorkoutStartedLastNight(lift: String = "back-squat", done: Bool = false) {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = .current
