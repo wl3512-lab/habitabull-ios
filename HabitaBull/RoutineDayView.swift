@@ -30,6 +30,12 @@ struct RoutineDayView: View {
     @State private var lifts: [String] = []
     @State private var adding = false
     @State private var filled = false
+    /// The lifts the day had when the screen opened.
+    ///
+    /// A day that has grown past its kind is not the same thing as a day that
+    /// was always mixed: the question is what she just added, so the offer of
+    /// a new name is made about the change and not about the day.
+    @State private var opened: [String] = []
 
     /// Which days of the week this workout is on. More than one is the reason
     /// the warning line exists.
@@ -132,6 +138,26 @@ struct RoutineDayView: View {
                         .accessibilityIdentifier("fill-from-kind")
                 }
 
+                if let suggested = grownPastItsKind {
+                    // a leg day with an ab crunch on it is not a leg day any
+                    // more, and calling it one costs her twice: Leg day stops
+                    // meaning legs everywhere else in the week, and the
+                    // workout she actually built has no name to find it by.
+                    // The rules package has had this since the port and no
+                    // screen ever asked. A starting point, not a correction:
+                    // one tap takes it, and typing over it is the same field
+                    // it always was
+                    Button("There is \(added ?? "other") work on this one now. Call it \(suggested)?") {
+                        name = suggested
+                    }
+                    .font(.bodyText)
+                    .foregroundStyle(.brandCyan)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .padding(.top, 18)
+                    .accessibilityIdentifier("mixed-name")
+                }
+
                 Pill(title: "Save") { save() }
                     .padding(.top, 26)
                     .disabled(lifts.isEmpty)
@@ -190,6 +216,7 @@ struct RoutineDayView: View {
         name = label
         kind = routine.type(of: label)
         lifts = routine.library[label] ?? Planner.lifts(for: label)
+        opened = lifts
     }
 
     /// Whether the lifts on screen are still the app's own suggestion rather
@@ -199,6 +226,36 @@ struct RoutineDayView: View {
         lifts.isEmpty
             || lifts == Planner.lifts(for: label)
             || lifts == Planner.lifts(forKind: kind)
+    }
+
+    /// The lifts on the day, as the rules package reads a planned day.
+    /// The numbers are not the question here, only which lifts are on it.
+    private var planned: [PlannedLift] {
+        lifts.map { PlannedLift(exerciseId: $0, sets: 3, reps: 8, weight: 0) }
+    }
+
+    /// What she has added that the kind of day does not cover, and that the
+    /// day did not already have some of. A second ab lift on a leg day that
+    /// already kept one changes nothing worth a new name.
+    private var beyondItsKind: [String] {
+        DayFit.offTypeBeyond(kind, exercises: planned, before: opened,
+                             catalogue: ExerciseLibrary.asLifts)
+    }
+
+    /// What that work is, in a word: "abs", "chest", "legs".
+    private var added: String? {
+        beyondItsKind.first.flatMap { DayFit.groupWord($0, catalogue: ExerciseLibrary.asLifts) }
+    }
+
+    /// A name for a day that has grown past its kind, or nothing when it has
+    /// not. Only ever for a name the app chose: she wrote "Chest and arms"
+    /// herself, and the app offering "Push and legs" over it would be arguing
+    /// with her about her own week.
+    private var grownPastItsKind: String? {
+        guard appsOwnName, !beyondItsKind.isEmpty else { return nil }
+        let suggested = DayFit.mixedName(kind, offIds: beyondItsKind,
+                                         catalogue: ExerciseLibrary.asLifts)
+        return suggested == name ? nil : suggested
     }
 
     private func fillFromKind() {

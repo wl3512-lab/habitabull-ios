@@ -116,6 +116,71 @@ final class RoutineTests: XCTestCase {
         still("32-home-with-her-own-workout")
     }
 
+    /// A day that grows past its kind is offered a name for it.
+    ///
+    /// A leg day with an ab crunch on it is not a leg day any more, and
+    /// calling it one costs her twice: Leg day stops meaning legs everywhere
+    /// else in the week, and the workout she actually built has no name to
+    /// find it by. An offer, not a correction: one tap takes it.
+    func testADayThatGrowsPastItsKindIsOfferedANameForIt() {
+        openTheWeek()
+        app.buttons["workout-\(weekday)"].tap()
+
+        // a leg day, so that ab work is plainly off it
+        let picker = app.buttons["day-kind"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        picker.tap()
+        app.buttons["Leg day"].tap()
+
+        addToTheDay("Ab Wheel")
+
+        let offer = app.buttons["mixed-name"]
+        XCTAssertTrue(offer.waitForExistence(timeout: 5),
+                      "a leg day with ab work on it is still being called a leg day")
+        XCTAssertTrue(offer.label.contains("Legs and abs"),
+                      "the offer has no name in it: \(offer.label)")
+        offer.tap()
+
+        XCTAssertEqual(app.textFields["day-name"].value as? String, "Legs and abs",
+                       "the name she tapped did not land in the field")
+
+        app.buttons["save-day"].tap()
+        XCTAssertTrue(app.buttons["Save my week"].waitForExistence(timeout: 5))
+        XCTAssertTrue(named("Legs and abs").waitForExistence(timeout: 5),
+                      "the week did not take the name she agreed to")
+    }
+
+    /// A name she wrote herself is hers, and the app does not argue with it.
+    func testADaySheHasNamedHerselfIsNotRenamedForHer() {
+        openTheWeek()
+        app.buttons["workout-\(weekday)"].tap()
+
+        let field = app.textFields["day-name"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        let before = (field.value as? String) ?? ""
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: before.count))
+        field.typeText("Chest and arms")
+
+        addToTheDay("Ab Wheel")
+
+        XCTAssertFalse(app.buttons["mixed-name"].exists,
+                       "the app offered to rename the day she had just named herself")
+    }
+
+    /// Adds a lift through the picker the day screen opens.
+    private func addToTheDay(_ name: String) {
+        XCTAssertTrue(app.buttons["add-lift-to-day"].waitForExistence(timeout: 5))
+        app.buttons["add-lift-to-day"].tap()
+        let search = app.searchFields.firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText(name)
+        app.buttons[name].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts[name].waitForExistence(timeout: 5),
+                      "\(name) never reached the day")
+    }
+
     func testALiftAddedToADayIsOnTodaysCard() {
         openTheWeek()
         app.buttons["workout-\(weekday)"].tap()

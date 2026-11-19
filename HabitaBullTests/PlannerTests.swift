@@ -11,6 +11,38 @@ import HabitaBullKit
 @testable import HabitaBull
 
 final class PlannerTests: XCTestCase {
+    // MARK: - a day that grew past its kind
+
+    /// A leg day with an ab lift on it has a name of its own.
+    ///
+    /// The rules package has carried this since the port and no screen ever
+    /// asked for it. The wiring is in RoutineDayView; this is the answer the
+    /// screen offers her, through the app's own library.
+    func testALegDayWithAbWorkOnItIsOfferedANameForIt() {
+        let planned = ["back-squat", "deadlift", "ab-wheel"]
+            .map { PlannedLift(exerciseId: $0, sets: 3, reps: 8, weight: 0) }
+        let beyond = DayFit.offTypeBeyond("legs", exercises: planned,
+                                          before: ["back-squat", "deadlift"],
+                                          catalogue: ExerciseLibrary.asLifts)
+
+        XCTAssertEqual(beyond, ["ab-wheel"], "the ab lift is not read as off a leg day")
+        XCTAssertEqual(DayFit.mixedName("legs", offIds: beyond,
+                                        catalogue: ExerciseLibrary.asLifts),
+                       "Legs and abs")
+        XCTAssertEqual(DayFit.groupWord("ab-wheel", catalogue: ExerciseLibrary.asLifts), "abs",
+                       "the screen has no word for what she just added")
+    }
+
+    /// A lift the day type covers changes nothing.
+    func testALegDayWithAnotherLegLiftIsStillALegDay() {
+        let planned = ["back-squat", "deadlift", "leg-press"]
+            .map { PlannedLift(exerciseId: $0, sets: 3, reps: 8, weight: 0) }
+        XCTAssertEqual(DayFit.offTypeBeyond("legs", exercises: planned,
+                                            before: ["back-squat", "deadlift"],
+                                            catalogue: ExerciseLibrary.asLifts), [],
+                       "adding a leg lift to a leg day asked her to rename it")
+    }
+
     // MARK: - filling a day from its kind
 
     /// A day filled from its kind is filled out of the real catalogue.
