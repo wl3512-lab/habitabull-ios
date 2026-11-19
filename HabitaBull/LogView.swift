@@ -297,6 +297,19 @@ struct LogView: View {
                             .foregroundStyle(.fault)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    if let out = store.takenOut {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text("\(liftName(out.lift.exerciseId)) is out of today's workout.")
+                                .font(.bodyText)
+                                .foregroundStyle(.dim)
+                            Spacer()
+                            Button("Undo") { store.undoRemoveLift() }
+                                .font(.head)
+                                .foregroundStyle(.brandCyan)
+                                .accessibilityIdentifier("undo-take-out")
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     Pill(title: "Log set") {
                         // a set she came back to fix is not a set she just
                         // did: no rest to take, and the lift she was on is
@@ -308,6 +321,8 @@ struct LogView: View {
                         if detour { beat?.resting = false }
                         correcting = nil
                         fixing = nil
+                        // she has carried on, so the way back goes quietly
+                        store.forgetTakenOut()
                     }
                 }
             } else if session?.exercises.isEmpty == true {
@@ -359,6 +374,17 @@ struct LogView: View {
                 if let currentLift, !session.exercises[currentLift].sets.contains(where: \.done) {
                     Button("Swap \(session.exercises[currentLift].name)", systemImage: "arrow.left.arrow.right") {
                         swappingLift = true
+                    }
+                    // today only, which is what the words have to say: her
+                    // week is not being edited from inside a workout
+                    if session.exercises.count > 1 {
+                        Button("Take \(session.exercises[currentLift].name) out of today",
+                               systemImage: "minus") {
+                            store.removeLift(at: currentLift)
+                            go(to: nil)
+                            confirmingFinish = false
+                            picking = nil
+                        }
                     }
                 }
                 Button("Add a lift", systemImage: "plus") { addingLift = true }

@@ -740,6 +740,35 @@ final class WorkoutFlowTests: XCTestCase {
                           "the number moved and its spoken value did not")
     }
 
+    /// A lift can come out of today's workout, and come back.
+    ///
+    /// Her week is not being edited from inside a workout: this is today
+    /// only, which is what the words in the menu have to say. Taking a lift
+    /// out is the one edit in here that loses something, so it is the one
+    /// with a way back beside the action.
+    func testTakingALiftOutOfTodayCanBeUndone() {
+        start()
+        onLift("Back Squat")
+
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Exercise '")).firstMatch.tap()
+        let takeOut = app.buttons["Take Back Squat out of today"]
+        XCTAssertTrue(takeOut.waitForExistence(timeout: 5),
+                      "there is no way to take a lift out of today's workout")
+        takeOut.tap()
+
+        // the workout carries on with what is left
+        onLift("Leg Press")
+        XCTAssertTrue(app.staticTexts["Back Squat is out of today's workout."].waitForExistence(timeout: 5),
+                      "it took a lift out and said nothing about it")
+
+        app.buttons["undo-take-out"].tap()
+
+        // back in its place, which is first
+        onLift("Back Squat")
+        XCTAssertFalse(app.buttons["undo-take-out"].exists,
+                       "the way back is still on screen after she took it")
+    }
+
     /// Fixing a set does not move her off the lift she chose next.
     ///
     /// Two faults in one detour, both from the fix that made a finished lift

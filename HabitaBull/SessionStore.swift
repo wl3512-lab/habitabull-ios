@@ -449,6 +449,48 @@ final class SessionStore {
         return nil
     }
 
+    /// A lift she took out of today's workout, kept so she can put it back.
+    ///
+    /// Taking a lift out is the one edit inside a workout that loses
+    /// something, so it is the one that needs a way back. It lives here
+    /// rather than on the screen because the screen is rebuilt the moment the
+    /// workout changes, which is the same gesture that would need the trail.
+    /// In memory only: an undo is for the next few seconds, not for tomorrow.
+    struct TakenOut: Equatable {
+        var lift: LoggedExercise
+        var at: Int
+    }
+
+    private(set) var takenOut: TakenOut? = nil
+
+    /// Takes a lift out of the open workout, today only.
+    ///
+    /// Never one she has logged a set on: that set really happened, so the
+    /// lift is hers to correct rather than to delete. Never the last one
+    /// either, because a workout with no lifts in it is not a workout.
+    func removeLift(at e: Int) {
+        guard let i = openIndex, sessions[i].exercises.indices.contains(e),
+              !sessions[i].exercises[e].sets.contains(where: \.done),
+              sessions[i].exercises.count > 1 else { return }
+        takenOut = TakenOut(lift: sessions[i].exercises.remove(at: e), at: e)
+        // where she was is now a different lift, or none
+        sessions[i].chosenLift = nil
+        save()
+    }
+
+    /// Puts it back where it was in the order.
+    func undoRemoveLift() {
+        guard let i = openIndex, let out = takenOut else { return }
+        sessions[i].exercises.insert(out.lift, at: min(out.at, sessions[i].exercises.count))
+        takenOut = nil
+        save()
+    }
+
+    /// Forgets the way back, once she has moved on.
+    func forgetTakenOut() {
+        takenOut = nil
+    }
+
     // a new set copies the last one. the count is a plan, so it can change
     func addSet(toExercise e: Int) {
         guard let i = openIndex, sessions[i].exercises.indices.contains(e),

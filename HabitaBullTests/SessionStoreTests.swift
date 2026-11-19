@@ -987,6 +987,47 @@ final class SessionStoreTests: XCTestCase {
         XCTAssertNil(store.today?.completedAt, "a workout you walked away from was not completed")
     }
 
+    // MARK: - taking a lift out of today
+
+    /// A lift taken out comes back where it was.
+    func testALiftSheTakesOutOfTodayComesBackWhereItWas() {
+        store.startWorkout()
+        let before = store.today?.exercises.map(\.exerciseId)
+        XCTAssertEqual(before?.count, 2, "the starter workout should have two lifts in it")
+
+        store.removeLift(at: 0)
+        XCTAssertEqual(store.today?.exercises.map(\.exerciseId), Array(before?.dropFirst() ?? []),
+                       "the lift she took out is still in today's workout")
+
+        store.undoRemoveLift()
+        XCTAssertEqual(store.today?.exercises.map(\.exerciseId), before,
+                       "undo put it back somewhere else in the order")
+        XCTAssertNil(store.takenOut, "the way back is still being offered after she took it")
+    }
+
+    /// A lift she has logged a set on is hers to correct, not to delete.
+    func testALiftWithASetLoggedOnItCannotBeTakenOut() {
+        store.startWorkout()
+        store.logSet(onExercise: 0, weight: 95, reps: 8)
+
+        store.removeLift(at: 0)
+
+        XCTAssertEqual(store.today?.exercises.count, 2,
+                       "a set she really did was thrown away with the lift")
+        XCTAssertNil(store.takenOut)
+    }
+
+    /// A workout with no lifts in it is not a workout.
+    func testTheLastLiftCannotBeTakenOut() {
+        store.startQuickWorkout()
+        store.addLift("back-squat", sets: 3)
+
+        store.removeLift(at: 0)
+
+        XCTAssertEqual(store.today?.exercises.count, 1,
+                       "taking the only lift out leaves her standing in an empty workout")
+    }
+
     // MARK: -
 
     /// History from before today, written the way the app writes it and read
