@@ -3,6 +3,7 @@
 // it tells you when the rest it suggested is over, buzzes once, and never
 // moves on by itself. you decide when you're ready
 
+import Combine
 import SwiftUI
 import UserNotifications
 
@@ -105,6 +106,13 @@ struct RestTimerView: View {
                 RestActivityController.markReady()
                 Chime.play()
             }
+        }
+        // she pressed Skip on the Lock Screen with this screen up behind it.
+        // The press is handled in this process, so the screen hears about it
+        // then and there rather than whenever she next opens the app
+        .onReceive(NotificationCenter.default.publisher(for: RestSkip.note)) { _ in
+            guard let endsAt, RestSkip.take(restEndingAt: endsAt) else { return }
+            stop()
         }
     }
 

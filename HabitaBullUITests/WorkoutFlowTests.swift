@@ -1019,6 +1019,25 @@ final class WorkoutFlowTests: XCTestCase {
     /// The set bar's own account of a logged set: "Set 1, logged 100 pounds
     /// for 8 reps". The reps are left out of the check so a test about the
     /// weight stays about the weight.
+    func testARestSheSkippedOnTheLockScreenIsOverWhenSheOpensTheApp() {
+        // the seed is today's workout, resting, with Skip already pressed and
+        // three minutes still on the clock: the app has no way to think the
+        // rest is over except the press
+        app.terminate()
+        app.launchArguments = ["-uitest-skip-opening", "-uitest-reset", "-uitest-onboarded",
+                               "-uitest-hold-beats", "-uitest-skipped-rest"]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["Continue workout"].waitForExistence(timeout: 10),
+                      "Today never offered the workout back")
+        app.buttons["Continue workout"].tap()
+
+        XCTAssertTrue(app.buttons["Log set"].waitForExistence(timeout: 10),
+                      "she came back to the countdown she had already skipped")
+        XCTAssertFalse(app.buttons["Done resting"].exists,
+                       "the rest screen was still up on a rest she ended from the Lock Screen")
+    }
+
     private func assertLogged(set: Int, says: String, line: UInt = #line) {
         let logged = app.buttons.matching(
             NSPredicate(format: "label BEGINSWITH %@", "Set \(set), logged \(says)")

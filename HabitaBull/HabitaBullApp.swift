@@ -39,6 +39,11 @@ struct HabitaBullApp: App {
         if ProcessInfo.processInfo.arguments.contains("-uitest-reset") {
             for key in Self.remembered { UserDefaults.standard.removeObject(forKey: key) }
         }
+        // Skip on the Lock Screen is performed in this process, and the alert
+        // queued for the end of that rest is this process's to take back
+        // down. Set here rather than in a view, so it is set even when the
+        // app was started in the background to handle the press.
+        MainActor.assumeIsolated { RestSkip.handler = { RestAlert.cancel() } }
     }
 
     var body: some Scene {

@@ -30,6 +30,12 @@ final class SessionStore {
         // test runner passes this, and only to a simulator
         if ProcessInfo.processInfo.arguments.contains("-uitest-reset") {
             try? FileManager.default.removeItem(at: self.fileURL)
+            // including a Skip left on the Lock Screen by an earlier test.
+            // It is cleared here rather than with the app's other start-up
+            // tidying, because the app's init body runs after the store has
+            // been built: a clean-up there would wipe what a seed below had
+            // just written
+            RestSkip.forget()
             // -uitest-history is the opposite ask: a phone that has been used
             // for a few weeks, which is the only way to see the record screen
             // full rather than empty
@@ -63,6 +69,10 @@ final class SessionStore {
             // and -uitest-firstday is today's workout with ten lifts she has
             // never done, every one of them a first time on the receipt
             if ProcessInfo.processInfo.arguments.contains("-uitest-firstday") { seedFirstDay() }
+            // and -uitest-skipped-rest is today's workout, resting, with Skip
+            // already pressed on the Lock Screen: the one shape that says
+            // whether the press survives the app being closed
+            if ProcessInfo.processInfo.arguments.contains("-uitest-skipped-rest") { seedSkippedRest() }
             return
         }
         load()
@@ -658,6 +668,27 @@ final class SessionStore {
 
     /// Today's workout, logged out, on ten lifts she has never done: a first
     /// day, which is the longest a receipt can get.
+    /// Today's workout, resting, with Skip already pressed on the Lock
+    /// Screen. Three minutes left on the countdown, so nothing but the press
+    /// can be what ends it.
+    private func seedSkippedRest() {
+        let when = Date.now.addingTimeInterval(-10 * 60)
+        let endsAt = Date.now.addingTimeInterval(180)
+        sessions = [Session(
+            id: UUID().uuidString,
+            date: dayString(when),
+            label: "Quick workout",
+            exercises: [LoggedExercise(exerciseId: "back-squat",
+                                       sets: [LoggedSet(weight: 95, reps: 8, done: true),
+                                              LoggedSet(weight: 95, reps: 8)])],
+            startedAt: when,
+            restEndsAt: endsAt,
+            restLift: 0
+        )]
+        RestSkip.mark(restEndingAt: endsAt)
+        save()
+    }
+
     private func seedFirstDay() {
         let lifts = ["back-squat", "goblet-squat", "deadlift", "romanian-deadlift",
                      "hip-thrust", "bench-press", "db-bench", "barbell-row",

@@ -3,6 +3,7 @@
 // only needs the finish time, the same idea as the timer in the app
 
 import ActivityKit
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -20,6 +21,7 @@ private enum WidgetColor {
     static let dim = Color(red: 0x9A / 255, green: 0xA3 / 255, blue: 0xAE / 255)
     static let cyan = Color(red: 0x8E / 255, green: 0xB4 / 255, blue: 0xBD / 255)
     static let done = Color(red: 0x6B / 255, green: 0xB8 / 255, blue: 0x8D / 255)
+    static let raise = Color(red: 0x22 / 255, green: 0x25 / 255, blue: 0x2C / 255)
 }
 
 // counts down to the finish time with no app code running
@@ -48,6 +50,7 @@ struct RestLockScreenView: View {
                     .font(.headline)
                     .foregroundStyle(WidgetColor.fg)
                     .lineLimit(2)
+                if !finished { skip }
             }
             Spacer()
             if !finished {
@@ -59,6 +62,24 @@ struct RestLockScreenView: View {
             }
         }
         .padding(16)
+    }
+
+    /// Straight on to the next set without picking the phone up.
+    ///
+    /// Under her words rather than beside the clock, because the clock is
+    /// what she is looking at and this is about the rest, not the time. The
+    /// press is performed in the app: see SkipRestIntent.
+    private var skip: some View {
+        Button(intent: SkipRestIntent()) {
+            Text("Skip rest")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(WidgetColor.fg)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(WidgetColor.raise, in: .capsule)
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 2)
     }
 }
 

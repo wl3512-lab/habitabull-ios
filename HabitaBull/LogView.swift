@@ -416,7 +416,11 @@ struct LogView: View {
             chosenLift = nil
         }
         guard let endsAt = session?.restEndsAt else { return }
-        if endsAt > .now {
+        // a rest she ended from the Lock Screen is over, whatever the clock
+        // still says. The press is written down rather than only announced
+        // because the app may well have been closed when she made it
+        let skipped = RestSkip.take(restEndingAt: endsAt)
+        if endsAt > .now && !skipped {
             restingOn = session?.restLift
             resumeUntil = endsAt
             resting = true
