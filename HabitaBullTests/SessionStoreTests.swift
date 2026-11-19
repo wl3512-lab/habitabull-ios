@@ -987,6 +987,31 @@ final class SessionStoreTests: XCTestCase {
         XCTAssertNil(store.today?.completedAt, "a workout you walked away from was not completed")
     }
 
+    // MARK: - the last set of the session
+
+    /// Only the set that ends the workout is the end of the workout.
+    func testTheLastSetOfTheSessionSaysSoAndACorrectionDoesNot() {
+        store.startWorkout()
+        guard let session = store.today else { return XCTFail("no workout") }
+        var last: SetOutcome?
+        for (e, exercise) in session.exercises.enumerated() {
+            for _ in exercise.sets { last = store.logSet(onExercise: e, weight: 95, reps: 8) }
+        }
+        XCTAssertEqual(last?.finishes, true, "the set that ended the workout does not say so")
+
+        // and the same set, logged again as a correction, is not news
+        let fixed = store.logSet(onExercise: 0, weight: 100, reps: 8, replacing: 0)
+        XCTAssertEqual(fixed?.finishes, false,
+                       "fixing a set after the workout is over announces the end of it again")
+    }
+
+    /// A set in the middle of a workout is not the end of it.
+    func testASetWithWorkLeftDoesNotSayTheSessionIsOver() {
+        store.startWorkout()
+        let first = store.logSet(onExercise: 0, weight: 95, reps: 8)
+        XCTAssertEqual(first?.finishes, false)
+    }
+
     // MARK: - taking a lift out of today
 
     /// A lift taken out comes back where it was.

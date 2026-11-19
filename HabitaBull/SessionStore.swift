@@ -302,6 +302,9 @@ final class SessionStore {
             kind: kind,
             liftName: exercise.name,
             resting: sessions[i].nextSet != nil,
+            // the set that ended the workout, and not a set she went back to
+            // fix once it was already over
+            finishes: sessions[i].nextSet == nil && redo == nil,
             newBest: kind == .best ? weight : nil,
             gain: kind == .best
                 ? held.map { assisted(exercise.exerciseId) ? $0 - weight : weight - $0 }

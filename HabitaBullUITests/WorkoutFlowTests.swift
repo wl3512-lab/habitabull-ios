@@ -740,6 +740,26 @@ final class WorkoutFlowTests: XCTestCase {
                           "the number moved and its spoken value did not")
     }
 
+    /// The last set of the session is said out loud.
+    ///
+    /// In the middle of a workout "Logged" is the whole story. At the end of
+    /// one it is not: she used to learn the workout was over by the rest
+    /// screen not appearing.
+    func testTheLastSetOfTheSessionSaysSo() {
+        start()
+        // a one lift workout, so the end comes while the test is still short
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Exercise '")).firstMatch.tap()
+        app.buttons["Take Back Squat out of today"].tap()
+        onLift("Leg Press")
+
+        // the first set of a lift she has never done is its own news
+        logSet(expecting: "New lift")
+        leaveRest()
+        logSet(expecting: "Logged")
+        leaveRest()
+        logSet(expecting: "That's the session.")
+    }
+
     /// A lift can come out of today's workout, and come back.
     ///
     /// Her week is not being edited from inside a workout: this is today

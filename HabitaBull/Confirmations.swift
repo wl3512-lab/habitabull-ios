@@ -85,7 +85,13 @@ struct SetLoggedView: View {
             switch outcome.kind {
             case .routine:
                 disc
-                Text("Logged").font(.titleText).foregroundStyle(.fg)
+                // the last set of the session gets said out loud. "Logged" is
+                // right for the middle of a workout and wrong for the end of
+                // one: the screen behind this already knows there is nothing
+                // left, and she found that out by the absence of a rest.
+                Text(outcome.finishes ? "That's the session." : "Logged")
+                    .font(.titleText)
+                    .foregroundStyle(.fg)
             case .first:
                 Text("New lift").font(.figure).foregroundStyle(.brandCyan)
                     .padding(.bottom, 18)

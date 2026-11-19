@@ -238,6 +238,14 @@ struct SetOutcome: Equatable {
     var kind: Kind
     var liftName: String
     var resting: Bool       // false when that was the last set of the workout
+    /// Whether that set was the last one of the session.
+    ///
+    /// Not the same question as `resting`, which is also false for a set she
+    /// went back to fix, and for the one the screen stays on during a
+    /// correction. This is only true for the set that finished the workout,
+    /// so the beat can say so without saying it over a typo she came back to
+    /// put right.
+    var finishes = false
     var newBest: Double? = nil      // only on a new best
     var gain: Double? = nil         // how far past the old best
     /// Whether that number is help rather than load. The gain was already
