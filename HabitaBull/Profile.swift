@@ -125,9 +125,17 @@ final class ProfileStore {
                 // -uitest-noweek is the phone that has answered the three
                 // questions but never agreed to a week, which is the state
                 // the home screen's first-run offer is written for
+                let days = Self.testDays(launched)
                 save(Profile(name: "Lucy", motivation: "It clears my head.",
-                             trainingDays: Self.testDays(launched),
+                             trainingDays: days,
                              weekChosen: !launched.contains("-uitest-noweek"),
+                             // only the rest day phone, which is the one that
+                             // needs workouts to choose between. The others
+                             // read today's plan off the session store, and
+                             // handing them a routine would rename every
+                             // workout in every test that has one
+                             routine: launched.contains("-uitest-restday")
+                                 ? Planner.plan(for: days) : nil,
                              createdAt: .now))
             }
             return

@@ -28,6 +28,15 @@ struct TodayView: View {
     @Binding var place: Place
     @State private var logging = false
     @State private var buildingWeek = false
+    /// Whether the "which workout" sheet is up, on a rest day she has
+    /// decided to train on.
+    @State private var picking = false
+    /// What she picked there, held until the sheet is out of the way.
+    ///
+    /// Pushing the log screen while a sheet is still closing gets dropped by
+    /// SwiftUI, which would leave her back on Today with a workout open and
+    /// nothing on screen saying so.
+    @State private var chosen: ChosenWorkout?
     @State private var settingGoal = false
     /// The day she has opened from the last time row.
     @State private var openDay: String?
@@ -40,6 +49,13 @@ struct TodayView: View {
     @Environment(\.scenePhase) private var phase
 
     init(place: Binding<Place> = .constant(.today)) { _place = place }
+
+    /// A workout she has asked for: the name, and the lifts, or nothing for
+    /// the one she is going to pick as she goes.
+    private struct ChosenWorkout {
+        var label: String
+        var lifts: [String]?
+    }
 
     private var session: Session? { store.today }
     private var finished: Bool { session?.completedAt != nil }
@@ -126,6 +142,15 @@ struct TodayView: View {
             .onReceive(NotificationCenter.default
                 .publisher(for: .NSCalendarDayChanged)
                 .receive(on: RunLoop.main)) { _ in day = .now }
+            .sheet(isPresented: $picking, onDismiss: startWhatShePicked) {
+                if let routine = profiles.profile?.routine {
+                    PickWorkoutView(routine: routine,
+                                    onPick: { label, lifts in
+                                        chosen = ChosenWorkout(label: label, lifts: lifts)
+                                    },
+                                    onQuick: { chosen = ChosenWorkout(label: "", lifts: nil) })
+                }
+            }
             .navigationDestination(isPresented: $logging) { LogView() }
             .navigationDestination(isPresented: $buildingWeek) { WeekView() }
             .navigationDestination(isPresented: $settingGoal) { GoalScreen() }
@@ -305,10 +330,7 @@ struct TodayView: View {
             // not a locked door: a day she did not pick is still a day she
             // can lift on, it just does not get an orange button
             VStack(alignment: .leading, spacing: 12) {
-                Pill(title: "Train anyway", variant: .ghost) {
-                    store.startQuickWorkout()
-                    logging = true
-                }
+                Pill(title: "Train anyway", variant: .ghost) { trainAnyway() }
                 Text("Nothing is planned for today.")
                     .font(.bodyText)
                     .foregroundStyle(.dim)
@@ -318,6 +340,33 @@ struct TodayView: View {
             // the plan's button lives inside its card
             EmptyView()
         }
+    }
+
+    /// A rest day she has decided to train on.
+    ///
+    /// With a week behind her the question is which of her own workouts, and
+    /// the answer is already written down: she agreed to it on the week
+    /// screen. Without one there is nothing to ask, so it stays the straight
+    /// way in that it has always been.
+    private func trainAnyway() {
+        if let routine = profiles.profile?.routine, !routine.days.isEmpty {
+            picking = true
+        } else {
+            store.startQuickWorkout()
+            logging = true
+        }
+    }
+
+    /// Start what she picked, once the sheet has gone.
+    private func startWhatShePicked() {
+        guard let picked = chosen else { return }
+        chosen = nil
+        if let lifts = picked.lifts {
+            store.startWorkout(label: picked.label, lifts: lifts)
+        } else {
+            store.startQuickWorkout()
+        }
+        logging = true
     }
 
     // MARK: - the week she has actually kept

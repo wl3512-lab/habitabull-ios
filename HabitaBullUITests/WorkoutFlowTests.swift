@@ -1278,6 +1278,65 @@ final class WorkoutFlowTests: XCTestCase {
                       + "is still offering to continue a workout from another day")
     }
 
+    // MARK: - a rest day she trains on anyway
+
+    /// "Train anyway" asks which workout, instead of emptying the plan.
+    ///
+    /// It opened a quick workout: a rest day she decided to train on cost
+    /// her her own week and she picked every lift again, one at a time, with
+    /// the list written down two taps away. Her week is the answer, so this
+    /// drives the week she agreed to showing up as rows.
+    func testARestDaySheTrainsOnAnywayOffersHerOwnWorkouts() {
+        app.terminate()
+        app.launchArguments = ["-uitest-skip-opening", "-uitest-reset", "-uitest-onboarded",
+                               "-uitest-restday", "-uitest-hold-beats"]
+        app.launch()
+
+        let anyway = app.buttons["Train anyway"]
+        XCTAssertTrue(anyway.waitForExistence(timeout: 10),
+                      "the test phone is not on a rest day")
+        anyway.tap()
+
+        XCTAssertTrue(app.staticTexts["What do you want to train?"].waitForExistence(timeout: 5),
+                      "Train anyway started a workout with nothing in it instead of asking "
+                      + "which of her own she wanted")
+
+        // her week, by name, and what is on each one
+        let upper = app.buttons["train-Upper day"]
+        XCTAssertTrue(upper.waitForExistence(timeout: 5),
+                      "her own workouts are not on the list")
+        XCTAssertTrue(app.staticTexts["Bench Press \u{00B7} Barbell Row \u{00B7} Dumbbell Shoulder Press"].exists,
+                      "a row says the workout's name and nothing about what is on it")
+        upper.tap()
+
+        XCTAssertTrue(app.buttons["Exercise 1 of 3. Tap to jump or add a lift"]
+                        .waitForExistence(timeout: 10),
+                      "the workout she picked did not open with its three lifts in it")
+    }
+
+    /// And a day she wants something that is not on her week at all.
+    ///
+    /// The old behaviour, kept as the quiet way out of the new screen: a
+    /// picker that can only offer the week would be a door that locks.
+    func testSheCanStillPickLiftsAsSheGoesOnARestDay() {
+        app.terminate()
+        app.launchArguments = ["-uitest-skip-opening", "-uitest-reset", "-uitest-onboarded",
+                               "-uitest-restday", "-uitest-hold-beats"]
+        app.launch()
+
+        let anyway = app.buttons["Train anyway"]
+        XCTAssertTrue(anyway.waitForExistence(timeout: 10))
+        anyway.tap()
+
+        let asIGo = app.buttons["quick-instead"]
+        XCTAssertTrue(asIGo.waitForExistence(timeout: 5),
+                      "there is no way past her week to a workout of her own")
+        asIGo.tap()
+
+        XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 10),
+                      "picking lifts as she goes did not open on the lift picker")
+    }
+
     private func openThePicker() {
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Exercise '")).firstMatch.tap()
         app.buttons["Add a lift"].tap()
