@@ -740,6 +740,138 @@ final class WorkoutFlowTests: XCTestCase {
                           "the number moved and its spoken value did not")
     }
 
+    /// Fixing a set does not move her off the lift she chose next.
+    ///
+    /// Two faults in one detour, both from the fix that made a finished lift
+    /// reachable at all. Tapping a logged set pinned that finished lift as
+    /// her chosen one, so logging the correction handed the workout to
+    /// whatever came next in the session order rather than the lift she had
+    /// picked, and saved the finished lift over her place in the file. And
+    /// the switch chooser changed her chosen lift without ending the detour,
+    /// so the screen stayed on the finished lift and Log set rewrote it
+    /// again. Found by a codex audit 2026-11-18.
+    func testFixingASetKeepsTheLiftSheChoseNext() {
+        start()
+        // a third lift, so there is a choice to lose
+        addLift(named: "Hammer Curl")
+
+        goToLift("Back Squat")
+        logSet()
+        leaveRest()
+        logSet()
+        leaveRest()
+        logSet()
+        leaveRest()
+
+        // the squat is done and two lifts are left, so it asks. she picks the
+        // one that is not next in the session's order
+        let instead = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH 'Start Hammer Curl instead'")).firstMatch
+        XCTAssertTrue(instead.waitForExistence(timeout: 8), "it never asked what was next")
+        instead.tap()
+        onLift("Hammer Curl")
+
+        // back to the squat to fix its first set
+        goBackToFinishedSquat()
+        onLift("Back Squat")
+        let first = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH 'Set 1, logged'")).firstMatch
+        XCTAssertTrue(first.waitForExistence(timeout: 5), "the logged sets are not there to tap")
+        first.tap()
+
+        typeWeight("105")
+        app.buttons["Log set"].tap()
+        app.tap()
+
+        // the lift she chose, not the one that happens to come next
+        onLift("Hammer Curl")
+
+        goBackToFinishedSquat()
+        assertLogged(set: 1, says: "105 pounds")
+
+        // and a chooser opened during a fix really does leave the squat
+        app.buttons["Back Squat. Tap to do a different lift first"].tap()
+        let swap = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH 'Switch to Leg Press'")).firstMatch
+        XCTAssertTrue(swap.waitForExistence(timeout: 5), "the switch chooser never opened")
+        swap.tap()
+        onLift("Leg Press")
+    }
+
+    /// The receipt is for the workout she just finished.
+    ///
+    /// With last night's still open the store's fallback lands on it, which
+    /// is right for a set and wrong for a receipt, so the log screen holds
+    /// the id of the one it finished. Two store tests cover the fallback and
+    /// both hold that id themselves, so the screen could have stopped holding
+    /// it and nothing would have gone red.
+    /// Found by a codex audit 2026-11-18.
+    func testTheReceiptIsForTheWorkoutSheJustFinished() {
+        // the same phone, with last night's workout still open on it
+        app.terminate()
+        app.launchArguments = ["-uitest-skip-opening", "-uitest-reset", "-uitest-onboarded",
+                               "-uitest-hold-beats", "-uitest-lastnight"]
+        app.launch()
+
+        // last night's is offered back, and she puts it down: it stays open
+        // in the file, which is the trap
+        let offered = app.buttons["unfinished-card"]
+        XCTAssertTrue(offered.waitForExistence(timeout: 30), "last night's workout is not offered back")
+        offered.tap()
+        app.buttons["End"].tap()
+
+        start()
+        logSet()
+        leaveRest()
+        app.buttons["End"].tap()
+        let finish = app.buttons["Finish workout"]
+        XCTAssertTrue(finish.waitForExistence(timeout: 5), "End never offered to finish")
+        finish.tap()
+
+        XCTAssertTrue(app.staticTexts["First time on Back Squat"].waitForExistence(timeout: 10),
+                      "the receipt does not name the workout she just finished")
+        XCTAssertFalse(app.staticTexts["First time on Dumbbell Hammer Curl"].exists,
+                       "the receipt is for last night's workout, which is still open behind it")
+    }
+
+    /// A first day's receipt can be got out of.
+    ///
+    /// Every lift of a first workout is a first time, and the badges went
+    /// into a column as tall as the phone and no taller: ten of them are
+    /// longer than the screen on their own padding, so the overflow went on
+    /// top of Done and there was nothing to scroll.
+    /// Found by a codex audit 2026-11-18.
+    func testAFirstDaysReceiptCanBeGotOutOf() {
+        // the same phone, with today's workout logged out on ten new lifts
+        app.terminate()
+        app.launchArguments = ["-uitest-skip-opening", "-uitest-reset", "-uitest-onboarded",
+                               "-uitest-hold-beats", "-uitest-firstday"]
+        app.launch()
+
+        let carryOn = app.buttons["Continue workout"]
+        XCTAssertTrue(carryOn.waitForExistence(timeout: 30), "Today never offered the open workout")
+        carryOn.tap()
+
+        let finish = app.buttons["Finish workout"]
+        XCTAssertTrue(finish.waitForExistence(timeout: 10), "a workout with every set logged does not offer to finish")
+        finish.tap()
+
+        let done = app.buttons["Done"]
+        XCTAssertTrue(done.waitForExistence(timeout: 10), "the receipt has no Done on it")
+
+        // ten badges are longer than the phone, so Done is under the fold:
+        // what matters is that it can be reached
+        let screen = app.windows.firstMatch.frame
+        var swipes = 0
+        while !(screen.contains(done.frame) && done.isHittable), swipes < 4 {
+            app.swipeUp()
+            swipes += 1
+        }
+        XCTAssertTrue(screen.contains(done.frame) && done.isHittable,
+                      "Done sits at \(done.frame) on a \(screen.size) screen after \(swipes) "
+                      + "swipes, so the receipt runs off the phone and the way out of it with it")
+    }
+
     /// A weight typed wrong is still hers to fix after she has moved on.
     ///
     /// The lift menu offered only lifts with sets left, and the screen could
@@ -861,6 +993,15 @@ final class WorkoutFlowTests: XCTestCase {
                       "the weight field never took focus", line: line)
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 8))
         field.typeText(pounds)
+    }
+
+    /// The lift menu, and a lift in it that still has sets left.
+    private func goToLift(_ name: String, line: UInt = #line) {
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Exercise '")).firstMatch.tap()
+        let row = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "\(name), ")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "no \(name) in the lift menu", line: line)
+        row.tap()
     }
 
     /// The lift menu, and the squat in it with nothing left to do.

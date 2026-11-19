@@ -623,11 +623,19 @@ final class SessionStoreTests: XCTestCase {
     func testTheWorkoutIsOverOnlyWhenEverySetIsLogged() {
         store.startWorkout()
         guard let session = store.today else { return XCTFail("no workout") }
+        var last: SetOutcome?
         for (e, exercise) in session.exercises.enumerated() {
-            for _ in exercise.sets { store.logSet(onExercise: e, weight: 95, reps: 8) }
+            for _ in exercise.sets { last = store.logSet(onExercise: e, weight: 95, reps: 8) }
         }
         XCTAssertNil(store.today?.nextSet)
-        XCTAssertEqual(store.today?.exercises.last.map { _ in true }, true)
+        // the outcome of the last set, which is what decides whether a rest
+        // screen opens. This used to assert that a last exercise existed,
+        // which it does whatever the store says about resting, so the app
+        // could have opened a rest timer after the final set of the workout
+        // and nothing here would have moved.
+        // Found by a codex audit 2026-11-18.
+        XCTAssertEqual(last?.resting, false,
+                       "the last set of the workout is followed by a rest she does not need")
     }
 
     // MARK: - what the screen between lifts offers

@@ -56,6 +56,13 @@ final class SessionStore {
             // and -uitest-own-lift is last week, with a lift she made herself
             // in it: the shape that asks whether the picker still knows it
             if ProcessInfo.processInfo.arguments.contains("-uitest-own-lift") { seedOwnLift() }
+            // and -uitest-lastnight is last night's workout, still open and
+            // on a lift today's plan does not have: the shape that tells one
+            // receipt from another
+            if ProcessInfo.processInfo.arguments.contains("-uitest-lastnight") { seedLastNight() }
+            // and -uitest-firstday is today's workout with ten lifts she has
+            // never done, every one of them a first time on the receipt
+            if ProcessInfo.processInfo.arguments.contains("-uitest-firstday") { seedFirstDay() }
             return
         }
         load()
@@ -576,6 +583,49 @@ final class SessionStore {
             label: "Leg day",
             exercises: starterLifts.map(planned),
             startedAt: .now.addingTimeInterval(-2 * 60 * 60)
+        )]
+        save()
+    }
+
+    /// Last night's workout, still open, on a lift today's plan does not
+    /// have, so a receipt for the wrong one says so by its name.
+    private func seedLastNight() {
+        // dated yesterday, so Today offers it back rather than treating it as
+        // today's, and started two hours ago, so the store's own window can
+        // still reach it: that pair is what makes it the wrong receipt to
+        // show after today's workout
+        let cal = Calendar.current
+        let yesterday = cal.date(byAdding: .day, value: -1, to: .now) ?? .now
+        let when = Date.now.addingTimeInterval(-2 * 60 * 60)
+        sessions = [Session(
+            id: UUID().uuidString,
+            date: dayString(yesterday),
+            label: "Leg day",
+            // nothing logged on it, so walking away from it is one tap and
+            // the workout it left open is still inside the store's window
+            exercises: [LoggedExercise(exerciseId: "dumbbell-hammer-curl",
+                                       sets: [LoggedSet(weight: 25, reps: 12),
+                                              LoggedSet(weight: 25, reps: 12)])],
+            startedAt: when
+        )]
+        save()
+    }
+
+    /// Today's workout, logged out, on ten lifts she has never done: a first
+    /// day, which is the longest a receipt can get.
+    private func seedFirstDay() {
+        let lifts = ["back-squat", "goblet-squat", "deadlift", "romanian-deadlift",
+                     "hip-thrust", "bench-press", "db-bench", "barbell-row",
+                     "lat-pulldown", "dumbbell-hammer-curl"]
+        let when = Date.now.addingTimeInterval(-60 * 60)
+        sessions = [Session(
+            id: UUID().uuidString,
+            date: dayString(when),
+            label: "Quick workout",
+            exercises: lifts.map {
+                LoggedExercise(exerciseId: $0, sets: [LoggedSet(weight: 45, reps: 8, done: true)])
+            },
+            startedAt: when
         )]
         save()
     }

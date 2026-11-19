@@ -234,7 +234,29 @@ struct FinishedView: View {
         .background(.action)
     }
 
+    /// The receipt, with one badge per lift she had never done before.
+    ///
+    /// A first workout is every lift's first time, so this column has no
+    /// length it cannot reach: ten badges are taller than the phone on their
+    /// own padding, and the column had nowhere to put the overflow but on top
+    /// of Done. Same arrangement as the rest screen: the column inside a
+    /// scroll view at least a screen tall, so at ordinary lengths the Spacers
+    /// still hold Done at the bottom and nothing scrolls.
+    /// Found by a codex audit 2026-11-18.
     private var plain: some View {
+        GeometryReader { screen in
+            ScrollView {
+                plainColumn
+                    .padding(24)
+                    .frame(maxWidth: .infinity, minHeight: screen.size.height)
+            }
+            .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.basedOnSize)
+        }
+        .background(.ground)
+    }
+
+    private var plainColumn: some View {
         VStack(spacing: 20) {
             Spacer()
             Bull(pose: .cheer, size: 150)
@@ -259,9 +281,6 @@ struct FinishedView: View {
             Spacer()
             Pill(title: "Done", action: onDone)
         }
-        .padding(24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.ground)
     }
 }
 

@@ -137,7 +137,7 @@ struct LogView: View {
                              others: Array(liftsLeft.dropFirst())) { index in
                     // picking the planned one keeps the session's order, so it
                     // only has to clear the screen
-                    chosenLift = index == planned.index ? nil : index
+                    go(to: index == planned.index ? nil : index)
                     picking = nil
                 }
             } else if picking == .switching, let session, let currentLift,
@@ -145,7 +145,7 @@ struct LogView: View {
                 NextLiftView(reason: .switching(doing: session.exercises[currentLift].name),
                              planned: nil,
                              others: liftsLeft) { index in
-                    chosenLift = index
+                    go(to: index)
                     picking = nil
                 }
             } else {
@@ -197,7 +197,7 @@ struct LogView: View {
         .sheet(isPresented: $addingLift, onDismiss: leaveIfEmpty) {
             AddLiftView(excluding: session?.exercises.map(\.exerciseId) ?? []) { id, sets in
                 store.addLift(id, sets: sets)
-                chosenLift = (session?.exercises.count ?? 1) - 1
+                go(to: (session?.exercises.count ?? 1) - 1)
                 confirmingFinish = false
                 picking = nil
             }
@@ -224,7 +224,15 @@ struct LogView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         SetBar(sets: exercise.sets, current: currentSet,
                                spoken: exercise.spoken) { tapped in
-                            chosenLift = currentLift
+                            // tapping a set pins the lift she is on, which is
+                            // how a correction stays put. Not while she is
+                            // already on a detour to a finished lift: pinning
+                            // that one threw away the lift she had chosen to
+                            // do next, saved the finished lift over her place
+                            // in the file, and handed the workout to whatever
+                            // came next in the session order instead.
+                            // Found by a codex audit 2026-11-18.
+                            if fixing == nil { chosenLift = currentLift }
                             correcting = tapped
                         }
                         SectionLabel(text: setLine(exercise, set: currentSet))
@@ -339,8 +347,7 @@ struct LogView: View {
                            ? "\(lift.name), \(lift.setsLeft) left"
                            : "\(lift.name), done. Tap to fix a set") {
                         if lift.setsLeft > 0 {
-                            chosenLift = i
-                            fixing = nil
+                            go(to: i)
                         } else {
                             fixing = i
                         }
@@ -481,6 +488,17 @@ struct LogView: View {
         }
         store.finishWorkout()
         finished = true
+    }
+
+    /// Going to a lift, which is also the end of a detour: she asked for
+    /// that lift, not for the set she was fixing. Every chooser goes through
+    /// here, because `fixing` wins over `chosenLift` and two of them used to
+    /// set the lift and leave the detour running: the screen stayed on the
+    /// finished lift and Log set rewrote its last set again.
+    /// Found by a codex audit 2026-11-18.
+    private func go(to lift: Int?) {
+        chosenLift = lift
+        fixing = nil
     }
 
     private func fillIn() {
