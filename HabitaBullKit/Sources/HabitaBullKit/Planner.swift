@@ -72,6 +72,18 @@ public struct PlannedLift: Sendable, Equatable {
     public var sets: Int
     public var reps: Int
     public var weight: Double
+
+    /// Spelled out because the synthesised one is internal to the package,
+    /// and the app has to build these now: the day-fit rules take a planned
+    /// day, and the day she is editing on screen is the app's own list of
+    /// lifts. Nothing outside the package could describe a day to the rules
+    /// it was written for.
+    public init(exerciseId: String, sets: Int, reps: Int, weight: Double) {
+        self.exerciseId = exerciseId
+        self.sets = sets
+        self.reps = reps
+        self.weight = weight
+    }
 }
 
 /// A day of the planned week.

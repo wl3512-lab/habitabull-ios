@@ -26,6 +26,7 @@ struct RoutineDayView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var name = ""
+    @State private var kind = "full-body"
     @State private var lifts: [String] = []
     @State private var adding = false
     @State private var filled = false
@@ -52,6 +53,31 @@ struct RoutineDayView: View {
                     .onSubmit(save)
                     .padding(.top, 10)
                     .accessibilityIdentifier("day-name")
+
+                Menu {
+                    // every kind but cardio, which has no screen that can log
+                    // it yet: offering it would plan a day the app cannot take
+                    ForEach(DayTypes.all.filter { $0.id != "cardio" }, id: \.id) { type in
+                        Button(type.label) { choose(type) }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(DayTypes.named(kind).label)
+                            .font(.head)
+                        Image(systemName: "chevron.down")
+                            .font(.caption.weight(.semibold))
+                    }
+                    .foregroundStyle(.brandCyan)
+                    .frame(minHeight: 44)
+                    .contentShape(.rect)
+                }
+                .accessibilityIdentifier("day-kind")
+                .accessibilityLabel("Kind of day, \(DayTypes.named(kind).label)")
+                .padding(.top, 6)
+
+                Text(DayTypes.named(kind).hint)
+                    .font(.bodyText)
+                    .foregroundStyle(.dim)
 
                 Text(onDays)
                     .font(.bodyText)
@@ -93,6 +119,19 @@ struct RoutineDayView: View {
                     .padding(.top, 14)
                     .accessibilityIdentifier("add-lift-to-day")
 
+                // the whole day at once, from what kind of day it is. Only
+                // while the list is still the app's own: a day she has built
+                // herself is not something to overwrite with one tap, and
+                // there is no undo in here to catch it
+                if liftsAreTheAppsOwn {
+                    Button("Fill it from \(DayTypes.named(kind).label)") { fillFromKind() }
+                        .font(.head)
+                        .foregroundStyle(.brandCyan)
+                        .frame(minHeight: 44)
+                        .padding(.top, 6)
+                        .accessibilityIdentifier("fill-from-kind")
+                }
+
                 Pill(title: "Save") { save() }
                     .padding(.top, 26)
                     .disabled(lifts.isEmpty)
@@ -127,11 +166,43 @@ struct RoutineDayView: View {
         }
     }
 
+    /// Whether the name on screen is one the app handed her rather than one
+    /// she wrote. Both lists count: the week's own names and the rules
+    /// package's say the same thing in two words, "Upper day" and "Upper
+    /// body", and neither of them is hers.
+    private var appsOwnName: Bool {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || Split.known.contains(name)
+            || DayTypes.all.contains { $0.label == name }
+    }
+
+    /// A different kind of day. The name follows it unless she has given the
+    /// day a name of her own: she called it "Chest and arms", and the app
+    /// renaming that to "Push day" would be overwriting the decision.
+    private func choose(_ type: DayType) {
+        if appsOwnName { name = type.label }
+        kind = type.id
+    }
+
     private func fill() {
         guard !filled else { return }
         filled = true
         name = label
+        kind = routine.type(of: label)
         lifts = routine.library[label] ?? Planner.lifts(for: label)
+    }
+
+    /// Whether the lifts on screen are still the app's own suggestion rather
+    /// than a list she has built: nothing at all, or exactly what the app
+    /// would have put there for this name or this kind of day.
+    private var liftsAreTheAppsOwn: Bool {
+        lifts.isEmpty
+            || lifts == Planner.lifts(for: label)
+            || lifts == Planner.lifts(forKind: kind)
+    }
+
+    private func fillFromKind() {
+        lifts = Planner.lifts(forKind: kind)
     }
 
     private func save() {
@@ -139,7 +210,7 @@ struct RoutineDayView: View {
         // a rule, it is a hint. a workout with nothing in it would reach
         // Today as a plan with no lifts on it.
         guard !lifts.isEmpty else { return }
-        routine.save(lifts, of: label, renamedTo: name)
+        routine.save(lifts, of: label, renamedTo: name, kind: kind)
         mine = true
         dismiss()
     }

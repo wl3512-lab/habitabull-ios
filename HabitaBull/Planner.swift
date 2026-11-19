@@ -33,14 +33,23 @@ struct Routine: Codable, Equatable {
     /// the routine rather than in the screen means it survives closing the
     /// app, which is the half the first fix missed.
     var remembered: [Int: String] = [:]
+    /// What kind of workout each name is, by the rules package's ids:
+    /// full-body, push, pull, legs, upper, lower, cardio.
+    ///
+    /// Kept against the name rather than the weekday, for the same reason the
+    /// lifts are: two Mondays called "Push day" are one workout, so they are
+    /// one decision about what kind of day it is.
+    var types: [String: String] = [:]
 
-    init(days: [Day] = [], library: [String: [String]] = [:], remembered: [Int: String] = [:]) {
+    init(days: [Day] = [], library: [String: [String]] = [:], remembered: [Int: String] = [:],
+         types: [String: String] = [:]) {
         self.days = days
         self.library = library
         self.remembered = remembered
+        self.types = types
     }
 
-    enum CodingKeys: String, CodingKey { case days, library, remembered }
+    enum CodingKeys: String, CodingKey { case days, library, remembered, types }
 
     /// Lenient, like the profile around it: a routine saved before a field
     /// existed still opens, rather than taking her whole week with it.
@@ -49,6 +58,20 @@ struct Routine: Codable, Equatable {
         days = try c.decodeIfPresent([Day].self, forKey: .days) ?? []
         library = try c.decodeIfPresent([String: [String]].self, forKey: .library) ?? [:]
         remembered = try c.decodeIfPresent([Int: String].self, forKey: .remembered) ?? [:]
+        types = try c.decodeIfPresent([String: String].self, forKey: .types) ?? [:]
+    }
+
+    /// What kind of day this workout is.
+    ///
+    /// Read from the name when nothing was ever chosen, so a week saved before
+    /// the app asked still answers: "Leg day" is a leg day whether or not
+    /// anybody wrote that down.
+    func type(of label: String) -> String {
+        types[label] ?? Planner.inferredType(of: label)
+    }
+
+    mutating func setType(_ id: String, of label: String) {
+        types[label] = id
     }
 
     func label(on weekday: Int) -> String? {
@@ -69,6 +92,13 @@ struct Routine: Codable, Equatable {
         if let lifts = library.removeValue(forKey: old) {
             // a name she is merging into keeps what is already in it
             if library[name] == nil { library[name] = lifts }
+        }
+        // and the kind of day travels with the name, the same way. Without
+        // this, renaming Push day to "Chest and arms" left the kind behind
+        // under a name nothing answers to, so the day she had just named went
+        // back to being a full body day
+        if let kind = types.removeValue(forKey: old) {
+            if types[name] == nil { types[name] = kind }
         }
         days = days.map { $0.label == old ? Day(weekday: $0.weekday, label: name) : $0 }
         remembered = remembered.mapValues { $0 == old ? name : $0 }
@@ -91,11 +121,13 @@ struct Routine: Codable, Equatable {
     /// into. Editing Push day and renaming it Pull day gave her two Pull days
     /// holding the old Pull day lifts, with the list she had just built gone
     /// and nothing said about it.
-    mutating func save(_ lifts: [String], of old: String, renamedTo fresh: String) {
+    mutating func save(_ lifts: [String], of old: String, renamedTo fresh: String,
+                       kind: String? = nil) {
         let wanted = fresh.trimmingCharacters(in: .whitespacesAndNewlines)
         let settled = (wanted.isEmpty || wanted == old) ? old : wanted
         rename(old, to: fresh)
         setLifts(lifts, of: settled)
+        if let kind { setType(kind, of: settled) }
     }
 
     /// The days in the order they are read: Sunday first, like everything else.
@@ -125,6 +157,61 @@ enum Planner {
             return Routine.Day(weekday: weekday, label: label)
         }
         return Routine(days: planned, library: library)
+    }
+
+    /// The kind of day a name implies.
+    ///
+    /// For every week saved before the app had a word for it, and for the
+    /// names she writes herself: "Legs and abs" is still a leg day. Checked
+    /// in the order that reads right, because "Lower body" contains neither
+    /// "leg" nor "lower body".
+    static func inferredType(of label: String) -> String {
+        let name = label.lowercased()
+        if name.contains("push") { return "push" }
+        if name.contains("pull") { return "pull" }
+        if name.contains("upper") { return "upper" }
+        if name.contains("lower") { return "lower" }
+        if name.contains("cardio") || name.contains("run") { return "cardio" }
+        if name.contains("leg") { return "legs" }
+        return "full-body"
+    }
+
+    /// What a day of that kind starts out containing, picked out of the real
+    /// catalogue.
+    ///
+    /// This is what the rules package has been carrying since the port and
+    /// nothing ever called: the day type's muscle slots, each filled with the
+    /// best lift available for it, never the same lift twice. The app
+    /// answered this from a switch over six names, so a day called anything
+    /// else got a full body guess.
+    ///
+    /// Three of them, like every other day here: four is a longer session
+    /// than someone two weeks in will keep, and the day is hers to add to.
+    static func lifts(forKind id: String) -> [String] {
+        let kind = DayTypes.named(id)
+        let catalogue = ExerciseLibrary.asLifts
+        // a kind that names its lifts rather than its muscles, as cardio does
+        if let named = kind.lifts {
+            let known = named.filter { wanted in catalogue.contains { $0.id == wanted } }
+            if !known.isEmpty { return known }
+        }
+        var chosen: [String] = []
+        var asked: Set<String> = []
+        // the first three different muscles it asks for, rather than the
+        // first three slots. A pull day's slots are back, hamstrings, back,
+        // arms, and the first three of those give her two rows and no arm
+        // work at all
+        for muscle in kind.muscles where chosen.count < 3 {
+            guard !asked.contains(muscle) else { continue }
+            guard let pick = HabitaBullKit.Planner.pick(muscle: muscle, from: catalogue,
+                                                        equipment: ExerciseLibrary.everyKit,
+                                                        exclude: Set(chosen)) else { continue }
+            asked.insert(muscle)
+            chosen.append(pick.id)
+        }
+        // nothing in the catalogue for any of its slots, which only a broken
+        // library can do. The old answer is better than an empty day
+        return chosen.isEmpty ? lifts(for: kind.label) : chosen
     }
 
     /// What a workout of that name starts out containing.

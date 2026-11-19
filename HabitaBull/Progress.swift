@@ -20,6 +20,36 @@ extension Exercise {
     }
 }
 
+extension Exercise {
+    /// The whole lift as the rules see it.
+    ///
+    /// `shape` above is only how a lift loads, which is all the progression
+    /// rules need. Picking lifts needs the muscle and the equipment too, so
+    /// the planner gets the lot.
+    var asLift: HabitaBullKit.Lift {
+        HabitaBullKit.Lift(id: id, name: name, equipment: equipment, primary: primary,
+                           increment: increment, compound: compound, heavy: heavy,
+                           hold: hold, cardio: cardio, assisted: assisted)
+    }
+}
+
+extension ExerciseLibrary {
+    /// The library as the rules see it, lifts only.
+    ///
+    /// Cardio and timed holds are left out for the same reason they are left
+    /// out of the picker: nothing in the app can log one yet, so planning one
+    /// into a day would put a lift on her week that the log screen cannot
+    /// take. Built once: the planner walks the whole list for every slot.
+    static let asLifts: [HabitaBullKit.Lift] = liftable.map(\.asLift)
+
+    /// Every kind of equipment the library knows.
+    ///
+    /// The app has never asked her what her gym has, and the honest stand-in
+    /// is all of it: she has been logging barbell and machine work since the
+    /// first week. A question for her rather than a guess to make quietly.
+    static let everyKit: [String] = Array(Set(all.map(\.equipment))).sorted()
+}
+
 /// A lift she typed in herself. Nothing is known about it, so it is treated
 /// as an ordinary accessory lift that loads in fives, which is the same guess
 /// the steppers already make.

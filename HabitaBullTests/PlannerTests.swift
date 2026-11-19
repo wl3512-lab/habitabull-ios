@@ -11,6 +11,113 @@ import HabitaBullKit
 @testable import HabitaBull
 
 final class PlannerTests: XCTestCase {
+    // MARK: - filling a day from its kind
+
+    /// A day filled from its kind is filled out of the real catalogue.
+    ///
+    /// The app answered this from a switch over six names, so every day it
+    /// did not recognise got the same three lifts. The rules package has had
+    /// the muscle slots and the picker since the port, and nothing called
+    /// them. Found while wiring the week, 2026-11-18.
+    func testADayIsFilledFromItsKindAndNotFromItsName() {
+        let push = Planner.lifts(forKind: "push")
+        XCTAssertEqual(push.count, 3, "a day should start with three lifts, whatever kind it is")
+        XCTAssertEqual(Set(push).count, 3, "the same lift was picked twice")
+
+        // asked of the rules themselves: nothing on it is off a push day
+        let planned = push.map { PlannedLift(exerciseId: $0, sets: 3, reps: 8, weight: 0) }
+        XCTAssertEqual(DayFit.offType("push", exercises: planned,
+                                      catalogue: ExerciseLibrary.asLifts), [],
+                       "a push day was filled with work that is not push work")
+    }
+
+    /// Two kinds of day are two different days.
+    func testADayOfADifferentKindIsFilledDifferently() {
+        XCTAssertNotEqual(Planner.lifts(forKind: "legs"), Planner.lifts(forKind: "push"),
+                          "every kind of day was filled the same way")
+    }
+
+    /// Nothing that cannot be logged is ever planned.
+    ///
+    /// Cardio and timed holds have no screen yet, so a picker that could put
+    /// one on her week would be planning a day the log screen cannot take.
+    func testADayIsNeverFilledWithSomethingTheAppCannotLog() {
+        for kind in DayTypes.all.map(\.id) {
+            for id in Planner.lifts(forKind: kind) {
+                let lift = ExerciseLibrary.find(id)
+                XCTAssertNotNil(lift, "\(kind) was filled with a lift the library does not have: \(id)")
+                XCTAssertFalse(lift?.cardio ?? false, "\(kind) was filled with cardio: \(id)")
+                XCTAssertFalse(lift?.hold ?? false, "\(kind) was filled with a timed hold: \(id)")
+            }
+        }
+    }
+
+    // MARK: - what kind of day it is
+
+    /// A week saved before the app had a word for it still answers.
+    ///
+    /// The kind of day drives what fills it and what it gets called when it
+    /// grows past itself, so every name has to resolve to one. Reading it off
+    /// the name is how a routine written last week keeps working.
+    func testAWeekSavedBeforeDayKindsExistedStillKnowsWhatItIs() {
+        let week = Routine(days: [Routine.Day(weekday: 1, label: "Push day"),
+                                  Routine.Day(weekday: 3, label: "Legs and abs"),
+                                  Routine.Day(weekday: 5, label: "Lower day")],
+                           library: [:])
+        XCTAssertEqual(week.type(of: "Push day"), "push")
+        XCTAssertEqual(week.type(of: "Legs and abs"), "legs",
+                       "a name of her own that still says legs is still a leg day")
+        XCTAssertEqual(week.type(of: "Lower day"), "lower")
+        XCTAssertEqual(week.type(of: "Chest and arms"), "full-body",
+                       "a name the app cannot read should fall back, not throw")
+    }
+
+    /// What she chose beats what the name reads like.
+    func testTheKindSheChoseIsTheKindItIs() {
+        var week = Routine(days: [Routine.Day(weekday: 1, label: "Leg day")], library: [:])
+        week.setType("cardio", of: "Leg day")
+        XCTAssertEqual(week.type(of: "Leg day"), "cardio",
+                       "the name was read instead of the answer she gave")
+    }
+
+    /// Renaming a workout carries its kind with it.
+    ///
+    /// Without this the kind is left behind under a name nothing answers to,
+    /// so the day she just named goes back to being read off its new name:
+    /// "Chest and arms" becomes a full body day, and what fills it changes
+    /// under her.
+    func testRenamingAWorkoutCarriesItsKind() {
+        var week = Routine(days: [Routine.Day(weekday: 1, label: "Push day")],
+                           library: ["Push day": ["bench-press"]])
+        week.setType("push", of: "Push day")
+
+        week.save(["bench-press", "db-curl"], of: "Push day", renamedTo: "Chest and arms")
+
+        XCTAssertEqual(week.type(of: "Chest and arms"), "push",
+                       "the kind of day was left behind by the rename")
+    }
+
+    /// Saving a day writes the kind she picked on it.
+    func testSavingADayWritesTheKindShePicked() {
+        var week = Routine(days: [Routine.Day(weekday: 1, label: "Full body")],
+                           library: ["Full body": ["back-squat"]])
+
+        week.save(["back-squat"], of: "Full body", renamedTo: "Full body", kind: "legs")
+
+        XCTAssertEqual(week.type(of: "Full body"), "legs")
+    }
+
+    /// A routine saved with kinds on it opens with them.
+    func testTheKindsSurviveBeingSavedAndRead() throws {
+        var week = Routine(days: [Routine.Day(weekday: 1, label: "Push day")],
+                           library: ["Push day": ["bench-press"]])
+        week.setType("upper", of: "Push day")
+
+        let read = try JSONDecoder().decode(Routine.self, from: JSONEncoder().encode(week))
+
+        XCTAssertEqual(read.type(of: "Push day"), "upper")
+    }
+
     /// The lifts she just built are the ones that survive a merge.
     ///
     /// Editing Push day and renaming it Pull day gave her two Pull days

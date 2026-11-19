@@ -169,8 +169,23 @@ struct WeekView: View {
                 Text("Two days with the same name are the same workout. Editing one edits both.")
                     .font(.captionText)
                     .foregroundStyle(.dim)
+
+                // said once, plainly, and never in the way of saving: the
+                // guidance asks for every group twice a week, and push, pull
+                // and legs on three days trains each of them once. Hers to
+                // decide, which is why it is a line and not a warning
+                if !DayTypes.coversTwiceWeekly(kinds) {
+                    Text("On this split some muscle groups only get trained once a week. Twice is what the guidance asks for.")
+                        .font(.captionText)
+                        .foregroundStyle(.dim)
+                }
             }
         }
+    }
+
+    /// The kind of day each workout on the week is, in order.
+    private var kinds: [String] {
+        routine.inOrder.map { routine.type(of: $0.label) }
     }
 
     private func count(_ label: String) -> String {

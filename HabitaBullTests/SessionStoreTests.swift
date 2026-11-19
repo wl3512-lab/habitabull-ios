@@ -432,7 +432,25 @@ final class SessionStoreTests: XCTestCase {
     private func seedWorkoutStartedLastNight(lift: String = "back-squat", done: Bool = false) {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = .current
-        let tenToMidnight = cal.startOfDay(for: .now).addingTimeInterval(-10 * 60)
+        // Last night at 23:50, pushed later when the clock makes that
+        // impossible.
+        //
+        // The workout this seeds has to be two things at once: filed under
+        // yesterday, and under 24 hours old, because the store closes a
+        // workout 24 hours after it starts. 23:50 yesterday stops being
+        // both in the last ten minutes of a day, and five tests here failed
+        // at 23:50 and passed again after midnight, which reads exactly
+        // like a bug in the thing they test. Found running the day-kinds
+        // slice, 2026-11-18.
+        //
+        // The two bounds cross for the last minute of the day and nothing
+        // can be seeded then: a workout with yesterday's date and under 24
+        // hours on it would have had to start after 23:59 yesterday.
+        let midnight = cal.startOfDay(for: .now)
+        let latestLastNight = midnight.addingTimeInterval(-60)
+        let insideTheDay = Date.now.addingTimeInterval(-24 * 60 * 60 + 120)
+        let tenToMidnight = min(max(midnight.addingTimeInterval(-10 * 60), insideTheDay),
+                                latestLastNight)
         let session = Session(
             id: UUID().uuidString,
             date: dayString(tenToMidnight),

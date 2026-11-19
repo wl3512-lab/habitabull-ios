@@ -41,6 +41,51 @@ final class RoutineTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Which days can you keep?"].waitForExistence(timeout: 5))
     }
 
+    /// The kind of day is hers to pick, and the name follows it.
+    ///
+    /// The rules package has had named day types since the port and no screen
+    /// ever asked for one, so every day was read off its name and a day she
+    /// renamed stopped being a leg day. This is the screen that asks.
+    func testTheKindOfDayIsHersToPick() {
+        openTheWeek()
+        app.buttons["workout-\(weekday)"].tap()
+
+        let picker = app.buttons["day-kind"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5),
+                      "there is no way to say what kind of day this is")
+        picker.tap()
+        app.buttons["Full body"].tap()
+
+        let field = app.textFields["day-name"]
+        XCTAssertEqual(field.value as? String, "Full body",
+                       "the name did not follow the kind of day she picked")
+        XCTAssertTrue(app.staticTexts["A bit of everything, and the one that works on three days a week"]
+                        .waitForExistence(timeout: 5),
+                      "nothing says what that kind of day is for")
+
+        // and the day can be filled from the kind she just picked, which is
+        // the rules package picking out of the real catalogue
+        let fill = app.buttons["fill-from-kind"]
+        XCTAssertTrue(fill.waitForExistence(timeout: 5),
+                      "there is no way to fill the day from what kind of day it is")
+        fill.tap()
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5),
+                      "filling a full body day did not put a leg lift on it")
+
+        app.buttons["save-day"].tap()
+        XCTAssertTrue(app.buttons["Save my week"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Full body"].exists,
+                      "the week did not take the day she just changed")
+    }
+
+    /// The default week trains each group once, and says so.
+    func testAPushPullLegsWeekSaysWhatItLeavesOut() {
+        openTheWeek()
+        XCTAssertTrue(app.staticTexts["On this split some muscle groups only get trained once a week. Twice is what the guidance asks for."]
+                        .waitForExistence(timeout: 5),
+                      "the week says nothing about what its own split costs")
+    }
+
     func testTheWeekSaysWhatEachDayIsAndNotJustWhichDays() {
         openTheWeek()
         XCTAssertTrue(app.staticTexts["YOUR WORKOUTS"].waitForExistence(timeout: 5),
