@@ -666,13 +666,25 @@ final class SessionStore {
         save()
     }
 
-    /// Today's workout, logged out, on ten lifts she has never done: a first
-    /// day, which is the longest a receipt can get.
+    /// This long ago, but never earlier than the start of today.
+    ///
+    /// These seeds mean "today's workout, started a while back", and a plain
+    /// subtraction walks over midnight: at 00:30, an hour ago is yesterday,
+    /// so the workout is filed under yesterday and the home screen stops
+    /// offering it. A test that fails for one hour a night and passes again
+    /// by morning is worse than no test. Found by the full run at 00:26,
+    /// 2026-11-19.
+    private func earlierToday(_ ago: TimeInterval) -> Date {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .current
+        return max(Date.now.addingTimeInterval(-ago), cal.startOfDay(for: .now))
+    }
+
     /// Today's workout, resting, with Skip already pressed on the Lock
     /// Screen. Three minutes left on the countdown, so nothing but the press
     /// can be what ends it.
     private func seedSkippedRest() {
-        let when = Date.now.addingTimeInterval(-10 * 60)
+        let when = earlierToday(10 * 60)
         let endsAt = Date.now.addingTimeInterval(180)
         sessions = [Session(
             id: UUID().uuidString,
@@ -689,11 +701,13 @@ final class SessionStore {
         save()
     }
 
+    /// Today's workout, logged out, on ten lifts she has never done: a first
+    /// day, which is the longest a receipt can get.
     private func seedFirstDay() {
         let lifts = ["back-squat", "goblet-squat", "deadlift", "romanian-deadlift",
                      "hip-thrust", "bench-press", "db-bench", "barbell-row",
                      "lat-pulldown", "dumbbell-hammer-curl"]
-        let when = Date.now.addingTimeInterval(-60 * 60)
+        let when = earlierToday(60 * 60)
         sessions = [Session(
             id: UUID().uuidString,
             date: dayString(when),
