@@ -12,7 +12,61 @@ import HabitaBullKit
 
 final class RecordTests: XCTestCase {
 
+    /// Her best set of a day, where two sets were the same weight.
+    ///
+    /// The day card and the progress chart each had their own idea of which
+    /// set was the better one. The chart broke a tie on reps, the card did
+    /// not, so a day of 135 for 5 and 135 for 8 had the card printing "135 lb
+    /// x 5" as her best while the chart marked the 8. One rule now, in the
+    /// package, asked by both. Found by a codex audit 2026-11-17.
+    func testTheBestSetAtOneWeightIsTheOneWithMoreReps() {
+        let squat = LoggedExercise(exerciseId: "back-squat", sets: [
+            LoggedSet(weight: 135, reps: 5, done: true),
+            LoggedSet(weight: 135, reps: 8, done: true),
+        ])
+        XCTAssertEqual(squat.best(of: squat.sets)?.reps, 8)
+
+        // and heavier is still better however few reps it was
+        let mixed = LoggedExercise(exerciseId: "back-squat", sets: [
+            LoggedSet(weight: 135, reps: 8, done: true),
+            LoggedSet(weight: 145, reps: 1, done: true),
+        ])
+        XCTAssertEqual(mixed.best(of: mixed.sets)?.weight, 145)
+    }
+
+    /// And on a machine that counts help: less help is better, and at the
+    /// same help the set with more reps is.
+    func testTheBestSetOnAHelpMachineIsTheOneWithLeastHelpThenMostReps() {
+        let pullUp = LoggedExercise(exerciseId: "assisted-pull-up", sets: [
+            LoggedSet(weight: 30, reps: 8, done: true),
+            LoggedSet(weight: 20, reps: 5, done: true),
+        ])
+        XCTAssertEqual(pullUp.best(of: pullUp.sets)?.weight, 20, "less help is the better set")
+
+        let tied = LoggedExercise(exerciseId: "assisted-pull-up", sets: [
+            LoggedSet(weight: 20, reps: 5, done: true),
+            LoggedSet(weight: 20, reps: 9, done: true),
+        ])
+        XCTAssertEqual(tied.best(of: tied.sets)?.reps, 9)
+    }
+
+
     // MARK: - what the big line says
+
+    /// A lift of her own keeps every word of its name.
+    ///
+    /// The id is the name with "custom-" in front of it, and reading the name
+    /// back took every "custom-" out rather than the one on the front. So a
+    /// lift she called "Custom Press" was custom-custom-press and read back
+    /// as "Press": the sets step said one name and the workout under it said
+    /// another. Found by a codex audit 2026-11-17.
+    func testALiftOfHerOwnKeepsEveryWordOfItsName() {
+        XCTAssertEqual(customLiftId("Custom Press"), "custom-custom-press")
+        XCTAssertEqual(liftName("custom-custom-press"), "Custom Press")
+        XCTAssertEqual(liftName("custom-cable-crossover"), "Cable Crossover")
+        // and a lift the library knows is still named by the library
+        XCTAssertEqual(liftName("back-squat"), "Back Squat")
+    }
 
     func testNoHistoryAtAllIsTheOnlyNothingYet() {
         XCTAssertEqual(Record.headline(sessions: 0, weeks: 0), "Nothing yet")

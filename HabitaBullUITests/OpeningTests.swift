@@ -53,9 +53,19 @@ final class OpeningTests: XCTestCase {
         app.launchArguments = ["-uitest-reset", "-uitest-onboarded",
                                "-uitest-hold-opening", "-uitest-hold-beats"]
         app.launch()
-        XCTAssertTrue(app.otherElements["opening"].waitForExistence(timeout: 10))
-        app.otherElements["opening"].tap()
+        let opening = app.otherElements["opening"]
+        XCTAssertTrue(opening.waitForExistence(timeout: 10))
+        // the home screen is mounted under the opening screen, so a test that
+        // only waits for one of its buttons passes whether the tap did
+        // anything or not. It also should not be reachable: an opaque cover
+        // that VoiceOver walks straight through is not a cover.
+        // Found by a codex audit 2026-11-18.
+        XCTAssertFalse(app.buttons["Start workout"].exists,
+                       "the home screen is reachable from behind the opening screen")
+        opening.tap()
 
+        XCTAssertFalse(opening.waitForExistence(timeout: 3),
+                       "the tap did not take the opening screen away")
         XCTAssertTrue(app.buttons["Start workout"].waitForExistence(timeout: 10),
                       "nobody should have to wait out a splash screen")
     }
@@ -64,10 +74,11 @@ final class OpeningTests: XCTestCase {
         // no hold: the real timing, which has to end by itself.
         //
         // What it waits on is the launch screen going, not the home screen
-        // arriving. The home screen is behind it the whole time it is up, so a
-        // button on it exists from the first moment and waiting for one only
-        // proves the app launched. This used to pass for that reason: the query
-        // took longer than the screen did.
+        // arriving. The home screen used to be mounted behind it the whole
+        // time it was up, so a button on it existed from the first moment and
+        // waiting for one only proved the app launched: this test used to pass
+        // for that reason, because the query took longer than the screen did.
+        // The two are alternatives now, and it still waits on the right thing.
         app.launchArguments = ["-uitest-reset", "-uitest-onboarded", "-uitest-hold-beats"]
         app.launch()
 

@@ -22,17 +22,48 @@ public struct Lift: Sendable, Equatable, Codable {
     public var heavy: Bool
     public var hold: Bool
     public var cardio: Bool
+    /// The number on this lift is help rather than load. The app's own
+    /// `Exercise` has carried this since the assisted fixes went in; this one
+    /// did not, so a lift described to the planner lost it on the way to its
+    /// shape and was planned as though its counterweight were a load.
+    /// Nothing in the app plans through here today, which is why no test
+    /// could see it. Found by a codex audit 2026-11-17.
+    public var assisted: Bool
 
     public init(id: String, name: String, equipment: String, primary: String, increment: Double,
-                compound: Bool, heavy: Bool = false, hold: Bool = false, cardio: Bool = false) {
+                compound: Bool, heavy: Bool = false, hold: Bool = false, cardio: Bool = false,
+                assisted: Bool = false) {
         self.id = id; self.name = name; self.equipment = equipment; self.primary = primary
         self.increment = increment; self.compound = compound
         self.heavy = heavy; self.hold = hold; self.cardio = cardio
+        self.assisted = assisted
+    }
+
+    /// Spelled out so that `assisted` may be missing.
+    ///
+    /// The default on the initialiser above does nothing for decoding: a
+    /// synthesised `init(from:)` requires every non-optional key, so adding
+    /// `assisted` to a public `Codable` type made every lift encoded before
+    /// today throw `keyNotFound`. The app's own `Exercise` has always used
+    /// `decodeIfPresent` for the same reason. Found by a codex audit
+    /// 2026-11-17.
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        equipment = try c.decode(String.self, forKey: .equipment)
+        primary = try c.decode(String.self, forKey: .primary)
+        increment = try c.decode(Double.self, forKey: .increment)
+        compound = try c.decode(Bool.self, forKey: .compound)
+        heavy = try c.decodeIfPresent(Bool.self, forKey: .heavy) ?? false
+        hold = try c.decodeIfPresent(Bool.self, forKey: .hold) ?? false
+        cardio = try c.decodeIfPresent(Bool.self, forKey: .cardio) ?? false
+        assisted = try c.decodeIfPresent(Bool.self, forKey: .assisted) ?? false
     }
 
     public var shape: LiftShape {
         LiftShape(increment: increment, compound: compound, heavy: heavy, hold: hold, cardio: cardio,
-                  floor: LiftShape.floor(for: equipment))
+                  floor: LiftShape.floor(for: equipment), assisted: assisted)
     }
 }
 

@@ -17,6 +17,10 @@ struct LiftLine: View {
     let points: [LiftPoint]
     /// What the line is, for anyone who cannot see it.
     let lift: String
+    /// Whether the number is help rather than load, which decides whether a
+    /// history of zeroes is a lift with nothing on it or a lift she needs
+    /// nothing for. See `Lifts.countedInReps`.
+    let assisted: Bool
 
     /// The readings and their range, worked out once when the view is made.
     ///
@@ -31,10 +35,11 @@ struct LiftLine: View {
     private let byReps: Bool
     private let bounds: (low: Double, high: Double)
 
-    init(points: [LiftPoint], lift: String) {
+    init(points: [LiftPoint], lift: String, assisted: Bool = false) {
         self.points = points
         self.lift = lift
-        let reps = points.allSatisfy { $0.weight == 0 }
+        self.assisted = assisted
+        let reps = Lifts.countedInReps(points, assisted: assisted)
         self.byReps = reps
         let readings = points.map { reps ? Double($0.reps) : $0.weight }
         self.readings = readings

@@ -78,7 +78,9 @@ struct ProgressScreen: View {
         return Attendance.sessionsInMonth(records, year: parts.year ?? 2026,
                                           month: parts.month ?? 1)
     }
-    private var sessionsEver: Int { records.filter(\.attended).count }
+    /// Days, not workouts: the tile says "days in all" and a day she trained
+    /// twice is one day. Found by a codex audit 2026-11-18.
+    private var sessionsEver: Int { Set(records.filter(\.attended).map(\.date)).count }
 
     var body: some View {
         NavigationStack {
@@ -223,6 +225,7 @@ struct ProgressScreen: View {
             HStack {
                 SectionLabel(text: monthTitle)
                     .accessibilityLabel("\(monthTitle), \(thisMonth) days trained")
+                    .accessibilityIdentifier("month-name")
                 Spacer()
                 Button {
                     monthsBack += 1
@@ -244,27 +247,54 @@ struct ProgressScreen: View {
                 .padding(.leading, 12)
             }
             VStack(spacing: 6) {
-                HStack(spacing: 6) {
+                // spacing 0 and the gap carried as padding, the same way the
+                // days below do it, so the seven columns land on the same
+                // centres as the seven days under them
+                HStack(spacing: 0) {
                     ForEach(Array(["S", "M", "T", "W", "T", "F", "S"].enumerated()), id: \.offset) { _, initial in
                         Text(initial)
                             .font(.captionText)
                             .foregroundStyle(.dim)
+                            .padding(.horizontal, 3)
                             .frame(maxWidth: .infinity)
                     }
                 }
-                ForEach(Array(rows.enumerated()), id: \.offset) { _, week in
-                    HStack(spacing: 6) {
-                        ForEach(Array(week.enumerated()), id: \.offset) { _, cell in
-                            // only a day she trained on has anything behind it
-                            if cell.trained, let date = cell.date {
-                                Button { openDay = date } label: {
+                // no gap between the weeks: each day carries the gap as
+                // padding inside itself instead, so the tile stays 34pt and
+                // the thing you tap is 44. Spacing here on top of that would
+                // overlap one day's tap area with the next one's, and near
+                // the edge the wrong day would open. Found by a codex audit
+                // 2026-11-16, measured at 45x34 on a simulator.
+                VStack(spacing: 0) {
+                    ForEach(Array(rows.enumerated()), id: \.offset) { _, week in
+                        // spacing 0 across as well as down. Seven tiles with
+                        // 6pt between them left 42pt each on a 375pt phone,
+                        // under the 44 a thumb needs, and the narrower the
+                        // phone the worse it got. The gap is now 3pt of
+                        // padding inside each day, so the tiles look the same
+                        // and the target is the whole column.
+                        HStack(spacing: 0) {
+                            ForEach(Array(week.enumerated()), id: \.offset) { _, cell in
+                                // only a day she trained on has anything behind it
+                                if cell.trained, let date = cell.date {
+                                    Button { openDay = date } label: {
+                                        cellView(cell)
+                                            .padding(.vertical, 5)
+                                            .padding(.horizontal, 3)
+                                            .contentShape(.rect)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .frame(maxWidth: .infinity)
+                                    .accessibilityIdentifier("day-\(date)")
+                                } else {
+                                    // the same padding, so every row sits on
+                                    // the same pitch and the same columns
+                                    // whether it was trained on or not
                                     cellView(cell)
+                                        .padding(.vertical, 5)
+                                        .padding(.horizontal, 3)
+                                        .frame(maxWidth: .infinity)
                                 }
-                                .buttonStyle(.plain)
-                                .frame(maxWidth: .infinity)
-                                .accessibilityIdentifier("day-\(date)")
-                            } else {
-                                cellView(cell).frame(maxWidth: .infinity)
                             }
                         }
                     }
@@ -407,14 +437,12 @@ struct ProgressScreen: View {
         // every set in it, and this asked for a fresh copy per lift: five
         // lifts meant five full copies of two years, every time the screen
         // redrew. Found by a codex audit 2026-11-16.
-        // read once, outside the loop. `history` copies every session and
-        // every set in it, and this asked for a fresh copy per lift: five
-        // lifts meant five full copies of two years, every time the screen
-        // redrew. Found by a codex audit 2026-11-16.
         let past = history
-        let tracked = ordered.compactMap { lift -> (name: String, points: [LiftPoint])? in
-            let track = Lifts.track(past, lift.exerciseId)
-            return track.isEmpty ? nil : (lift.name, track)
+        // each card carries whether its number is help, because the line, the
+        // figure beside it and the gain under it all run the other way on one
+        let tracked = ordered.compactMap { lift -> (name: String, points: [LiftPoint], assisted: Bool)? in
+            let track = Lifts.track(past, lift.exerciseId, assisted: lift.assisted)
+            return track.isEmpty ? nil : (lift.name, track, lift.assisted)
         }
         // most days first: that is the line with something to say. ties keep
         // the order they came in, or two lifts with the same number of days
@@ -436,18 +464,19 @@ struct ProgressScreen: View {
                                     .font(.head)
                                     .foregroundStyle(.fg)
                                 Spacer(minLength: 0)
-                                Text(latest(lift.points))
+                                Text(Lifts.headline(lift.points, assisted: lift.assisted))
                                     .font(.head)
                                     .foregroundStyle(.fg)
                                     .monospacedDigit()
-                                if let gained = gained(lift.points) {
+                                if let gained = Lifts.gain(lift.points, assisted: lift.assisted) {
                                     Text(gained)
                                         .font(.bodyText)
                                         .foregroundStyle(.done)
                                         .monospacedDigit()
                                 }
                             }
-                            LiftLine(points: lift.points, lift: lift.name)
+                            LiftLine(points: lift.points, lift: lift.name,
+                                     assisted: lift.assisted)
                         }
                     }
                     // a container, so the card's own name and numbers stay
@@ -461,24 +490,11 @@ struct ProgressScreen: View {
 
     /// Where she is now. A lift with no weight on it is counted in reps, or
     /// a chin-up would read as 0 lb.
-    private func latest(_ points: [LiftPoint]) -> String {
-        guard let last = points.last else { return "" }
-        if last.weight > 0 { return "\(last.weight.formatted()) lb" }
-        return "\(last.reps) \(last.reps == 1 ? "rep" : "reps")"
-    }
-
-    /// What she has added since the first day of it, and nothing at all when
-    /// she has added nothing. "+0" reads as a result and it is not one, and a
-    /// negative number here would be the app telling her off for a deload.
-    private func gained(_ points: [LiftPoint]) -> String? {
-        guard let first = points.first, let last = points.last, points.count > 1 else { return nil }
-        // a lift with no weight on it is counted in reps here too, or a line
-        // climbing from eight push-ups to twelve would read as a flat zero
-        let byReps = points.allSatisfy { $0.weight == 0 }
-        let up = byReps ? Double(last.reps - first.reps) : last.weight - first.weight
-        guard up > 0 else { return nil }
-        return "+\(up.formatted())"
-    }
+    ///
+    /// Help is the exception to that exception. No counterweight left on an
+    /// assisted machine is not "no weight on it", it is the day she stopped
+    /// needing the machine, and falling through to reps hid the one number
+    /// worth seeing. Found by a codex audit 2026-11-17.
 }
 
 #Preview {

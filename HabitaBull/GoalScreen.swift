@@ -211,11 +211,28 @@ struct GoalScreen: View {
         // changing the target of a goal she already has keeps the weight she
         // started it at. changing the lift is a new goal, so it starts again
         // from what she is lifting now.
-        let from = existing?.exerciseId == lift ? (existing?.startWeight ?? best) : best
+        let from = Self.startWeight(for: lift, existing: existing, history: history, best: best)
         let goal = Goal(exerciseId: lift, targetWeight: weight, targetDate: targetDate,
                         startWeight: from)
         profiles.update { $0.goal = goal }
         dismiss()
+    }
+
+    /// Where a goal starts from when she saves it.
+    ///
+    /// Changing the target of a goal she already has keeps the weight she
+    /// started it at. Changing the lift is a new goal, so it starts again
+    /// from what she is lifting now.
+    ///
+    /// A goal saved before baselines were written down has none, and the bar
+    /// on screen is drawn from the oldest session in her history. Saving used
+    /// to write today's best into it instead, so opening a goal at 50 percent
+    /// and pressing Save, changing nothing, put it back to 0.
+    /// Found by a codex audit 2026-11-18.
+    static func startWeight(for lift: String, existing: Goal?,
+                            history: [TrainingSession], best: Double) -> Double {
+        guard let existing, existing.exerciseId == lift else { return best }
+        return Goals.baseline(history, existing)
     }
 
     private func day(inWeeks weeks: Int) -> String {

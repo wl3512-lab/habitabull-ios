@@ -24,7 +24,7 @@ final class ComebackTests: XCTestCase {
         app.launchArguments = ["-uitest-skip-opening", "-uitest-reset", "-uitest-onboarded",
                                "-uitest-hold-beats"] + extra
         app.launch()
-        app.buttons["tab-progress"].tap()
+        app.goTo("progress")
         XCTAssertTrue(app.staticTexts["YOUR RECORD"].waitForExistence(timeout: 10))
     }
 

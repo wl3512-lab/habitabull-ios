@@ -3,6 +3,10 @@
 // so a backup from the web version can be read here later
 
 import Foundation
+// for the one rule about which of two sets is the better one. This module has
+// a LoggedSet of its own and the package has another; where that matters the
+// module is named, as it is in Progress.swift.
+import HabitaBullKit
 
 struct LoggedSet: Codable, Equatable {
     var weight: Double
@@ -19,10 +23,21 @@ struct LoggedExercise: Codable, Equatable {
     var canDropSet: Bool { sets.count > 1 && sets.last?.done == false }
 
     // the library's name, or the one you gave a lift of your own
-    var name: String {
-        ExerciseLibrary.find(exerciseId)?.name
-            ?? exerciseId.replacingOccurrences(of: "custom-", with: "")
-                .replacingOccurrences(of: "-", with: " ").capitalized
+    var name: String { liftName(exerciseId) }
+
+    /// Whether the number on this lift is help rather than load.
+    ///
+    /// Every screen that prints or ranks a weight has to know, and four of
+    /// them were each deciding it for themselves or not at all. One place to
+    /// ask, next to the other things the library answers.
+    var assisted: Bool { ExerciseLibrary.find(exerciseId)?.assisted ?? false }
+
+    /// The best of some of this lift's sets: the heaviest, or on a machine
+    /// that counts help, the one she needed the least of it on. At the same
+    /// weight it is the one with more reps, which is the chart's rule and was
+    /// not this card's until a codex audit 2026-11-17 put them side by side.
+    func best(of sets: [LoggedSet]) -> LoggedSet? {
+        sets.max { Lifts.beats(($1.weight, $1.reps), ($0.weight, $0.reps), assisted: assisted) }
     }
 
     // lifts of your own go up in 5s
@@ -111,8 +126,38 @@ struct LoggedExercise: Codable, Equatable {
     /// and it is the one thing the web app's Today has always said and the
     /// phone's did not.
     var planDetail: String {
-        guard usesWeight, let weight = sets.first?.weight, weight > 0 else { return planLine }
+        guard usesWeight, let weight = sets.first?.weight else { return planLine }
+        // No help is a plan, and `weight > 0` dropped it: a day the app had
+        // decided she should try the lift unaided read as "3 × 8" with no
+        // setting at all, which is the one session where the setting is the
+        // whole point. On a bar zero really is nothing to say.
+        // Found by a codex audit 2026-11-17.
+        if assisted { return "\(planLine) · \(weight == 0 ? "no help" : "\(weight.formatted()) lb")" }
+        guard weight > 0 else { return planLine }
         return "\(planLine) · \(weight.formatted()) lb"
+    }
+
+    /// Her record on this lift, said the way this lift reads, or nothing
+    /// when there is no record worth printing.
+    ///
+    /// On a machine that counts help her record is the least of it she has
+    /// ever needed, and the best of all is none. The log screen asked for
+    /// `best > 0`, which hid the line on exactly the day it had the most to
+    /// say: the first rep she did unaided turned "Best 2.5 lb" into no line
+    /// at all. Zero is the top of an assisted lift, not the absence of a
+    /// number. Found by a codex audit 2026-11-17.
+    ///
+    /// On a bar zero is still nothing to say, because a bodyweight lift
+    /// carries no load and "Best 0 lb" is not a record.
+    ///
+    /// The words live here rather than in the screen so that a test can ask
+    /// what they are.
+    func bestSaid(_ best: Double?) -> String? {
+        guard usesWeight, let best else { return nil }
+        if assisted {
+            return best == 0 ? "Best: no help" : "Best \(best.formatted()) lb of help"
+        }
+        return best > 0 ? "Best \(best.formatted()) lb" : nil
     }
 
     // one set, said the way the screens say it
@@ -144,9 +189,23 @@ struct Session: Codable, Equatable, Identifiable {
         exercises.filter { $0.sets.contains(where: \.done) }.count
     }
 
-    // weight × reps across every logged set
-    var poundsMoved: Int {
-        Int(exercises.flatMap(\.sets).filter(\.done).reduce(0) { $0 + $1.weight * Double($1.reps) })
+    /// weight × reps across every logged set.
+    ///
+    /// Assisted machines are left out of it. Their number is counterweight,
+    /// so counting it made the total rise as she needed more help, and the
+    /// day she finally did a pull-up with none of it that lift contributed
+    /// nothing at all. There is no honest number without her bodyweight
+    /// behind it, so the total says less rather than something backwards.
+    /// The stat is already hidden when it comes to nothing, so a session of
+    /// only assisted work shows no total instead of a wrong one.
+    /// Found by a codex audit 2026-11-17.
+    /// Not an `Int`: one set of 22.5 for three is 67.5 lb, and truncating it
+    /// printed 67 on a number she can check on her fingers. `.formatted()`
+    /// only shows a fraction when there is one, so a real session still reads
+    /// as a round number. Found by a codex audit 2026-11-18.
+    var poundsMoved: Double {
+        let counted = exercises.filter { !$0.assisted }.flatMap(\.sets).filter(\.done)
+        return counted.reduce(0) { $0 + $1.weight * Double($1.reps) }
     }
 
     var setsTotal: Int {
@@ -181,6 +240,11 @@ struct SetOutcome: Equatable {
     var resting: Bool       // false when that was the last set of the workout
     var newBest: Double? = nil      // only on a new best
     var gain: Double? = nil         // how far past the old best
+    /// Whether that number is help rather than load. The gain was already
+    /// worked out in the right direction; the sentence printed beside it was
+    /// not, so taking 5 lb less help was announced as "5 lb more than your
+    /// best". Found by a codex audit 2026-11-17.
+    var assisted = false
 }
 
 // a lift that beat your old heaviest
@@ -202,6 +266,19 @@ struct SessionBest: Equatable {
 let starterLifts = ["back-squat", "leg-press"]
 
 // "Cable Crossover" -> "custom-cable-crossover"
+/// A lift's name from its id, for the places that hold an id and have no
+/// logged lift to ask.
+func liftName(_ id: String) -> String {
+    // the prefix, once, off the front. `replacingOccurrences` took every
+    // "custom-" in the id, so a lift she named "Custom Press" became
+    // custom-custom-press and read back as "Press": the sets step said
+    // Custom Press and the workout under it said something else.
+    // Found by a codex audit 2026-11-17.
+    let own = id.hasPrefix("custom-") ? String(id.dropFirst("custom-".count)) : id
+    return ExerciseLibrary.find(id)?.name
+        ?? own.replacingOccurrences(of: "-", with: " ").capitalized
+}
+
 func customLiftId(_ name: String) -> String {
     let words = name.lowercased().split { !$0.isLetter && !$0.isNumber }
     return "custom-" + words.joined(separator: "-")

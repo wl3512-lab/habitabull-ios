@@ -29,14 +29,63 @@ final class GoalTests: XCTestCase {
         let store = ProfileStore(defaults: defaults)
         store.save(Profile(name: "Lucy", trainingDays: [1, 3, 5], weekChosen: true))
         store.update {
-            $0.goal = Goal(exerciseId: "back-squat", targetWeight: 185, targetDate: "2026-12-30")
+            // with the weight she started from, which is the field the bar on
+            // screen is drawn against. Saving a goal without one left this
+            // test green while every real goal came back at nothing.
+            // Found by a codex audit 2026-11-18.
+            $0.goal = Goal(exerciseId: "back-squat", targetWeight: 185,
+                           targetDate: "2026-12-30", startWeight: 135)
         }
 
         let later = ProfileStore(defaults: defaults)
         XCTAssertEqual(later.profile?.goal?.exerciseId, "back-squat")
         XCTAssertEqual(later.profile?.goal?.targetWeight, 185)
         XCTAssertEqual(later.profile?.goal?.targetDate, "2026-12-30")
+        XCTAssertEqual(later.profile?.goal?.startWeight, 135,
+                       "the goal came back without the weight it started from, so the bar "
+                       + "under it is drawn from the wrong end")
         XCTAssertEqual(later.profile?.name, "Lucy", "setting a goal rewrote the rest of her")
+
+        // and the number she would actually see
+        let history = [TrainingSession(
+            date: "2026-11-01", lifts: [LoggedLift(exerciseId: "back-squat",
+                                                   sets: [HabitaBullKit.LoggedSet(weight: 160, reps: 5, done: true)])])]
+        XCTAssertEqual(Goals.progress(history, later.profile!.goal!), 50,
+                       "halfway from 135 to 185 is not reading as halfway")
+    }
+
+    /// Saving a goal she already had does not move where it started from.
+    ///
+    /// A goal saved before baselines were written down has none, and the bar
+    /// is drawn from the oldest session in her history. Saving wrote today's
+    /// best in instead, so opening a goal at 50 percent, changing only its
+    /// date and pressing Save put it back to 0 percent. Pressing Save without
+    /// changing anything did it too.
+    /// Found by a codex audit 2026-11-18.
+    func testSavingAGoalSheAlreadyHasKeepsWhereItStarted() {
+        let history = [
+            TrainingSession(date: "2026-09-01",
+                            lifts: [LoggedLift(exerciseId: "back-squat",
+                                               sets: [HabitaBullKit.LoggedSet(weight: 100, reps: 5, done: true)])]),
+            TrainingSession(date: "2026-11-01",
+                            lifts: [LoggedLift(exerciseId: "back-squat",
+                                               sets: [HabitaBullKit.LoggedSet(weight: 150, reps: 5, done: true)])]),
+        ]
+        let old = Goal(exerciseId: "back-squat", targetWeight: 200, targetDate: "2027-01-01")
+        XCTAssertEqual(Goals.progress(history, old), 50, "the fixture is not the case being tested")
+
+        let kept = GoalScreen.startWeight(for: "back-squat", existing: old,
+                                          history: history, best: 150)
+        XCTAssertEqual(kept, 100,
+                       "saving the goal she is looking at reset it to today's best, which "
+                       + "reads as no progress at all")
+        XCTAssertEqual(Goals.progress(history, Goal(exerciseId: "back-squat", targetWeight: 200,
+                                                    targetDate: "2027-02-01", startWeight: kept)),
+                       50, "changing only the date moved the bar")
+
+        // a goal on a different lift is a new goal, and starts from now
+        XCTAssertEqual(GoalScreen.startWeight(for: "deadlift", existing: old,
+                                              history: history, best: 150), 150)
     }
 
     func testRemovingTheGoalLeavesTheRestOfHerAlone() {

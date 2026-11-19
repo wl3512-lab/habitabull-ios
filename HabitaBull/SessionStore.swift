@@ -46,6 +46,16 @@ final class SessionStore {
             // walking the whole history have to stay quick when there is a lot
             // of it
             if ProcessInfo.processInfo.arguments.contains("-uitest-longhistory") { seedLongHistory() }
+            // and -uitest-tie is one day with a tie in it: two sets at one
+            // weight and different reps, which is the only shape that can
+            // catch two screens naming different best sets
+            if ProcessInfo.processInfo.arguments.contains("-uitest-tie") { seedATie() }
+            // and -uitest-unfinished is yesterday's workout, started and
+            // walked away from: the one shape that offers her a workout back
+            if ProcessInfo.processInfo.arguments.contains("-uitest-unfinished") { seedUnfinished() }
+            // and -uitest-own-lift is last week, with a lift she made herself
+            // in it: the shape that asks whether the picker still knows it
+            if ProcessInfo.processInfo.arguments.contains("-uitest-own-lift") { seedOwnLift() }
             return
         }
         load()
@@ -137,8 +147,12 @@ final class SessionStore {
         let today = dayString()
         let now = Date.now
         return sessions
-            .filter { $0.date < today && $0.completedAt == nil && !$0.exercises.isEmpty }
-            .filter { now.timeIntervalSince($0.startedAt) < 24 * 60 * 60 }
+            // not `< today`. Fly west overnight and the workout she started
+            // ten minutes after midnight is dated tomorrow, so a rule that
+            // only looks backwards hides a workout the store will still
+            // happily write to. Found by a codex audit 2026-11-18.
+            .filter { $0.date != today && $0.completedAt == nil && !$0.exercises.isEmpty }
+            .filter { (0..<24 * 60 * 60).contains(now.timeIntervalSince($0.startedAt)) }
             .max { $0.startedAt < $1.startedAt }
     }
 
@@ -150,6 +164,22 @@ final class SessionStore {
     func endResume() {
         resumedId = nil
         openId = nil
+    }
+
+    /// The lifts she made herself, newest first, one entry each.
+    ///
+    /// The picker's list is the bundled library, so without this a lift of
+    /// her own was in the app for exactly one workout.
+    /// Found by a codex audit 2026-11-18.
+    var ownLifts: [String] {
+        var found: [String] = []
+        for session in sessions.sorted(by: { $0.startedAt > $1.startedAt }) {
+            for exercise in session.exercises
+            where exercise.exerciseId.hasPrefix("custom-") && !found.contains(exercise.exerciseId) {
+                found.append(exercise.exerciseId)
+            }
+        }
+        return found
     }
 
     // today's workout: an unfinished one first, otherwise the latest finished one
@@ -225,8 +255,20 @@ final class SessionStore {
         var exercise = sessions[i].exercises[e]
 
         // judged before this set is saved. a best needs a number to beat, so
-        // the first time you ever log a lift is never called one
-        let held = record(of: exercise.exerciseId)
+        // the first time you ever log a lift is never called one.
+        //
+        // and the set she is correcting is not one of the numbers to beat.
+        // Her best was 95, she lifted 100 and typed 145, then tapped the set
+        // and fixed it: the typo was still in the history being judged, so
+        // the confirmation called a 5 lb record ordinary while the receipt at
+        // the end of the same workout called it a record.
+        // Found by a codex audit 2026-11-18.
+        let judged: [Session]? = redo.map { r in
+            var without = sessions
+            without[i].exercises[e].sets[r].done = false
+            return without
+        }
+        let held = record(of: exercise.exerciseId, in: judged)
         let kind: SetOutcome.Kind
         if held == nil {
             kind = .first
@@ -237,9 +279,15 @@ final class SessionStore {
         }
 
         exercise.sets[s] = LoggedSet(weight: weight, reps: reps, done: true)
-        for s in exercise.sets.indices where !exercise.sets[s].done {
-            exercise.sets[s].weight = weight
-            exercise.sets[s].reps = reps
+        // the set she just did carries forward; a set she went back to fix
+        // does not. She may have changed the sets ahead on the rest screen,
+        // and correcting a typo in set one is not a decision about them.
+        // Found by a codex audit 2026-11-18.
+        if redo == nil {
+            for s in exercise.sets.indices where !exercise.sets[s].done {
+                exercise.sets[s].weight = weight
+                exercise.sets[s].reps = reps
+            }
         }
         sessions[i].exercises[e] = exercise
         save()
@@ -250,7 +298,8 @@ final class SessionStore {
             newBest: kind == .best ? weight : nil,
             gain: kind == .best
                 ? held.map { assisted(exercise.exerciseId) ? $0 - weight : weight - $0 }
-                : nil
+                : nil,
+            assisted: exercise.assisted
         )
     }
 
@@ -334,7 +383,10 @@ final class SessionStore {
     // starts from the library's light starting point
     func addLift(_ id: String, sets count: Int) {
         guard let i = openIndex, !sessions[i].exercises.contains(where: { $0.exerciseId == id }) else { return }
-        sessions[i].exercises.append(LoggedExercise(exerciseId: id, sets: Array(repeating: startingSet(for: id), count: max(1, count))))
+        let planned = max(1, count)
+        sessions[i].exercises.append(LoggedExercise(
+            exerciseId: id,
+            sets: Array(repeating: startingSet(for: id, sets: planned), count: planned)))
         save()
     }
 
@@ -345,26 +397,43 @@ final class SessionStore {
               !sessions[i].exercises[e].sets.contains(where: \.done),
               !sessions[i].exercises.contains(where: { $0.exerciseId == id }) else { return }
         let count = sessions[i].exercises[e].sets.count
-        sessions[i].exercises[e] = LoggedExercise(exerciseId: id, sets: Array(repeating: startingSet(for: id), count: count))
+        sessions[i].exercises[e] = LoggedExercise(
+            exerciseId: id, sets: Array(repeating: startingSet(for: id, sets: count), count: count))
         save()
     }
 
     // the rules decide where a lift opens: last time's weight if you did not
     // clear it, one step up if you did, lighter if three sessions in a row
     // went badly, and the library's starting point if you have never done it
-    private func startingSet(for id: String) -> LoggedSet {
-        let target = nextTarget(of: id)
+    ///
+    /// The count matters to the weight. Two sets cleared do not clear a plan
+    /// of four, so a lift she did twice at 25 and adds today as four sets
+    /// opens at 25, not 27.5. This asked the rules with last time's count and
+    /// then built a different number of sets with the answer.
+    /// Found by a codex audit 2026-11-18.
+    private func startingSet(for id: String, sets count: Int) -> LoggedSet {
+        let target = nextTarget(of: id, planningSets: count)
         return LoggedSet(weight: target.weight, reps: target.reps)
     }
 
-    func heaviest(of id: String) -> Double? { heaviestWeight(of: id) }
+    /// Her record on a lift, in whichever direction the lift runs.
+    ///
+    /// This was `heaviest(of:)`, and the log screen's "Best 95 lb" line was
+    /// its only caller. On an assisted machine it printed the set she needed
+    /// the most help on and called that her best. There is no honest use for
+    /// the raw heaviest outside this file, so there is no longer a way to ask
+    /// for it. Found by a codex audit 2026-11-16.
+    func best(of id: String) -> Double? { record(of: id) }
 
     // how many sets you did of it, the last time you did it. weight and reps
     // already come back from last time; the count was the one number still
     // guessing, so four sets of cable crossovers every week came back as three
     // every week and the only way to say so was the stepper, every time
     func setsLastTime(of id: String) -> Int? {
-        for session in sessions.reversed() {
+        // by when she trained, not by where the session sits in the file, so
+        // that this and the rules read the same "last time" after a flight.
+        // Found by a codex audit 2026-11-18.
+        for session in sessions.sorted(by: { $0.startedAt > $1.startedAt }) {
             if let exercise = session.exercises.first(where: { $0.exerciseId == id }) {
                 let done = exercise.sets.filter(\.done).count
                 if done > 0 { return done }
@@ -488,6 +557,76 @@ final class SessionStore {
                 completedAt: when
             )
         }
+        save()
+    }
+
+    /// A workout from another day with nothing logged on it: planned,
+    /// started, put down. That is what the home screen offers back.
+    ///
+    /// Dated yesterday and started two hours ago, which is not a thing that
+    /// can happen to her. The offer is only made for a workout from another
+    /// day inside the last 24 hours, and a test cannot wait out either half.
+    /// Simulator only, like the rest of these.
+    private func seedUnfinished() {
+        let cal = Calendar.current
+        let yesterday = cal.date(byAdding: .day, value: -1, to: .now) ?? .now
+        sessions = [Session(
+            id: UUID().uuidString,
+            date: dayString(yesterday),
+            label: "Leg day",
+            exercises: starterLifts.map(planned),
+            startedAt: .now.addingTimeInterval(-2 * 60 * 60)
+        )]
+        save()
+    }
+
+    /// Last week, finished, with a lift of her own in it.
+    private func seedOwnLift() {
+        let cal = Calendar.current
+        let then = cal.date(byAdding: .day, value: -7, to: .now) ?? .now
+        sessions = [Session(
+            id: UUID().uuidString,
+            date: dayString(then),
+            label: "Leg day",
+            exercises: [LoggedExercise(exerciseId: "custom-belt-squat",
+                                       sets: [LoggedSet(weight: 95, reps: 8, done: true)])],
+            startedAt: then,
+            completedAt: then
+        )]
+        save()
+    }
+
+    /// Yesterday: one lift, two sets at one weight, the lighter effort first.
+    ///
+    /// The home screen, the day screen and the chart each name the best set
+    /// of a session, and at equal weights all three have to name the same
+    /// one. Every other seed logs identical sets, so no test could tell a
+    /// screen that ranks on weight alone from one that breaks the tie on
+    /// reps, and the home screen was the odd one out for weeks.
+    /// Simulator only, like the rest of these.
+    private func seedATie() {
+        let cal = Calendar.current
+        let when = cal.date(byAdding: .day, value: -1, to: .now) ?? .now
+        sessions = [Session(
+            id: UUID().uuidString,
+            date: dayString(when),
+            label: "Leg day",
+            exercises: [LoggedExercise(
+                exerciseId: "back-squat",
+                // five first, so a screen that keeps whichever tie it met
+                // first keeps the wrong one
+                sets: [LoggedSet(weight: 135, reps: 5, done: true),
+                       LoggedSet(weight: 135, reps: 8, done: true)]),
+                        LoggedExercise(
+                            exerciseId: "assisted-pull-up",
+                            // 185 lb of counterweight is the biggest number in
+                            // the workout and the easiest thing in it, so a
+                            // screen that ranks on the number alone names this
+                            // one as her best set
+                            sets: [LoggedSet(weight: 185, reps: 3, done: true)])],
+            startedAt: when,
+            completedAt: when
+        )]
         save()
     }
 

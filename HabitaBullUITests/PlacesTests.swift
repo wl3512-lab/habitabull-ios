@@ -28,16 +28,16 @@ final class PlacesTests: XCTestCase {
         XCTAssertTrue(app.buttons["tab-today"].waitForExistence(timeout: 10))
         still("20-home-with-the-bar")
 
-        app.buttons["tab-progress"].tap()
+        app.goTo("progress")
         XCTAssertTrue(app.staticTexts["YOUR RECORD"].waitForExistence(timeout: 5),
                       "the middle tab opened nothing")
         still("21-progress")
 
-        app.buttons["tab-profile"].tap()
+        app.goTo("profile")
         XCTAssertTrue(app.staticTexts["YOUR WEEK"].waitForExistence(timeout: 5))
         still("22-profile")
 
-        app.buttons["tab-today"].tap()
+        app.goTo("today")
         XCTAssertTrue(app.buttons["Start workout"].waitForExistence(timeout: 5),
                       "no way back to today")
     }
@@ -68,7 +68,7 @@ final class PlacesTests: XCTestCase {
                                "-uitest-hold-beats"]
         app.launch()
 
-        app.buttons["tab-progress"].tap()
+        app.goTo("progress")
         XCTAssertTrue(app.staticTexts["YOUR RECORD"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.staticTexts["LIFT BY LIFT"].exists,
                       "six logged workouts and nothing to show for them")
@@ -78,7 +78,7 @@ final class PlacesTests: XCTestCase {
     /// Leaving a place and coming back should not throw away what she was in
     /// the middle of typing. Found by an independent review, not by a tester.
     func testAHalfTypedReasonSurvivesALookAtTheRecord() {
-        app.buttons["tab-profile"].tap()
+        app.goTo("profile")
         let change = app.buttons["change-reason"]
         XCTAssertTrue(change.waitForExistence(timeout: 5))
         change.tap()
@@ -89,9 +89,9 @@ final class PlacesTests: XCTestCase {
         field.tap()
         field.typeText(" And my back hurts less.")
 
-        app.buttons["tab-progress"].tap()
+        app.goTo("progress")
         XCTAssertTrue(app.staticTexts["YOUR RECORD"].waitForExistence(timeout: 5))
-        app.buttons["tab-profile"].tap()
+        app.goTo("profile")
 
         XCTAssertTrue(app.buttons["Save"].waitForExistence(timeout: 5),
                       "coming back closed the editor she was typing in")
@@ -102,7 +102,7 @@ final class PlacesTests: XCTestCase {
     }
 
     func testTheWeekCanBeChangedFromTheProfile() {
-        app.buttons["tab-profile"].tap()
+        app.goTo("profile")
         let change = app.buttons["change-week"]
         XCTAssertTrue(change.waitForExistence(timeout: 5))
         change.tap()

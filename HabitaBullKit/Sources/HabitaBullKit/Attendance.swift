@@ -238,9 +238,13 @@ public enum Attendance {
     }
 
     /// Days she went in a given month. `month` is 1-12.
+    ///
+    /// Days, not workouts. Two sessions on one Tuesday is one day she turned
+    /// up, which is what the grid above this number draws and what the word
+    /// under it says. Found by a codex audit 2026-11-18.
     public static func sessionsInMonth(_ sessions: [SessionRecord], year: Int, month: Int) -> Int {
         let prefix = String(format: "%04d-%02d", year, month)
-        return sessions.filter { $0.attended && $0.date.hasPrefix(prefix) }.count
+        return Set(sessions.filter { $0.attended && $0.date.hasPrefix(prefix) }.map(\.date)).count
     }
 
     /// Twelve counts, January to December.

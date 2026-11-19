@@ -218,10 +218,41 @@ struct NumberStepper: View {
 
     // whole numbers for a count, halves for weight, and always inside the limits
     private func commit() {
-        guard let typed = Self.number(from: draft) else { return }
+        guard let taken = Self.accepted(draft, minimum: minimum, maximum: maximum,
+                                        halves: halves) else { return }
+        value = taken.value
+        mine = taken.value
+        // and the field says what was accepted, not what was typed. The
+        // rounding happens here, and `mine` then stops the observer below from
+        // touching the draft, so typing 22.3 on a lift that loads in halves
+        // left the field reading 22.3 over a value of 22.5. Tapping Log set
+        // with the keyboard still up, which is the ordinary way to do this
+        // with a bar in your hands, then saved a number she had never seen.
+        // Typed reps did the same: 8.5 on screen, 9 in the log.
+        // A number still being typed is not a lie: "22." reads as 22, which
+        // is the accepted value, so nothing moves under her fingers.
+        // Found by a codex audit 2026-11-17.
+        //
+        // Only rounding corrects the draft, never the limits. A field with a
+        // minimum of 2.5 turned "1", on its way to "15", into "2.5" under her
+        // fingers, and then deleting that gave "2." and 2.5 again: the field
+        // could not be cleared and no number starting below the minimum could
+        // be typed at all. A clamp waits until she is done.
+        // Found by a codex audit 2026-11-18.
+        if typing, let corrected = taken.draft { draft = corrected }
+    }
+
+    /// What a typed string means: the number to keep, and the text to put back
+    /// into the field, if the field is saying something the app did not take.
+    ///
+    /// Out here so it can be asked directly. The rule is small and the two
+    /// bugs in it were both invisible from outside the view.
+    static func accepted(_ text: String, minimum: Double, maximum: Double,
+                         halves: Bool) -> (value: Double, draft: String?)? {
+        guard let typed = number(from: text) else { return nil }
         let rounded = halves ? (typed * 2).rounded() / 2 : typed.rounded()
-        value = min(maximum, max(minimum, rounded))
-        mine = value
+        let value = min(maximum, max(minimum, rounded))
+        return (value, typed == rounded ? nil : value.formatted())
     }
 
     /// Reads the number the way the phone wrote it. `Double(_:)` only knows a
@@ -263,6 +294,10 @@ struct SetRow: View {
     var weightStep = 5.0
     var showsWeight = true
     var canLoadBar = false
+    /// Which set of which lift this row is editing. Passed down to the plate
+    /// view, which keeps a trail for Undo and has to drop it when the set
+    /// underneath it changes.
+    var setKey = ""
     /// What the second number counts, in the lift's own words: reps for a
     /// squat, seconds for a plank, minutes for a treadmill
     var countLabel = "Reps"
@@ -283,7 +318,7 @@ struct SetRow: View {
                 // what it shows. nothing slides in from the side
                 Group {
                     if canLoadBar && plates {
-                        PlateBar(weight: $weight)
+                        PlateBar(weight: $weight, setKey: setKey)
                     } else {
                         NumberStepper(label: "Weight", value: $weight, step: weightStep, unit: "lb",
                                       halves: true)
@@ -353,22 +388,81 @@ struct SetCountRow: View {
     let onAdd: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            Button("− Set", action: onDrop)
-                .foregroundStyle(.dim)
-                .disabled(!canDrop)
-                .opacity(canDrop ? 1 : 0.4)
-                .accessibilityLabel("Remove the last set from this lift")
-            Text("\(setsLeft) \(setsLeft == 1 ? "set" : "sets") left")
-                .font(.bodyText)
-                .monospacedDigit()
-                .foregroundStyle(.dim)
-            Button("+ Set", action: onAdd)
-                .foregroundStyle(.brandCyan)
-                .accessibilityLabel("Add a set to this lift")
+        // three things across one phone. At the largest accessibility sizes
+        // they do not go, and the count in the middle is what gave: it read
+        // "2 se..." between two full-size buttons, so the one part of the row
+        // that is information rather than a control was the part cut off.
+        // Photographed on a simulator at AccessibilityXXXL on 2026-11-17,
+        // after a codex audit named it.
+        //
+        // When they do not fit across, the count takes its own line above the
+        // two buttons. Width only: this sits in a column that can find it
+        // another 50pt of height, and asking about height as well would drop
+        // to the stacked shape on screens where the row across was fine.
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                drop
+                count
+                add
+            }
+            VStack(spacing: 8) {
+                count
+                HStack(spacing: 24) {
+                    drop
+                    add
+                }
+            }
         }
         .font(.head)
         .frame(maxWidth: .infinity, minHeight: 44)
+    }
+
+    /// The two words were the target: "− Set" is 37pt wide at the ordinary
+    /// text size and wrapped to two lines at the largest, 37 by 58, which is
+    /// a thumb aiming at a word broken in half. The frame is invisible and
+    /// exists only so there is 44pt to land on, and it has to be inside the
+    /// Button: padding on the outside is space around the button rather than
+    /// part of it. `fixedSize` so the words stay on one line, which also
+    /// means `ViewThatFits` above measures what they really need.
+    /// Found by a codex audit 2026-11-17 and measured by the test below it.
+    private var drop: some View {
+        Button(action: onDrop) {
+            Text("− Set")
+                .fixedSize()
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.dim)
+        .disabled(!canDrop)
+        .opacity(canDrop ? 1 : 0.4)
+        .accessibilityLabel("Remove the last set from this lift")
+    }
+
+    private var add: some View {
+        Button(action: onAdd) {
+            Text("+ Set")
+                .fixedSize()
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.brandCyan)
+        .accessibilityLabel("Add a set to this lift")
+    }
+
+    /// The feedback.
+    ///
+    /// `fixedSize` so that each arrangement is measured against the whole
+    /// sentence. Without it the Text reports whatever narrow width it was
+    /// offered, the row across always looks like it fits, and what you get
+    /// is the truncation this was written to remove.
+    private var count: some View {
+        Text("\(setsLeft) \(setsLeft == 1 ? "set" : "sets") left")
+            .font(.bodyText)
+            .monospacedDigit()
+            .foregroundStyle(.dim)
+            .fixedSize(horizontal: true, vertical: false)
     }
 }
 

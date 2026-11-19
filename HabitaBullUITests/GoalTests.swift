@@ -74,16 +74,64 @@ final class GoalTests: XCTestCase {
         // eight weeks is already the standing answer, so saving is one tap
         XCTAssertTrue(app.buttons["goal-weeks-8"].isSelected,
                       "the screen should open on an answer, not on a blank")
+
+        // a number she moved herself, so the rows have to carry her number
+        // and not the suggestion. This test used to check only that a goal
+        // row existed, which a screen saving the wrong weight, the wrong
+        // lift or the wrong date would have passed.
+        // Found by a codex audit 2026-11-18.
+        app.buttons["Increase Target weight"].tap()
+        let chosen = app.staticTexts["Target weight-number"].value as? String ?? ""
+        XCTAssertFalse(chosen.isEmpty, "the goal screen never says what weight is being saved")
         app.buttons["goal-save"].tap()
 
         let row = app.buttons["goal-row"]
         XCTAssertTrue(row.waitForExistence(timeout: 10), "the goal never reached the home screen")
+        // read now, as a string. Holding the element and reading `.label`
+        // after the tab change resolves the query on the screen she has moved
+        // to, so the comparison below was the record screen against itself.
+        // Found by a codex audit 2026-11-18.
+        let onToday = row.label
+        // eight weeks out is 56 days, which the row says in weeks
+        XCTAssertTrue(onToday.contains("Back Squat at \(chosen) pounds"),
+                      "the home row says \(onToday), and she asked for \(chosen) lb of squat")
+        XCTAssertTrue(onToday.contains("8 weeks left"),
+                      "the home row says \(onToday), and she gave it eight weeks")
         still("22-home-with-a-goal")
 
         // and the same goal on the screen that is about measuring
-        app.buttons["tab-progress"].tap()
-        XCTAssertTrue(app.buttons["goal-row"].waitForExistence(timeout: 10))
+        app.goTo("progress")
+        let onRecord = app.buttons["goal-row"]
+        XCTAssertTrue(onRecord.waitForExistence(timeout: 10))
+        XCTAssertEqual(onRecord.label, onToday,
+                       "the two screens are showing different versions of one goal")
         still("23-progress-with-a-goal")
+    }
+
+    /// The seven circles say which days she trained, which are coming and
+    /// which is today. The spoken strip said only how many, so the one
+    /// distinction it exists to make could be seen and not heard.
+    /// Found by a codex audit 2026-11-18.
+    func testTheWeekStripSaysWhichDaysAndNotJustHowMany() {
+        let strip = app.otherElements["week-strip"]
+        XCTAssertTrue(strip.waitForExistence(timeout: 10), "no week strip on the home screen")
+        let said = strip.label
+
+        // the seed logs 2, 4, 7, 9, 11 and 14 days ago, and the strip is one
+        // Sunday-to-Saturday week, so which of those it can show moves with
+        // the day the test runs on. Worked out here rather than hardcoded.
+        let names = ["Sunday", "Monday", "Tuesday", "Wednesday",
+                     "Thursday", "Friday", "Saturday"]
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = .current
+        let weekday = cal.component(.weekday, from: Date()) - 1   // 0 = Sunday
+        for back in [2, 4, 7, 9, 11, 14] where back <= weekday {
+            XCTAssertTrue(said.contains(names[weekday - back]),
+                          "the strip says \"\(said)\" and never names "
+                          + "\(names[weekday - back]), which she trained on")
+        }
+        XCTAssertTrue(said.contains("Today is \(names[weekday])"),
+                      "the strip says \"\(said)\" and never says which circle is today")
     }
 
     func testAGoalCanBeTakenBackOff() {

@@ -91,6 +91,15 @@ struct Sleeve: View {
 // plates are worked out from it
 struct PlateBar: View {
     @Binding var weight: Double
+    /// Which set this is editing, so the trail below can be dropped when she
+    /// moves to another one.
+    ///
+    /// Watching the weight is not enough, and a codex audit 2026-11-17 said
+    /// why: she can be on a set that weighs what the last one did. Log 155,
+    /// then 145, then put a five a side on the third set to reach 155 again
+    /// and tap the first set to fix it. The weight does not change, so nothing
+    /// told this view it had changed set, and Undo gave the first set 145.
+    var setKey: String = ""
 
     @AppStorage("barWeight") private var savedBar = 45.0
     // the bar for this lift. a weight lighter than your usual bar means a lighter
@@ -106,6 +115,19 @@ struct PlateBar: View {
     /// thing undo needs to know.
     @State private var before: [Double] = []
 
+    /// The weight this view wrote last, so a change it did not make can be
+    /// told from one it did.
+    ///
+    /// The trail above is the plates she put on *this* set. The editor stays
+    /// on screen while she picks a different set to correct, so without this
+    /// the trail went with it: add a plate on the third set, tap the first set
+    /// to fix it, and Undo put the third set's weight into the first one.
+    /// A weight that arrives from outside is a different set, and a set with
+    /// no trail of its own undoes by taking the outer plate off, which is what
+    /// the bar in front of her actually looks like.
+    /// Found by a codex audit 2026-11-17.
+    @State private var mine: Double?
+
     private var loaded: (perSide: [Double], achieved: Double, exact: Bool) {
         Plates.load(weight, bar: bar)
     }
@@ -119,6 +141,10 @@ struct PlateBar: View {
                     Spacer()
                     Text(loaded.achieved.formatted())
                         .font(.figure).foregroundStyle(.fg).monospacedDigit()
+                        // so a test can say which number it means. The plate
+                        // view has three numbers that can read 45: this one,
+                        // the bar's own weight and a plate button.
+                        .accessibilityIdentifier("plate-total")
                     Text("lb").font(.bodyText).foregroundStyle(.dim)
                 }
 
@@ -151,9 +177,17 @@ struct PlateBar: View {
                         let fits = Plates.fits(size, on: loaded.perSide)
                         Button(size.formatted()) {
                             before.append(weight)
-                            weight = Plates.total(loaded.perSide + [size], bar: bar)
+                            mine = Plates.total(loaded.perSide + [size], bar: bar)
+                            weight = mine ?? weight
                         }
                         .font(.head).foregroundStyle(.fg).monospacedDigit()
+                        // five plates share the width, and at the largest
+                        // text sizes "2.5" is wider than its fifth: it wrapped
+                        // to "2." over "5" and spilled out of its capsule.
+                        // a number that shrinks a little is readable, a number
+                        // broken across two lines is not a number.
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
                         .frame(maxWidth: .infinity, minHeight: 48)
                         .background(.raise, in: .capsule)
                         .disabled(!fits)
@@ -163,38 +197,105 @@ struct PlateBar: View {
                 }
                 .buttonStyle(.plain)
 
-                // one row: fix the plates on the left, the bar itself on the right
-                HStack(spacing: 8) {
-                    Group {
-                        Button {
-                            removeLast()
-                        } label: {
-                            Image(systemName: "arrow.uturn.backward")
-                                .frame(width: 44, height: 44)
-                                .contentShape(.rect)
-                        }
-                        .foregroundStyle(.brandCyan)
-                        .accessibilityLabel("Remove last plate")
-                        Button("Strip") { weight = bar; before = [] }
-                            .foregroundStyle(.dim)
+                // plates on the left, the bar itself on the right, on one row
+                // while they fit. at the largest text sizes they do not: the
+                // three 44pt buttons and a bar label that will not wrap took
+                // the whole width and SwiftUI squeezed Strip to nothing. A
+                // button 0pt wide cannot be tapped however far you scroll, so
+                // she could not strip the bar or change its weight at all.
+                // Found by a codex audit 2026-11-16, reproduced on a
+                // simulator at AccessibilityXXXL.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) {
+                        plateControls
+                        Spacer()
+                        barControls
                     }
-                    .font(.head)
-                    .disabled(loaded.perSide.isEmpty)
-                    .opacity(loaded.perSide.isEmpty ? 0.4 : 1)
-
-                    Spacer()
-
-                    smallButton("minus", "Lighter bar") { setBar(bar - 5) }
-                    Text("\(bar.formatted()) lb bar")
-                        .font(.bodyText).foregroundStyle(.dim).monospacedDigit()
-                        .fixedSize()
-                        .accessibilityLabel("Bar weight \(bar.formatted()) pounds")
-                    smallButton("plus", "Heavier bar") { setBar(bar + 5) }
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 8) { plateControls; Spacer() }
+                        HStack(spacing: 8) { barControls; Spacer() }
+                    }
                 }
             }
         }
-        .onAppear { bar = weight > 0 && weight < savedBar ? weight : savedBar }
-        .onChange(of: weight) { _, w in if w > 0 && w < bar { bar = w } }
+        .onAppear { bar = barFor(weight) }
+        // a different set is a different bar, whatever it weighs
+        .onChange(of: setKey) { _, _ in
+            before = []
+            mine = nil
+        }
+        .onChange(of: weight) { _, w in
+            // a weight this view wrote is a plate she just put on, and the
+            // bar under it is the one she is standing over. A weight from
+            // outside is a different set or a number she typed, so the bar is
+            // read fresh from it. Reading it fresh either way snapped a 30 lb
+            // bar back to 45 the moment she put a plate on it.
+            let outside = w != mine
+            if outside {
+                before = []
+                bar = barFor(w)
+            }
+            mine = nil
+        }
+    }
+
+    /// The bar a weight implies: her usual one, or the weight itself when
+    /// that is lighter, because a 30 lb squat is a 30 lb bar and no plates.
+    ///
+    /// This used to only ever shrink, and nothing put it back. Log a 30 lb
+    /// set, then a 135 lb one, and the bar under the plates was still 30: the
+    /// label read "30 lb bar", the plate maths was wrong by fifteen a side,
+    /// and Strip set the weight to 30. A set change cleared the Undo trail
+    /// and left the bar where the light set had pushed it, so correcting one
+    /// set changed what another correction would do. Deliberately choosing a
+    /// bar writes `savedBar` too, so reading from it never undoes her choice.
+    /// Found by a codex audit 2026-11-17.
+    private func barFor(_ w: Double) -> Double {
+        w > 0 && w < savedBar ? w : savedBar
+    }
+
+    /// Undo and Strip, which only mean anything with a plate on.
+    @ViewBuilder private var plateControls: some View {
+        Group {
+            Button {
+                removeLast()
+            } label: {
+                Image(systemName: "arrow.uturn.backward")
+                    .frame(width: 44, height: 44)
+                    .contentShape(.rect)
+            }
+            .foregroundStyle(.brandCyan)
+            .accessibilityLabel("Remove last plate")
+            // the word itself was the target: 37 by 20, the smallest thing
+            // in the app. The frame is invisible and exists only so a thumb
+            // has 44pt to land on. It has to be inside the Button: padding
+            // put on the outside is space around the button, not part of it.
+            Button {
+                mine = bar
+                weight = bar
+                before = []
+            } label: {
+                Text("Strip")
+                    .fixedSize()
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.dim)
+        }
+        .font(.head)
+        .disabled(loaded.perSide.isEmpty)
+        .opacity(loaded.perSide.isEmpty ? 0.4 : 1)
+    }
+
+    /// The bar under the plates, and what it weighs.
+    @ViewBuilder private var barControls: some View {
+        smallButton("minus", "Lighter bar") { setBar(bar - 5) }
+        Text("\(bar.formatted()) lb bar")
+            .font(.bodyText).foregroundStyle(.dim).monospacedDigit()
+            .fixedSize()
+            .accessibilityLabel("Bar weight \(bar.formatted()) pounds")
+        smallButton("plus", "Heavier bar") { setBar(bar + 5) }
     }
 
     private var collar: some View {
@@ -218,7 +319,8 @@ struct PlateBar: View {
         before = []
         bar = min(100, max(0, b))
         savedBar = bar
-        weight = Plates.total(plates, bar: bar)
+        mine = Plates.total(plates, bar: bar)
+        weight = mine ?? weight
     }
 
     // tapping an end takes off its outer plate, the way a bar is unloaded
@@ -227,20 +329,23 @@ struct PlateBar: View {
         guard plates.popLast() != nil else { return }
         // she unloaded the bar herself, so the trail no longer describes it
         before = []
-        weight = Plates.total(plates, bar: bar)
+        mine = Plates.total(plates, bar: bar)
+        weight = mine ?? weight
     }
 
     // puts the bar back to what it read before the last plate she added; with
     // nothing added here, the outer one comes off
     private func removeLast() {
         if let was = before.popLast() {
+            mine = was
             weight = was
             return
         }
         var plates = loaded.perSide
         guard !plates.isEmpty else { return }
         plates.removeLast()
-        weight = Plates.total(plates, bar: bar)
+        mine = Plates.total(plates, bar: bar)
+        weight = mine ?? weight
     }
 }
 

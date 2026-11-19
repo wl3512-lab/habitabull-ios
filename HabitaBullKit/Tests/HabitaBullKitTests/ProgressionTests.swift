@@ -57,10 +57,195 @@ final class ProgressionTests: XCTestCase {
         XCTAssertEqual(target.note, "Down 2.5 lb of help. You earned it.")
     }
 
-    func testTheLastOfTheHelpIsAPullUp() {
+    func testTheLastOfTheHelpIsTheWholeLift() {
         let target = Progression.next(assistedPullUp, history: [did(3, 8, 2.5)], level: .new)
         XCTAssertEqual(target.weight, 0)
-        XCTAssertEqual(target.note, "No help left. That is a pull-up.")
+        // it used to say "That is a pull-up", and the other assisted machine
+        // in the library is a dip. A LiftShape carries no name, so the line
+        // cannot know which one it is talking to and should not guess.
+        XCTAssertEqual(target.note, "No help left. That is all you.")
+    }
+
+    /// The first session on a machine that counts help.
+    ///
+    /// `startingWeight` reads `baseLoad` for a bar and `helpBase` for one of
+    /// these, and the two run opposite ways: the experienced lifter needs the
+    /// LEAST help and the beginner the most. Before the fix both read
+    /// `baseLoad`, so a first-timer was offered 45 lb of counterweight on a
+    /// pull-up she cannot do at all, and someone nearly doing one unaided was
+    /// offered 95. Nothing caught it, because every assisted case in this
+    /// class hands `next` a history and never asks about the first day.
+    /// Found by a codex audit 2026-11-17.
+    func testAFirstAssistedSessionGivesTheBeginnerTheMostHelp() {
+        let beginner = Progression.startingWeight(assistedPullUp, level: .new)
+        let strong = Progression.startingWeight(assistedPullUp, level: .experienced)
+        XCTAssertGreaterThan(beginner, strong,
+                             "the beginner was offered less help than the experienced lifter, "
+                             + "which is what load numbers read off a bar look like on a "
+                             + "machine that counts help")
+        XCTAssertEqual(beginner, 95)
+        XCTAssertEqual(strong, 45)
+        // and the same through `next`, which is how the app asks
+        XCTAssertEqual(Progression.next(assistedPullUp, history: [], level: .new).weight, 95)
+    }
+
+    /// No help left, and short of the reps.
+    ///
+    /// `round` never returns less than one increment, because a bar with
+    /// nothing on it is not a weight. A machine set to no counterweight is
+    /// the whole point of the machine, and rounding it up handed 2.5 lb of
+    /// help back to someone who had just done the lift unaided, under the
+    /// words "Same help". `roundHelp` was written for this and the case it
+    /// was written for had no test. Found by a codex audit 2026-11-17.
+    func testMissingRepsWithNoHelpLeavesHerWithNone() {
+        let target = Progression.next(assistedPullUp, history: [did(3, 5, 0)], level: .new)
+        XCTAssertEqual(target.weight, 0,
+                       "it gave 2.5 lb of help back to someone doing the lift unaided and "
+                       + "called it \"Same help\"")
+        XCTAssertEqual(target.note, "Same help. Own it this time.")
+    }
+
+    /// Help she can actually set on the machine.
+    ///
+    /// Nothing stops her typing a weight the stack does not have, and the
+    /// plan built on it was raw arithmetic: 31 lb of help less a 2.5 lb
+    /// increment is 28.5, and there is no pin for that. Both directions, so
+    /// the easing branch cannot drift back. Found by a codex audit 2026-11-17.
+    func testHelpComesBackOnASettingTheMachineHas() {
+        let cleared = Progression.next(assistedPullUp, history: [did(3, 8, 31)], level: .new)
+        XCTAssertEqual(cleared.weight.truncatingRemainder(dividingBy: 2.5), 0,
+                       "\(cleared.weight) lb of help is not a setting on the stack")
+        XCTAssertEqual(cleared.weight, 27.5)
+
+        // 21, not 31, and the number matters. More help is the larger of "a
+        // tenth more" and "one increment more", and under 25 lb the increment
+        // is the larger of the two. That was the half that was never rounded,
+        // so this is the case it showed in. The other half is covered below.
+        let hard = did(3, 4, 21)
+        let eased = Progression.next(assistedPullUp, history: [hard, hard, hard], level: .new)
+        XCTAssertEqual(eased.weight.truncatingRemainder(dividingBy: 2.5), 0,
+                       "\(eased.weight) lb of help is not a setting on the stack")
+        XCTAssertGreaterThan(eased.weight, 21, "three tough sessions and it did not ease up")
+    }
+
+    /// More help off the tenth is a setting the machine has too.
+    ///
+    /// The fix for the above rounded both halves, and the comment on it said
+    /// the tenth "was already rounded", so only the increment half could go
+    /// wrong. That is not true, and a codex audit said so: a tenth more than
+    /// 26 lb is 28.6, which rounds down to 27.5, which means the unrounded
+    /// increment half, 28.5, was the larger of the two and won. She was asked
+    /// for 28.5 lb of help on a stack that moves in 2.5s.
+    func testMoreHelpOffATenthIsAlsoASettingTheMachineHas() {
+        let hard = did(3, 4, 26)
+        let eased = Progression.next(assistedPullUp, history: [hard, hard, hard], level: .new)
+        XCTAssertEqual(eased.weight.truncatingRemainder(dividingBy: 2.5), 0,
+                       "\(eased.weight) lb of help is not a setting on the stack")
+        XCTAssertGreaterThan(eased.weight, 26, "three tough sessions and it did not ease up")
+    }
+
+    /// Holding a weight the machine cannot set says what it did instead.
+    ///
+    /// "Same help" over a number that moved is the app telling her something
+    /// untrue about her own training: 31 lb of help held came back as 30.
+    /// Found by a codex audit 2026-11-17.
+    func testHoldingHelpTheMachineCannotSetSaysSo() {
+        // two sessions, so it is neither a clear nor three tough ones
+        let some = did(3, 5, 31)
+        let held = Progression.next(assistedPullUp, history: [some, some], level: .new)
+        XCTAssertEqual(held.weight, 30)
+        XCTAssertEqual(held.note, "Same help, rounded to 30 lb.",
+                       "the number changed and the line did not say so")
+
+        let onTheStack = did(3, 5, 30)
+        let same = Progression.next(assistedPullUp, history: [onTheStack, onTheStack], level: .new)
+        XCTAssertEqual(same.weight, 30)
+        XCTAssertEqual(same.note, "Same help. Own it this time.",
+                       "nothing moved, so there is nothing to explain")
+    }
+
+    /// And the same on a bar: a typed 136 lb held comes back as 135.
+    func testHoldingAWeightTheBarCannotLoadSaysSo() {
+        let some = did(3, 5, 136)
+        let held = Progression.next(squat, history: [some, some], level: .new)
+        XCTAssertEqual(held.weight, 135)
+        // word for word, and not "what the bar loads": this app's own plate
+        // loader moves in 5 lb steps, so a 2.5 lb snap is not something the
+        // bar can be promised. Named by a codex audit 2026-11-17.
+        XCTAssertEqual(held.note, "Same weight, rounded to 135 lb.",
+                       "the number changed and the line did not say so")
+
+        let loadable = did(3, 5, 135)
+        let same = Progression.next(squat, history: [loadable, loadable], level: .new)
+        XCTAssertEqual(same.note, "Same weight. Own it this time.")
+    }
+
+    /// A lift described to the planner keeps what kind of number it carries.
+    ///
+    /// The app plans through `Exercise.shape`, which has carried this since
+    /// the assisted fixes went in. The kit's own `Lift` did not, so anything
+    /// planning through the package dropped it on the way to the shape and
+    /// treated a counterweight as a load. Dormant, and a test is the only
+    /// thing that will keep it dormant. Found by a codex audit 2026-11-17.
+    func testALiftsShapeCarriesWhetherItsNumberIsHelp() {
+        let machine = Lift(id: "assisted-pull-up", name: "Assisted Pull-Up", equipment: "machine",
+                           primary: "back", increment: 2.5, compound: true, assisted: true)
+        XCTAssertTrue(machine.shape.assisted,
+                      "the planner's lift dropped its assisted flag on the way to its shape, "
+                      + "so a counterweight would be planned as though it were a load")
+        XCTAssertEqual(Progression.startingWeight(machine.shape, level: .experienced), 45)
+
+        let bar = Lift(id: "back-squat", name: "Back Squat", equipment: "barbell",
+                       primary: "legs", increment: 2.5, compound: true)
+        XCTAssertFalse(bar.shape.assisted)
+    }
+
+    /// A lift saved before today still reads.
+    ///
+    /// `Lift` is public and `Codable`, and `assisted` was added to it as a
+    /// plain `Bool`. A synthesised decoder requires every non-optional key
+    /// whatever the initialiser's defaults say, so everything encoded before
+    /// this morning would have thrown `keyNotFound`. Found by a codex audit
+    /// 2026-11-17.
+    func testALiftEncodedBeforeTodayStillDecodes() throws {
+        // only the keys a lift has always had. The first version of this test
+        // spelled out heavy, hold and cardio too, so it would have gone on
+        // passing if those three stopped being optional: four keys are
+        // lenient here and the test only covered one of them.
+        let old = Data(#"""
+        {"id":"back-squat","name":"Back Squat","equipment":"barbell","primary":"legs",
+         "increment":2.5,"compound":true}
+        """#.utf8)
+        let lift = try JSONDecoder().decode(Lift.self, from: old)
+        XCTAssertEqual(lift.id, "back-squat")
+        XCTAssertFalse(lift.assisted, "a lift with nothing to say about help is not assisted")
+
+        // and a round trip of a new one keeps it
+        let machine = Lift(id: "assisted-pull-up", name: "Assisted Pull-Up", equipment: "machine",
+                           primary: "back", increment: 2.5, compound: true, assisted: true)
+        let back = try JSONDecoder().decode(Lift.self, from: JSONEncoder().encode(machine))
+        XCTAssertTrue(back.assisted)
+    }
+
+    /// The line under the number says what the number did.
+    ///
+    /// Rounding the plan onto the stack made the note wrong: 31 lb of help
+    /// comes down to 27.5, and "Down 2.5 lb of help" is a sentence about a
+    /// drop of 3.5. The bar had the same fault from the same cause.
+    /// Found by a codex audit 2026-11-17.
+    func testTheNoteSaysWhatTheWeightActuallyDid() {
+        let help = Progression.next(assistedPullUp, history: [did(3, 8, 31)], level: .new)
+        XCTAssertEqual(help.weight, 27.5)
+        XCTAssertEqual(help.note, "Down 3.5 lb of help. You earned it.")
+
+        let bar = Progression.next(squat, history: [did(3, 8, 136)], level: .new)
+        XCTAssertEqual(bar.weight, 137.5)
+        XCTAssertEqual(bar.note, "Up 1.5 lb. You earned it.")
+
+        // and a weight that was already on the stack is unchanged, which is
+        // every case the parity fixtures cover
+        let clean = Progression.next(squat, history: [did(3, 8, 135)], level: .new)
+        XCTAssertEqual(clean.note, "Up 2.5 lb. You earned it.")
     }
 
     func testHelpNeverGoesBelowNothing() {
@@ -80,6 +265,37 @@ final class ProgressionTests: XCTestCase {
         let target = Progression.next(assistedPullUp, history: [did(3, 5, 45)], level: .new)
         XCTAssertEqual(target.weight, 45)
         XCTAssertEqual(target.note, "Same help. Own it this time.")
+    }
+
+    /// Her session, not the hardest set in it.
+    ///
+    /// `lastWeight` was `last.map(\.weight).max()`, which is her heaviest set
+    /// on a bar and the set she needed the most help on, on a machine that
+    /// counts help. Warming up with 45 lb of help and settling at 30 for the
+    /// two sets after it was read as 45, so "down 2.5 lb of help" offered
+    /// 42.5: more help than she had just finished on, every session, forever.
+    ///
+    /// Every assisted case above uses one weight for the whole session, so
+    /// max and min are the same number in all of them and none of them could
+    /// see this. Found by a codex audit 2026-11-16.
+    func testAnAssistedLiftIsPlannedFromHerBestSetAndNotHerWorst() {
+        let eased = [DoneSet(weight: 45, reps: 8),
+                     DoneSet(weight: 30, reps: 8),
+                     DoneSet(weight: 30, reps: 8)]
+        let target = Progression.next(assistedPullUp, history: [eased], level: .new)
+        XCTAssertEqual(target.weight, 27.5,
+                       "it planned from the 45 lb of help she warmed up with instead of the "
+                       + "30 she finished on")
+    }
+
+    /// And the other way is untouched, which is the half of this that could
+    /// break quietly: a warm-up set must never become the working weight.
+    func testAWeightedLiftIsStillPlannedFromHerHeaviestSet() {
+        let built = [DoneSet(weight: 95, reps: 8),
+                     DoneSet(weight: 135, reps: 8),
+                     DoneSet(weight: 135, reps: 8)]
+        let target = Progression.next(squat, history: [built], level: .new)
+        XCTAssertEqual(target.weight, 137.5, "a warm-up set became the working weight")
     }
 
     // MARK: - what to lift next
@@ -125,10 +341,21 @@ final class ProgressionTests: XCTestCase {
     }
 
     func testAnUnloadableLiftIsNeverToldToAddWeight() {
-        XCTAssertFalse(Progression.next(plank, history: [did(4, 30, 0)], level: .experienced)
-            .note.lowercased().contains("reps"))
-        XCTAssertFalse(Progression.next(bike, history: [did(1, 20, 0)], level: .experienced)
-            .note.lowercased().contains("reps"))
+        // the sentence itself, not a word it must avoid. Prohibiting only
+        // "reps" was satisfied by "Add 5 lb this time." on a plank, which is
+        // exactly the instruction this test is named after.
+        // Found by a codex audit 2026-11-17.
+        let held = Progression.next(plank, history: [did(4, 30, 0)], level: .experienced)
+        XCTAssertEqual(held.note, "Go a little longer this time.")
+        // a bike is answered before any of this: the field holds an incline
+        // she set herself, so the rules leave both numbers where they are
+        let ridden = Progression.next(bike, history: [did(1, 20, 0)], level: .experienced)
+        XCTAssertEqual(ridden.note, "Same as last time. Change the time or the incline if you want to.")
+        for note in [held.note, ridden.note] {
+            XCTAssertFalse(note.lowercased().contains("reps"), note)
+            XCTAssertFalse(note.lowercased().contains("lb"),
+                           "a lift with no weight on it cannot be told to add any: \(note)")
+        }
     }
 
     // MARK: - sets and reps

@@ -6,6 +6,7 @@ import SwiftUI
 
 struct LogView: View {
     @Environment(SessionStore.self) private var store
+    @Environment(ProfileStore.self) private var profiles
     @Environment(\.dismiss) private var dismiss
 
     // what you're about to log. a copy, so changing it doesn't touch the saved
@@ -39,6 +40,15 @@ struct LogView: View {
     @State private var picking: Picking? = nil
     @State private var beat: SetOutcome? = nil   // the confirmation on screen
     @State private var finished = false
+    /// A lift she has finished and went back to, to fix a set on it.
+    ///
+    /// Separate from `chosenLift`, which is where the workout is. This is a
+    /// detour: it ends the moment the fix is logged, and the workout carries
+    /// on from the lift it was on. Before this there was no way back at all.
+    /// A weight typed wrong and noticed one lift later stayed wrong, in her
+    /// records and in every weight the planner suggested after it.
+    /// Found by a codex audit 2026-11-18.
+    @State private var fixing: Int? = nil
     /// The workout the receipt is for. Finishing closes the open session and,
     /// past midnight, `today` is already a different day, so without a name
     /// held on to here the screen that says "that's the workout" had nothing
@@ -58,9 +68,13 @@ struct LogView: View {
         store.session(id: finishedId) ?? store.openSession ?? store.today
     }
 
-    // the lift you picked while it has sets left, otherwise the next one in order
+    // the lift she went back to, then the one she picked while it has sets
+    // left, otherwise the next one in order
     private var currentLift: Int? {
         guard let session else { return nil }
+        if let fixing, session.exercises.indices.contains(fixing) {
+            return fixing
+        }
         if let chosenLift, session.exercises.indices.contains(chosenLift),
            session.exercises[chosenLift].setsLeft > 0 {
             return chosenLift
@@ -68,12 +82,27 @@ struct LogView: View {
         return session.nextSet?.exercise
     }
 
+    // the set she tapped, else the first one not logged, else the last one
+    // she logged: a lift with nothing left opens on the set she just did
+    // instead of showing her nothing at all
     private var currentSet: Int? {
         guard let session, let currentLift else { return nil }
-        if let correcting, session.exercises[currentLift].sets.indices.contains(correcting) {
+        let sets = session.exercises[currentLift].sets
+        if let correcting, sets.indices.contains(correcting) {
             return correcting
         }
-        return session.exercises[currentLift].sets.firstIndex { !$0.done }
+        return sets.firstIndex { !$0.done } ?? sets.indices.last
+    }
+
+    /// The logged set Log set would rewrite, if it would rewrite one.
+    ///
+    /// Wider than `correcting`, which is only a set she tapped. On a lift
+    /// with nothing left there is no next set to write, so the set on screen
+    /// is the last one she logged and logging rewrites it.
+    private var rewriting: Int? {
+        guard let session, let currentLift, let currentSet,
+              session.exercises[currentLift].sets[currentSet].done else { return nil }
+        return currentSet
     }
 
     /// every lift with sets left, with where it sits in the session
@@ -226,6 +255,7 @@ struct LogView: View {
                         SetRow(weight: $weight, reps: $reps,
                                weightStep: exercise.weightStep, showsWeight: exercise.usesWeight,
                                canLoadBar: exercise.isBarbell,
+                               setKey: "\(exercise.exerciseId)-\(currentSet)",
                                countLabel: exercise.countLabel, countUnit: exercise.unit,
                                countStep: exercise.countStep, countRange: exercise.countRange)
 
@@ -234,7 +264,8 @@ struct LogView: View {
                         // numbers are what they are, which is the question
                         // "last time: 135 lb x 5" was really answering
                         if !exercise.sets.contains(where: \.done) {
-                            Text(store.reasonForNext(of: exercise.exerciseId))
+                            Text(store.reasonForNext(of: exercise.exerciseId,
+                                                     planningSets: exercise.sets.count))
                                 .font(.bodyText)
                                 .foregroundStyle(.dim)
                                 .monospacedDigit()
@@ -259,10 +290,16 @@ struct LogView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     Pill(title: "Log set") {
-                        restingOn = currentLift
+                        // a set she came back to fix is not a set she just
+                        // did: no rest to take, and the lift she was on is
+                        // where the workout carries on from
+                        let detour = fixing != nil
+                        if !detour { restingOn = currentLift }
                         beat = store.logSet(onExercise: currentLift, weight: weight,
-                                            reps: Int(reps), replacing: correcting)
+                                            reps: Int(reps), replacing: rewriting)
+                        if detour { beat?.resting = false }
                         correcting = nil
+                        fixing = nil
                     }
                 }
             } else if session?.exercises.isEmpty == true {
@@ -296,12 +333,20 @@ struct LogView: View {
             Menu {
                 ForEach(session.exercises.indices, id: \.self) { i in
                     let lift = session.exercises[i]
-                    Button("\(lift.name), \(lift.setsLeft) left") {
-                        chosenLift = i
+                    // a lift with nothing left is still offered: it is
+                    // the only way back to a set she logged wrong
+                    Button(lift.setsLeft > 0
+                           ? "\(lift.name), \(lift.setsLeft) left"
+                           : "\(lift.name), done. Tap to fix a set") {
+                        if lift.setsLeft > 0 {
+                            chosenLift = i
+                            fixing = nil
+                        } else {
+                            fixing = i
+                        }
                         confirmingFinish = false
                         picking = nil
                     }
-                    .disabled(lift.setsLeft == 0)
                 }
                 Divider()
                 if let currentLift, !session.exercises[currentLift].sets.contains(where: \.done) {
@@ -322,13 +367,21 @@ struct LogView: View {
     // "Set 2 of 3 · Best 95 lb", once there's a best to show
     private func setLine(_ exercise: LoggedExercise, set: Int) -> String {
         let line = "Set \(set + 1) of \(exercise.sets.count)"
-        guard exercise.usesWeight, let best = store.heaviest(of: exercise.exerciseId), best > 0 else { return line }
-        return "\(line) · Best \(best.formatted()) lb"
+        guard let best = exercise.bestSaid(store.best(of: exercise.exerciseId)) else { return line }
+        return "\(line) · \(best)"
     }
 
     // back to the lift you were on, and into any rest still running
     private func restorePlace() {
         chosenLift = session?.chosenLift
+        // a lift with nothing left is not a place to stand. it can be saved
+        // as the chosen one now that she can go back to a finished lift, and
+        // reopening the app should put her back in the workout rather than on
+        // the one set she was fixing when she put the phone down
+        if let lift = chosenLift, session?.exercises.indices.contains(lift) == true,
+           session?.exercises[lift].setsLeft == 0 {
+            chosenLift = nil
+        }
         guard let endsAt = session?.restEndsAt else { return }
         if endsAt > .now {
             restingOn = session?.restLift
@@ -389,12 +442,24 @@ struct LogView: View {
     // the one way out. with sets logged it asks first. every set is already
     // saved, so leaving the app and tapping Continue later still works
     private func end() {
-        // End stays reachable from the between-lifts screen, and has to clear
-        // it or the question would be asked behind it
+        // clears the between-lifts screen first, or the question would be
+        // asked behind it. The toolbar is hidden while that screen is up, so
+        // nothing can reach this from there today: the chooser owns the
+        // screen on purpose, and testTheScreenBetweenLiftsKeepsThePlansOrder
+        // AsTheDefault pins that. Kept because the clearing is what makes
+        // showing End there a one-line change if Lucy wants it, and a
+        // comeback from the last version claimed it already was reachable.
         picking = nil
         if (session?.setsDone ?? 0) > 0 {
             confirmingFinish = true
         } else {
+            // walking away from yesterday's workout has to put it down as
+            // well as close the screen. Leaving the resume set left Today
+            // showing yesterday: "Continue workout" went back into it, and
+            // Start workout was refused because the store still had an open
+            // one. The only way out was to kill the app.
+            // Found by a codex audit 2026-11-18.
+            if store.resumedId != nil { store.endResume() }
             dismiss()
         }
     }
@@ -409,6 +474,11 @@ struct LogView: View {
 
     private func finish() {
         finishedId = store.openSessionId
+        // read the lineup while the workout is still the open one
+        if let session = store.openSession,
+           let kept = Planner.remembering(session, in: profiles.profile?.routine) {
+            profiles.update { $0.routine = kept }
+        }
         store.finishWorkout()
         finished = true
     }

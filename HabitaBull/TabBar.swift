@@ -51,6 +51,31 @@ struct TabBar: View {
                         Text(place.label)
                             .font(.label)
                             .foregroundStyle(on ? .fg : .dim)
+                            // three names have to share one row, so this is
+                            // the one place in the app where the words stop
+                            // growing. Left to run, "Progress" reached the
+                            // sides of its third of the phone at the larger
+                            // accessibility sizes and was cut to "Prog...",
+                            // and a tab that cannot say where it goes is
+                            // worse than a bigger one that can. Nothing is
+                            // lost to VoiceOver: it reads the whole word off
+                            // the button's own label, whatever size this is.
+                            // At this cap the longest of the three is 83pt
+                            // wide in 127pt of tab, which is room to spare.
+                            // There is deliberately no minimumScaleFactor
+                            // under it: a Text that can shrink claims the
+                            // whole width it was offered whatever it draws,
+                            // and then nothing outside can tell a word that
+                            // fits from one that was cut. The cap is what
+                            // keeps it honest.
+                            //
+                            // No test reads the words. Three shapes of that
+                            // assertion were tried and all three passed on a
+                            // broken render; the test at this size measures
+                            // the buttons and says so, and the screenshot
+                            // beside it is the only record of the words.
+                            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+                            .lineLimit(1)
                     }
                     .frame(maxWidth: .infinity)
                     // tall enough to hold the raised circle inside the row
@@ -76,7 +101,17 @@ struct TabBar: View {
                 Rectangle().fill(.ground)
             }
             .frame(height: 52)
-            .ignoresSafeArea(edges: .bottom)
+            // and a second fill behind that one, reaching down into the
+            // home indicator's strip. `ignoresSafeArea` on the 52pt block
+            // above did nothing, because a view pinned to a height has
+            // nothing to extend: the fill stopped at the top of the strip
+            // and whatever was scrolling behind showed through it, under
+            // the labels. On the record screen at rest that was the words
+            // "1 comeback" printed across the bottom of the bar.
+            // The 52pt cap stays. It is what keeps the row above the bar
+            // transparent, which is what lets the raised circle break the
+            // top edge.
+            .background(Color.ground.ignoresSafeArea(edges: .bottom))
         }
     }
 

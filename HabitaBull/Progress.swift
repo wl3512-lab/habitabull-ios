@@ -43,7 +43,11 @@ extension Session {
     /// counts whatever the reason you were there.
     var asTrainingSession: TrainingSession {
         TrainingSession(date: date, label: label, lifts: exercises.map(\.asLoggedLift),
-                        oneOff: label == "Quick workout")
+                        oneOff: label == "Quick workout",
+                        // the civil day cannot order two workouts a flight
+                        // apart: fly west and yesterday's is dated after
+                        // today's. Found by a codex audit 2026-11-18.
+                        startedAt: startedAt)
     }
 }
 
@@ -72,14 +76,33 @@ extension SessionStore {
         // builds. Today reads this for every lift on the card, every redraw.
         let inHand = sessionInHandId
         let past = sessions.filter { $0.id != inHand }.map(\.asTrainingSession)
-        let shape = ExerciseLibrary.find(id)?.shape ?? liftOfHerOwn
+        let lift = ExerciseLibrary.find(id)
+        let shape = onHerBar(lift?.shape ?? liftOfHerOwn, lift)
         return Progression.next(shape, history: Progression.history(of: id, in: past),
                                 level: level, planned: planned ?? setsLastTime(of: id))
     }
 
+    /// Her own bar is the floor under a barbell lift.
+    ///
+    /// The rules take 45 for a barbell, because that is the bar in most gyms.
+    /// She may have told the plate loader hers is 30, and then the back-off
+    /// refused to go below 45 and said "This is as light as it loads" while
+    /// the loader on the same screen would happily build 35.
+    /// Found by a codex audit 2026-11-18.
+    private func onHerBar(_ shape: LiftShape, _ lift: Exercise?) -> LiftShape {
+        guard lift?.equipment.lowercased() == "barbell" else { return shape }
+        let bar = UserDefaults.standard.double(forKey: "barWeight")
+        guard bar > 0, bar < shape.floor else { return shape }
+        var mine = shape
+        mine.floor = bar
+        return mine
+    }
+
     /// The sentence under the steppers on the first set: "Up 2.5 lb. You
     /// earned it.", or why it is holding you where you are.
-    func reasonForNext(of id: String) -> String { nextTarget(of: id).note }
+    func reasonForNext(of id: String, planningSets planned: Int? = nil) -> String {
+        nextTarget(of: id, planningSets: planned).note
+    }
 
     /// A lift as it should start today: the rules' numbers, and the number of
     /// sets you actually did last time if you did it before.

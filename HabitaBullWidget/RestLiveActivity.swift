@@ -63,9 +63,15 @@ struct RestLockScreenView: View {
 }
 
 struct RestLiveActivity: Widget {
-    // done when the app says so, or when iOS decides the finish time has passed
+    // done when the app says so, or when the finish time has gone by.
+    //
+    // Staleness alone is not the same question: it is iOS saying "this may be
+    // out of date", and the app used to ask for it five seconds early so a
+    // late redraw landed near 0:00. That made Ready appear while she was
+    // still resting. The clock is the honest test, and the state is checked
+    // too so the app can end it early. Found by a codex audit 2026-11-18.
     private func isDone(_ context: ActivityViewContext<RestActivityAttributes>) -> Bool {
-        context.isStale || context.state.finished
+        context.state.finished || context.state.endsAt <= .now
     }
 
     var body: some WidgetConfiguration {

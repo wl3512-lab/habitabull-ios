@@ -164,4 +164,54 @@ final class EdgeTests: XCTestCase {
         ].reversed().map { $0 }   // stored out of order on purpose
         XCTAssertEqual(Progression.history(of: "plank", in: sessions).first?.first?.reps, 60)
     }
+
+    /// A day she trained twice is one day she turned up.
+    ///
+    /// The tile says "days this month" and the grid above it fills one cell
+    /// for that Tuesday, while the number counted workouts: two sessions on
+    /// the 17th and one on the 18th read as three days against two filled
+    /// cells. Two workouts in one day is a shape the app supports.
+    /// Found by a codex audit 2026-11-18.
+    func testTheMonthCountsDaysAndNotWorkouts() {
+        let records = [
+            SessionRecord(date: "2026-11-17", completed: true, loggedSet: true),
+            SessionRecord(date: "2026-11-17", completed: false, loggedSet: true),
+            SessionRecord(date: "2026-11-18", completed: true, loggedSet: true),
+            SessionRecord(date: "2026-11-19", completed: false, loggedSet: false),
+        ]
+        XCTAssertEqual(Attendance.sessionsInMonth(records, year: 2026, month: 11), 2,
+                       "a second workout on a Tuesday was counted as another day she went")
+    }
+
+    /// When the caller knows the clock, the clock decides which was last.
+    ///
+    /// The civil day is the right key for attendance and the wrong one for
+    /// order. Fly west overnight: the workout she did yesterday evening in
+    /// New York is dated the 19th and the one she did this morning in Los
+    /// Angeles is dated the 18th, so ordering by the day alone reads a lift
+    /// she has moved on from as the latest word on it.
+    /// Found by a codex audit 2026-11-18.
+    func testTheClockDecidesWhichWorkoutWasLastWhenTheDayCannot() {
+        let evening = Date(timeIntervalSince1970: 1_000_000)
+        let morning = evening.addingTimeInterval(10 * 60 * 60)
+        let sessions = [
+            TrainingSession(date: "2026-11-19", lifts: [
+                .init(exerciseId: "back-squat", sets: [.init(weight: 95, reps: 5, done: true)])],
+                startedAt: evening),
+            TrainingSession(date: "2026-11-18", lifts: [
+                .init(exerciseId: "back-squat", sets: [.init(weight: 100, reps: 5, done: true)])],
+                startedAt: morning),
+        ]
+        XCTAssertEqual(Progression.history(of: "back-squat", in: sessions).first?.first?.weight,
+                       100,
+                       "the later date won over the later workout, so the weight she is on "
+                       + "came back as the one she left behind")
+
+        // and with no clock to go on it is the day, exactly as the web app
+        // reads it, which is what the parity fixtures are pinned to
+        let dated = sessions.map {
+            TrainingSession(date: $0.date, label: $0.label, lifts: $0.lifts, oneOff: $0.oneOff)
+        }
+        XCTAssertEqual(Progression.history(of: "back-squat", in: dated).first?.first?.weight, 95)
+    }
 }

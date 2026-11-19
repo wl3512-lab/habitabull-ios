@@ -145,6 +145,34 @@ enum Planner {
         }
     }
 
+    /// The lineup she actually trained, carried back onto the workout it
+    /// belongs to. Nil when there is nothing to change.
+    ///
+    /// The plan is where a session's lifts come from, so without this the day
+    /// rebuilds from its original shape every week: the lift she added at the
+    /// rack, and the one she swapped out, are both forgotten by next week. It
+    /// has been the rule since the web version, the rules package has carried
+    /// it since the port as `Planner.remember`, and nothing in the app ever
+    /// called it. Found by a codex audit 2026-11-18.
+    ///
+    /// Only the choice of lifts travels. The weights come back out of her
+    /// history every time the workout is built, which is what makes this safe
+    /// to do without asking.
+    ///
+    /// Three things it leaves alone, all of them from the web version. A quick
+    /// workout is not a decision about the day it happened to fall on. An
+    /// empty one never blanks a day. And a name her week does not use is not a
+    /// workout of hers to rewrite.
+    static func remembering(_ session: Session, in routine: Routine?) -> Routine? {
+        guard var routine, session.label != "Quick workout" else { return nil }
+        let lifts = session.exercises.map(\.exerciseId)
+        guard !lifts.isEmpty, let known = routine.library[session.label],
+              known != lifts else { return nil }
+        // every day with that name, which is how editing one works too
+        routine.setLifts(lifts, of: session.label)
+        return routine
+    }
+
     /// What is planned for a given day of the week, for the screens that have
     /// to answer before a workout exists.
     static func today(_ routine: Routine?, weekday: Int) -> (label: String, lifts: [String])? {

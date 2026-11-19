@@ -103,7 +103,7 @@ struct SetLoggedView: View {
                     .foregroundStyle(.ground)
                     .overlay(alignment: .top) {
                         Text("New best").font(.hero).foregroundStyle(.ground)
-                            .fixedSize()
+                            .acrossTheScreen()
                             .alignmentGuide(.top) { $0[.bottom] + 28 }
                             .opacity(revealed ? 1 : 0)
                     }
@@ -114,11 +114,14 @@ struct SetLoggedView: View {
                                 Text("\(newBest.formatted()) lb").font(.hero).monospacedDigit()
                             }
                             if let gain = outcome.gain {
-                                Text("\(gain.formatted()) lb more than your best").font(.emphasis)
+                                Text(outcome.assisted
+                                     ? "\(gain.formatted()) lb less help than your best"
+                                     : "\(gain.formatted()) lb more than your best")
+                                    .font(.emphasis)
                             }
                         }
                         .foregroundStyle(.ground)
-                        .fixedSize()
+                        .acrossTheScreen()
                         .alignmentGuide(.bottom) { $0[.top] - 28 }
                         .opacity(revealed ? 1 : 0)
                     }
@@ -191,7 +194,9 @@ struct FinishedView: View {
         VStack(spacing: 16) {
             SectionLabel(text: "Personal record", color: .ground)
             Bull(pose: .cheer, size: 150)
-            Text("\(best.gain.formatted()) lb more than you've ever done.")
+            Text(best.assisted
+                 ? "\(best.gain.formatted()) lb less help than you've ever needed."
+                 : "\(best.gain.formatted()) lb more than you've ever done.")
                 .font(.figure)
                 .foregroundStyle(.ground)
                 .multilineTextAlignment(.center)
@@ -202,7 +207,13 @@ struct FinishedView: View {
                     .font(.hero)
                     .foregroundStyle(.action)
                     .monospacedDigit()
-                Text("Up from \(best.was.formatted()) lb.")
+                // and down, on a machine where down is the way up. This is
+                // also the only place on the screen that says the number is
+                // help at all, which is what keeps the hero figure above it
+                // from reading as a load.
+                Text(best.assisted
+                     ? "Down from \(best.was.formatted()) lb of help."
+                     : "Up from \(best.was.formatted()) lb.")
                     .font(.emphasis)
                     .foregroundStyle(.fg)
             }
@@ -251,5 +262,32 @@ struct FinishedView: View {
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.ground)
+    }
+}
+
+private extension View {
+    /// As wide as the phone, less a margin, so a line of words wraps instead
+    /// of running off both sides.
+    ///
+    /// These words hang off a checkmark 110pt wide. Left to the overlay they
+    /// would be squeezed to the checkmark, so they used to be `.fixedSize()`,
+    /// which says "take whatever width you need and never wrap". At the
+    /// largest accessibility text size what they needed was wider than the
+    /// phone, and "312.5 lb more than your best" rendered as "5 lb more than
+    /// your b", cut off at both edges. Found by a codex audit 2026-11-16 and
+    /// photographed on a simulator at AccessibilityXXXL on 2026-11-17.
+    ///
+    /// The padding on the screen below is around the checkmark, not around
+    /// the screen, so there is nothing else here that knows how wide the
+    /// phone is.
+    func acrossTheScreen() -> some View {
+        containerRelativeFrame(.horizontal) { width, _ in width - 48 }
+            // and as tall as it turns out to need. An overlay is offered the
+            // size of what it hangs off, so with only the width fixed the
+            // sentence was still offered the checkmark's 110pt of height and
+            // truncated itself to one line: "312.5 lb more t...". This says
+            // keep the width you were given and take whatever height the
+            // words come to.
+            .fixedSize(horizontal: false, vertical: true)
     }
 }

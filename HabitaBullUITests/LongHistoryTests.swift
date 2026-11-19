@@ -59,9 +59,23 @@ final class LongHistoryTests: XCTestCase {
     /// 15.7s before, which is noise. So this asserts only that two years of
     /// points still draw, and the chart fix rests on reading the code.
     func testTheRecordScreenStillDrawsWithTwoYearsBehindIt() {
-        app.buttons["tab-progress"].tap()
+        app.goTo("progress")
         XCTAssertTrue(app.staticTexts["300 days"].firstMatch.waitForExistence(timeout: 60),
                       "the lift charts never drew")
+
+        // the caption is not the chart. This test used to end on the line
+        // above, which "300 days" satisfies with every line and fill deleted:
+        // skipping the drawing for exactly the histories this suite is about
+        // would have passed. So it counts the line's own colour, the way
+        // RecordTests does. Found by a codex audit 2026-11-18.
+        let squat = app.otherElements["lift-Back Squat"]
+        for _ in 0..<8 where !(squat.exists && squat.isHittable) { app.swipeUp() }
+        XCTAssertTrue(squat.exists && squat.isHittable,
+                      "no card for the lift with 300 days behind it")
+        let drawn = cyanPixels(in: squat.frame, of: app)
+        XCTAssertGreaterThan(drawn, 1200,
+                             "\(drawn) pixels of the line's own colour in a card that says "
+                             + "300 days, which is not a line")
         still("90-the-record-screen-on-two-years")
     }
 

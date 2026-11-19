@@ -357,6 +357,7 @@ struct TodayView: View {
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(strippedForVoice)
+            .accessibilityIdentifier("week-strip")
         }
     }
 
@@ -369,9 +370,29 @@ struct TodayView: View {
         return day.planned && day.upcoming ? .lineStrong : .raise
     }
 
+    /// The strip reads as one thing, and it has to say the thing it is for.
+    ///
+    /// The seven circles say which days she trained, which are still coming,
+    /// and which one is today. The spoken version said only how many, so the
+    /// one distinction the strip exists to make could be seen and not heard.
+    /// Found by a codex audit 2026-11-18.
     private var strippedForVoice: String {
-        let trained = days.filter(\.trained).count
-        var said = "\(amount(trained, "session")) logged this week."
+        let names = ["Sunday", "Monday", "Tuesday", "Wednesday",
+                     "Thursday", "Friday", "Saturday"]
+        func name(_ day: StripDay) -> String { names[min(max(day.index, 0), 6)] }
+
+        let trained = days.filter(\.trained)
+        var said = "\(amount(trained.count, "session")) logged this week."
+        if !trained.isEmpty {
+            said += " Trained \(trained.map(name).formatted(.list(type: .and)))."
+        }
+        let ahead = days.filter { $0.planned && $0.upcoming && !$0.trained }
+        if !ahead.isEmpty {
+            said += " Still to come: \(ahead.map(name).formatted(.list(type: .and)))."
+        }
+        if let today = days.first(where: \.isToday) {
+            said += " Today is \(name(today))\(today.trained ? ", logged" : "")."
+        }
         if runningWeeks > 0 { said += " \(amount(runningWeeks, "week")) running." }
         return said
     }
@@ -438,11 +459,28 @@ struct TodayView: View {
     /// The heaviest set she finished that day, said the way the log says it.
     /// Bodyweight and held lifts have no weight to be best at, so they are
     /// left out rather than reported as zero.
+    ///
+    /// So are the machines that count help. 95 lb of counterweight is not a
+    /// heavier set than a 60 lb curl, but it is a bigger number, so ranking
+    /// the two put "Assisted Pull-up 95 lb" on the home screen as the best
+    /// thing she did that day, and among assisted sets it picked the one she
+    /// had struggled most on. There is no honest way to rank help against
+    /// load, so help does not enter.
+    /// Found by a codex audit 2026-11-17.
     private func bestSet(_ session: Session) -> String? {
         var best: (lift: LoggedExercise, set: LoggedSet)?
-        for lift in session.exercises where lift.usesWeight {
-            for set in lift.sets where set.done {
-                if best == nil || set.weight > best!.set.weight { best = (lift, set) }
+        for lift in session.exercises where lift.usesWeight && !lift.assisted {
+            // the same rule the day card and the chart use, so that three
+            // screens reading one session cannot name three different sets.
+            // Comparing weight alone kept whichever tie came first: 135 x 5
+            // logged before 135 x 8 put "135 lb x 5" on the home screen and
+            // "135 lb x 8" on the day it links to.
+            // Found by a codex audit 2026-11-17.
+            guard let top = lift.best(of: lift.sets.filter(\.done)) else { continue }
+            if best == nil || Lifts.beats((top.weight, top.reps),
+                                          (best!.set.weight, best!.set.reps),
+                                          assisted: false) {
+                best = (lift, top)
             }
         }
         guard let best else { return nil }
@@ -505,6 +543,7 @@ struct TodayView: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 20)
+                .accessibilityIdentifier("unfinished-card")
             }
         }
     }

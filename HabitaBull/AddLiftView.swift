@@ -39,22 +39,103 @@ struct AddLiftView: View {
     private var lifts: [Exercise] {
         ExerciseLibrary.liftable.filter { lift in
             !excluding.contains(lift.id)
-                && (search.isEmpty ? (swapMuscle == nil || lift.primary == swapMuscle)
-                                   : lift.name.localizedCaseInsensitiveContains(search))
+                && (ownName.isEmpty ? (swapMuscle == nil || lift.primary == swapMuscle)
+                                    : lift.name.localizedCaseInsensitiveContains(ownName))
         }
+    }
+
+    /// Her own lifts, which the bundled library has never heard of.
+    ///
+    /// The list was the library and nothing else, so a lift she made was in
+    /// the picker for exactly one workout. The week after, browsing could not
+    /// find it, and searching half of its name offered to make a second one
+    /// under a different id, which splits one lift's history in two with
+    /// nothing on screen to say so.
+    /// Found by a codex audit 2026-11-18.
+    private var mine: [Choice] {
+        store.ownLifts
+            .filter { !excluding.contains($0) }
+            .map { Choice(id: $0, name: liftName($0)) }
+            .filter { ownName.isEmpty ? swapping == nil
+                                      : $0.name.localizedCaseInsensitiveContains(ownName) }
     }
 
     private var muscles: [String] {
         Array(Set(lifts.map(\.primary))).sorted()
     }
 
+    /// What she typed, with the whitespace off both ends.
+    ///
+    /// The list used to filter on the raw string while this check trimmed it,
+    /// so searching "Hammer Curl " found nothing (no lift's name carries the
+    /// trailing space) and the offer to add it as her own was suppressed as
+    /// well, because trimmed it is already a lift. An empty picker for a lift
+    /// the app has, and iOS types that space itself when she takes a
+    /// predictive suggestion. Found by a codex audit 2026-11-18.
     private var ownName: String {
-        search.trimmingCharacters(in: .whitespaces)
+        search.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Whether what she typed can be a lift at all.
+    ///
+    /// The id is built out of the letters and numbers in the name, so a name
+    /// with none of either, "!!!" or a lone emoji, became the id `custom-`
+    /// and then showed up in the workout with no name on it. Two such names
+    /// also became the same lift.
+    /// Found by a codex audit 2026-11-17.
+    private var nameIsALift: Bool {
+        ownName.contains { $0.isLetter || $0.isNumber }
+    }
+
+    /// Whether what she typed is already a lift, so that offering to make it
+    /// one of her own would be a lie.
+    ///
+    /// This used to ask `lifts`, which is the list on screen: search-filtered,
+    /// and with everything already in the workout taken out of it. So a lift
+    /// she already had was absent from the list, read as "no such lift", and
+    /// offered in cyan as one to add as her own. Tapping it on a library lift
+    /// gave her a second Hammer Curl under custom-hammer-curl, with none of
+    /// the real one's equipment or starting numbers, loaded in the 5 lb steps
+    /// every lift of her own gets; on a custom lift she
+    /// already had it produced the same id twice, which `addLift` drops on
+    /// the floor, so the sheet closed and nothing happened at all.
+    ///
+    /// The whole liftable library, not the filtered list, and the ids she
+    /// already has. Found by a codex audit 2026-11-16, both halves
+    /// reproduced 2026-11-17.
+    ///
+    /// Liftable, not everything. A plank and a treadmill are in the library
+    /// and are not in the picker, because neither fits weight and reps, so
+    /// typing "Plank" here finds nothing and the offer is the only way she
+    /// gets one at all. Suppressing it would leave her at a dead end with no
+    /// explanation, and what she gets instead is a lift of her own with the
+    /// same name and a different id. That is a product question rather than a
+    /// defect, and it is Lucy's: a later codex audit read this comment as a
+    /// promise about the whole library and called the difference a bug.
+    private var nameIsTaken: Bool {
+        ExerciseLibrary.liftable.contains { $0.name.caseInsensitiveCompare(ownName) == .orderedSame }
+            || excluding.contains(customLiftId(ownName))
+            // one she already made counts: offering it again in cyan reads as
+            // a lift the app does not have, and it is right there in the list
+            || store.ownLifts.contains(customLiftId(ownName))
     }
 
     var body: some View {
         NavigationStack {
             List {
+                if !mine.isEmpty {
+                    Section {
+                        ForEach(mine) { lift in
+                            Button(lift.name) { choose(lift.id, lift.name) }
+                                .font(.head)
+                                .foregroundStyle(.fg)
+                                .listRowBackground(Color.card)
+                        }
+                    } header: {
+                        SectionLabel(text: "Your lifts")
+                    }
+                }
+
                 ForEach(muscles, id: \.self) { muscle in
                     Section {
                         ForEach(lifts.filter { $0.primary == muscle }) { lift in
@@ -68,7 +149,7 @@ struct AddLiftView: View {
                     }
                 }
 
-                if !ownName.isEmpty && !lifts.contains(where: { $0.name.caseInsensitiveCompare(ownName) == .orderedSame }) {
+                if nameIsALift && !nameIsTaken {
                     Button("Add \"\(ownName)\" as your own") {
                         choose(customLiftId(ownName), ownName)
                     }

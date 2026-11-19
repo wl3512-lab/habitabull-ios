@@ -36,6 +36,10 @@ struct DayView: View {
                     .font(.figure)
                     .foregroundStyle(.fg)
                     .padding(.top, 10)
+                    // so a test can ask which day it opened on. A tap near
+                    // the edge of one calendar day can land on the next, and
+                    // "some day screen opened" cannot tell the two apart.
+                    .accessibilityIdentifier("day-detail-date")
 
                 if sessions.isEmpty {
                     Text("Nothing logged on this day.")
@@ -106,12 +110,16 @@ struct DayView: View {
     }
 
     /// What she actually did of that lift. Sets she did not finish are not
-    /// counted, and the heaviest finished set is the one worth printing.
+    /// counted, and her best finished set is the one worth printing: the
+    /// heaviest, or on a machine that counts help, the one she needed the
+    /// least help on. It used to be the plain heaviest, which on an assisted
+    /// pull-up printed the set she had struggled most on.
+    /// Found by a codex audit 2026-11-16.
     private func done(_ lift: LoggedExercise) -> String {
         let sets = lift.sets.filter(\.done)
         guard !sets.isEmpty else { return "not done" }
         let count = "\(sets.count) set\(sets.count == 1 ? "" : "s")"
-        guard lift.usesWeight, let best = sets.max(by: { $0.weight < $1.weight }) else {
+        guard lift.usesWeight, let best = lift.best(of: sets) else {
             return "\(count) · \(sets.map { "\($0.reps)" }.joined(separator: ", ")) \(lift.unit)"
         }
         return "\(count) · \(lift.describe(best))"

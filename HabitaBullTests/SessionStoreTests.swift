@@ -97,6 +97,11 @@ final class SessionStoreTests: XCTestCase {
         store.logSet(onExercise: squat, weight: 95, reps: 8)
         store.logSet(onExercise: squat, weight: 95, reps: 5)
 
+        // the last set is hers to decide, from the rest screen, and that
+        // decision has to survive her going back to fix a typo in set one.
+        // Found by a codex audit 2026-11-18.
+        store.setUpcomingWeight(onExercise: squat, to: 115)
+
         store.logSet(onExercise: squat, weight: 100, reps: 8, replacing: 0)
 
         let sets = store.today!.exercises[squat].sets
@@ -105,6 +110,108 @@ final class SessionStoreTests: XCTestCase {
         XCTAssertTrue(sets[0].done)
         XCTAssertTrue(sets[1].done, "the set she was not correcting stopped counting")
         XCTAssertEqual(sets.filter(\.done).count, 2)
+        XCTAssertEqual(sets[2].weight, 115,
+                       "correcting an earlier set threw away the weight she had set for the "
+                       + "one she has not done yet")
+        XCTAssertEqual(sets[2].reps, 5,
+                       "the reps of the set ahead were overwritten by a correction behind it")
+    }
+
+    /// A typo she has corrected is not a record she has to beat.
+    ///
+    /// Her best was 95. She lifted 100, her thumb typed 145, and she tapped
+    /// the set and fixed it. The 145 was still in the history being judged,
+    /// so the confirmation called a 5 lb record ordinary, while the receipt
+    /// at the end of the same workout called it a record: one lift, two
+    /// screens, two answers. Found by a codex audit 2026-11-18.
+    func testCorrectingATypoStillCountsTheRecordUnderIt() {
+        let lastWeek = Attendance.day(Date.now.addingTimeInterval(-7 * 24 * 60 * 60),
+                                      Attendance.calendar())
+        givenPastWorkouts([day(lastWeek, "back-squat", weight: 95, reps: 8)])
+
+        store.startWorkout()
+        let squat = indexOf("back-squat")
+        let typo = store.logSet(onExercise: squat, weight: 145, reps: 8)
+        XCTAssertEqual(typo?.kind, .best, "145 over 95 is a record, typo or not")
+
+        let fixed = store.logSet(onExercise: squat, weight: 100, reps: 8, replacing: 0)
+        XCTAssertEqual(fixed?.kind, .best,
+                       "the number she had just taken back was still the one to beat")
+        XCTAssertEqual(fixed?.newBest, 100)
+        XCTAssertEqual(fixed?.gain, 5, "the gain is over her real best, which is 95")
+    }
+
+    /// A lift she adds opens at the weight the sets she chose deserve.
+    ///
+    /// The count is part of the question. Two sets cleared do not clear a plan
+    /// of four, so a lift she has done twice at 25 and adds today as four sets
+    /// holds at 25. The app asked the rules with last time's count and then
+    /// built a different number of sets with the answer, so four sets opened
+    /// at 27.5 and the sentence under them said she had earned it.
+    /// Found by a codex audit 2026-11-18.
+    func testALiftAddedWithMoreSetsThanLastTimeDoesNotGetHeavierForIt() {
+        givenPastWorkouts([day("2026-11-01", "dumbbell-hammer-curl", weight: 25, reps: 12, sets: 2)])
+        store.startWorkout()
+        store.addLift("dumbbell-hammer-curl", sets: 4)
+
+        let curl = store.today!.exercises[indexOf("dumbbell-hammer-curl")]
+        XCTAssertEqual(curl.sets.count, 4)
+        XCTAssertEqual(curl.sets.first?.weight, 25,
+                       "four sets were planned at the weight two sets earned")
+        XCTAssertEqual(store.reasonForNext(of: "dumbbell-hammer-curl", planningSets: 4),
+                       "Same weight. Own it this time.",
+                       "the sentence under the steppers is about a different plan than the "
+                       + "weight above it")
+
+        // and the same lift at the count she actually settled at still climbs
+        XCTAssertEqual(store.nextTarget(of: "dumbbell-hammer-curl", planningSets: 2).weight, 27.5)
+    }
+
+    /// The back-off stops at the bar she actually owns.
+    ///
+    /// The rules take 45 for a barbell because that is the bar in most gyms.
+    /// She can tell the plate loader hers is 30, and then a run of hard
+    /// sessions at 40 was told "This is as light as it loads" while the plate
+    /// loader on the same screen would build 35 without blinking.
+    /// Found by a codex audit 2026-11-18.
+    func testABackOffCanGoDownToHerOwnBar() {
+        UserDefaults.standard.set(30.0, forKey: "barWeight")
+        defer { UserDefaults.standard.removeObject(forKey: "barWeight") }
+
+        // three sessions she did not clear, which is what asks for a back-off
+        givenPastWorkouts([day("2026-11-01", "back-squat", weight: 40, reps: 3),
+                           day("2026-11-03", "back-squat", weight: 40, reps: 3),
+                           day("2026-11-05", "back-squat", weight: 40, reps: 3)])
+
+        let next = store.nextTarget(of: "back-squat")
+        XCTAssertLessThan(next.weight, 40,
+                          "a run of hard sessions on a 30 lb bar left the weight where it "
+                          + "was, because the rules were told the floor is 45")
+        XCTAssertGreaterThanOrEqual(next.weight, 30, "below the bar she is standing under")
+    }
+
+    /// A workout dated tomorrow is still one she can come back to.
+    ///
+    /// Start at ten past midnight in New York, fly west, open the app in Los
+    /// Angeles: the phone says it is still yesterday, and the workout she is
+    /// in the middle of carries tomorrow's date. `unfinished` only looked
+    /// backwards, so the home screen offered a new workout while the store
+    /// went on writing to the old one.
+    /// Found by a codex audit 2026-11-18.
+    func testAWorkoutDatedAheadOfTodayIsStillHersToComeBackTo() {
+        let cal = Attendance.calendar()
+        let tomorrow = Attendance.day(cal.date(byAdding: .day, value: 1, to: .now) ?? .now, cal)
+        let started = Date.now.addingTimeInterval(-20 * 60)
+        givenPastWorkouts([Session(
+            id: UUID().uuidString, date: tomorrow, label: "Leg day",
+            exercises: [LoggedExercise(exerciseId: "back-squat",
+                                       sets: [LoggedSet(weight: 135, reps: 5, done: true),
+                                              LoggedSet(weight: 135, reps: 5)])],
+            startedAt: started)])
+
+        XCTAssertEqual(store.unfinished?.date, tomorrow,
+                       "a workout she started twenty minutes ago is not on offer because the "
+                       + "phone changed time zone under it")
     }
 
     /// A set index that is not there falls back to the next one she has not
@@ -221,6 +328,105 @@ final class SessionStoreTests: XCTestCase {
 
         XCTAssertLessThan(took, 0.5,
                           "planning five lifts three times took \(took)s against 300 sessions")
+    }
+
+    // MARK: - a help machine's number is not a load
+
+    /// "lb moved" on the finish screen.
+    ///
+    /// It summed weight × reps across every logged set, and on an assisted
+    /// machine the weight is counterweight. So the total rose as she needed
+    /// more help, and the day she finally did a pull-up with none of it that
+    /// lift contributed nothing at all: the better the session, the smaller
+    /// the number. Found by a codex audit 2026-11-17.
+    func testPoundsMovedDoesNotCountCounterweightAsWork() {
+        func day(_ help: Double) -> Session {
+            Session(id: UUID().uuidString, date: "2026-11-17", label: "Pull",
+                    exercises: [
+                        LoggedExercise(exerciseId: "back-squat",
+                                       sets: [LoggedSet(weight: 135, reps: 5, done: true)]),
+                        LoggedExercise(exerciseId: "assisted-pull-up",
+                                       sets: [LoggedSet(weight: help, reps: 5, done: true)]),
+                    ],
+                    startedAt: .now)
+        }
+        XCTAssertEqual(day(45).poundsMoved, 675,
+                       "45 lb of counterweight was counted as 225 lb moved")
+        XCTAssertEqual(day(45).poundsMoved, day(0).poundsMoved,
+                       "needing more help changed how much work the session says she did")
+    }
+
+    /// Half a pound is still a pound moved.
+    ///
+    /// One set of 22.5 for three is 67.5, and the total was an `Int`, so the
+    /// receipt printed 67 under a number she can check on her fingers.
+    /// Found by a codex audit 2026-11-18.
+    func testTheTotalKeepsTheHalvesSheActuallyLifted() {
+        let session = Session(
+            id: UUID().uuidString, date: "2026-11-18", label: "Arms",
+            exercises: [LoggedExercise(exerciseId: "dumbbell-hammer-curl",
+                                       sets: [LoggedSet(weight: 22.5, reps: 3, done: true)])],
+            startedAt: .now)
+        XCTAssertEqual(session.poundsMoved, 67.5,
+                       "the receipt is rounding away weight she actually lifted")
+    }
+
+    /// A session of only assisted work says nothing rather than something
+    /// backwards. The finish screen shows the stat only when it is above
+    /// zero, so this is the whole of hiding it.
+    func testASessionOfOnlyHelpHasNoTotalToShow() {
+        let session = Session(
+            id: UUID().uuidString, date: "2026-11-17", label: "Pull",
+            exercises: [LoggedExercise(exerciseId: "assisted-pull-up",
+                                       sets: [LoggedSet(weight: 45, reps: 5, done: true)])],
+            startedAt: .now)
+        XCTAssertEqual(session.poundsMoved, 0,
+                       "a help machine's counterweight was about to be printed as pounds moved")
+    }
+
+    /// The "Best" line under the set count on the log screen.
+    ///
+    /// Her record on a machine that counts help is the least of it she has
+    /// ever needed, and the best of all is none. The screen asked for
+    /// `best > 0`, so the line vanished on exactly the day it had the most to
+    /// say: the first rep she did unaided. Found by a codex audit 2026-11-17.
+    func testHerBestOnAHelpMachineIsStillSaidWhenSheNeededNone() {
+        let machine = LoggedExercise(exerciseId: "assisted-pull-up", sets: [])
+        XCTAssertEqual(machine.bestSaid(0), "Best: no help")
+        XCTAssertEqual(machine.bestSaid(30), "Best 30 lb of help")
+        XCTAssertNil(machine.bestSaid(nil), "there is no record before the first set")
+    }
+
+    /// And a bar is untouched, which is the half that could break quietly:
+    /// zero there means the lift carries no load, and "Best 0 lb" is not a
+    /// record.
+    func testABarSaysNothingAboutCarryingNoLoad() {
+        let squat = LoggedExercise(exerciseId: "back-squat", sets: [])
+        XCTAssertEqual(squat.bestSaid(135), "Best 135 lb")
+        XCTAssertNil(squat.bestSaid(0))
+        XCTAssertNil(LoggedExercise(exerciseId: "push-up", sets: []).bestSaid(0),
+                     "a push-up has no weight to have a record in")
+    }
+
+    /// A day the app has decided she should try the lift unaided.
+    ///
+    /// `planDetail` dropped every zero, so the plan for that session read
+    /// "3 × 8" with no setting at all: the one session where the setting is
+    /// the whole point. A bar is unchanged, because zero there really is
+    /// nothing to say. Found by a codex audit 2026-11-17.
+    func testAPlanOfNoHelpSaysSo() {
+        let unaided = LoggedExercise(exerciseId: "assisted-pull-up",
+                                     sets: Array(repeating: LoggedSet(weight: 0, reps: 8), count: 3))
+        XCTAssertEqual(unaided.planDetail, "3 × 8 · no help")
+
+        let helped = LoggedExercise(exerciseId: "assisted-pull-up",
+                                    sets: Array(repeating: LoggedSet(weight: 30, reps: 8), count: 3))
+        XCTAssertEqual(helped.planDetail, "3 × 8 · 30 lb")
+
+        let bodyweight = LoggedExercise(exerciseId: "push-up",
+                                        sets: Array(repeating: LoggedSet(weight: 0, reps: 12), count: 3))
+        XCTAssertEqual(bodyweight.planDetail, "3 × 12",
+                       "a push-up has no setting, so it has nothing to add here")
     }
 
     private func seedWorkoutStartedLastNight(lift: String = "back-squat", done: Bool = false) {
@@ -579,7 +785,16 @@ final class SessionStoreTests: XCTestCase {
     func testTheAppAndTheRulesAgreeOnTheSameLift() {
         // the seam itself: the app's own translation, read back in the rules'
         // terms, so a future change to either side has to keep them matching
-        givenPastWorkouts([day("2026-11-01", "back-squat", weight: 95, reps: 8)])
+        givenPastWorkouts([day("2026-11-01", "back-squat", weight: 95, reps: 8),
+                           // and a machine that counts help, because whether a
+                           // lift is assisted is one of the things this seam
+                           // carries and nothing that crossed it ever was.
+                           // Dropping `assisted:` from the translation left
+                           // this test green while three cleared sets at 45 lb
+                           // of help asked for 47.5 lb next time, which is the
+                           // machine doing more of the pull-up as a reward.
+                           // Found by a codex audit 2026-11-17.
+                           day("2026-11-02", "assisted-pull-up", weight: 45, reps: 8)])
         let target: Target = store.nextTarget(of: "back-squat")
         XCTAssertEqual(target.weight, 97.5)
         XCTAssertEqual(target.sets, 3)
@@ -587,6 +802,23 @@ final class SessionStoreTests: XCTestCase {
         let squat = ExerciseLibrary.find("back-squat")!
         XCTAssertEqual(squat.shape, LiftShape(increment: 2.5, compound: true, heavy: false,
                                               hold: false, cardio: false, floor: 45))
+
+        let helped: Target = store.nextTarget(of: "assisted-pull-up")
+        XCTAssertLessThan(helped.weight, 45,
+                          "help has to come down after a session she cleared, not up")
+        XCTAssertEqual(helped.weight, 42.5)
+        XCTAssertTrue(ExerciseLibrary.find("assisted-pull-up")!.shape.assisted,
+                      "the shape that crosses the seam has to say it counts help")
+
+        // and a heavy lift, because every lift above is light: dropping
+        // `heavy:` from the translation left this test green while a deadlift
+        // was prescribed an ordinary compound's reps.
+        // Found by a codex audit 2026-11-18.
+        XCTAssertTrue(ExerciseLibrary.find("deadlift")!.shape.heavy,
+                      "the seam stopped carrying whether a lift is a heavy one")
+        XCTAssertNotEqual(store.nextTarget(of: "deadlift").reps, target.reps,
+                          "a deadlift and a squat are being asked for the same reps, so "
+                          + "nothing here would notice heavy going missing")
     }
 
     // MARK: - what the second number counts
@@ -707,10 +939,38 @@ final class SessionStoreTests: XCTestCase {
 
     func testOneMoreSetCopiesTheLastOne() {
         store.startWorkout()
+        let planned = store.today?.exercises[0].sets.count ?? 0
         _ = store.logSet(onExercise: 0, weight: 105, reps: 5)
         store.addSet(toExercise: 0)
+        // the count first. Logging a set already copies its weight and reps
+        // into the sets still to come, so asking only what the last set
+        // weighs was answered by a set that was always there: this passed
+        // with `addSet` doing nothing at all.
+        // Found by a codex audit 2026-11-17.
+        XCTAssertEqual(store.today?.exercises[0].sets.count, planned + 1,
+                       "no set was added")
         XCTAssertEqual(store.today?.exercises[0].sets.last?.weight, 105)
         XCTAssertEqual(store.today?.exercises[0].sets.last?.reps, 5)
+    }
+
+    /// A rest she ended stays ended when the app comes back.
+    ///
+    /// The rest is saved on purpose, so that closing the app in the middle of
+    /// one costs nothing. Ending one therefore has to be saved too, and the
+    /// UI tests about the rest screen could not see it: they watch the cover
+    /// close, which it does either way, and never open the app again.
+    /// Found by a codex audit 2026-11-17.
+    func testARestSheEndedIsGoneWhenTheAppComesBack() {
+        store.startWorkout()
+        _ = store.logSet(onExercise: 0, weight: 95, reps: 8)
+        store.setRest(endsAt: .now.addingTimeInterval(90), lift: 0)
+        XCTAssertNotNil(store.today?.restEndsAt, "the rest was never saved to begin with")
+
+        store.clearRest()
+        let reopened = SessionStore(fileURL: file)
+        XCTAssertNil(reopened.today?.restEndsAt,
+                     "the rest she ended was still running when the app came back")
+        XCTAssertNil(reopened.today?.restLift)
     }
 
     func testAWorkoutWithNothingInItIsNotFinished() {
@@ -725,6 +985,50 @@ final class SessionStoreTests: XCTestCase {
     /// back through the store's own loader. No clock is moved: a workout on an
     /// earlier date is just a different string, which is how the app stores it
     /// anyway.
+    /// The app hands the rules the clock, not only the day.
+    ///
+    /// Two workouts on one date can only be ordered by when they started, and
+    /// the bridge into the rules passes `startedAt` for exactly that reason.
+    /// Nothing here checked that it did: the rules have a test for honouring
+    /// the clock, and the app could have handed them nothing and stayed
+    /// green. Found by measuring the fix rather than reading it, 2026-11-18.
+    func testTheAppTellsTheRulesWhichWorkoutCameLast() {
+        let date = dayString()
+        let cal = Attendance.calendar()
+        let midnight = Attendance.date(date, cal) ?? .now
+        func workout(at hour: Int, weight: Double) -> Session {
+            let when = cal.date(byAdding: .hour, value: hour, to: midnight) ?? midnight
+            return Session(id: UUID().uuidString, date: date, label: "Leg day",
+                           exercises: [LoggedExercise(
+                               exerciseId: "back-squat",
+                               sets: Array(repeating: LoggedSet(weight: weight, reps: 8, done: true),
+                                           count: 3))],
+                           startedAt: when, completedAt: when)
+        }
+        // the morning's first in the file, so only the clock can say which of
+        // the two was the last squat she did
+        givenPastWorkouts([workout(at: 8, weight: 95), workout(at: 18, weight: 135)])
+
+        XCTAssertGreaterThan(store.nextTarget(of: "back-squat").weight, 120,
+                             "the next squat is planned off the morning's 95 lb, so the clock "
+                             + "the app holds is not reaching the rules")
+    }
+
+    /// How many sets she did last time comes from the last time.
+    ///
+    /// Same hole as the clock above, one accessor along: this read the file in
+    /// the order it happened to be in, and no test here could tell that from
+    /// reading it in order. Found by measuring the fix, 2026-11-18.
+    func testTheSetsSheDidLastTimeCameFromTheLastTime() {
+        // the older day first in the file, and one set shorter
+        givenPastWorkouts([day("2026-11-01", "back-squat", weight: 95, reps: 8, sets: 3),
+                           day("2026-11-08", "back-squat", weight: 95, reps: 8, sets: 4)])
+
+        XCTAssertEqual(store.setsLastTime(of: "back-squat"), 4,
+                       "it counted the sets of an older day, so the squat she starts today is "
+                       + "planned around a workout she has already moved past")
+    }
+
     private func givenPastWorkouts(_ past: [Session]) {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601

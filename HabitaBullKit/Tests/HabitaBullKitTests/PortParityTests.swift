@@ -29,6 +29,22 @@ final class PortParityTests: XCTestCase {
         XCTAssertGreaterThan(cases.count, 100, "the fixture looks truncated")
 
         var drifted: [String] = []
+        /// The one sentence the Swift rules deliberately say differently, and
+        /// the count of how often it came up.
+        ///
+        /// The web engine snaps a hand-typed weight onto the bar under the
+        /// words "Same weight. Own it this time.", so 97 lb comes back as 97.5
+        /// with a line saying nothing changed. A codex audit 2026-11-17 called
+        /// that what it is: the app describing something it did not do. The
+        /// app now says "Same weight, rounded to 97.5 lb." The number is the
+        /// same on both sides; only the sentence differs,
+        /// and only on this one shape.
+        ///
+        /// Anything else about these cases still has to match, and when the
+        /// fixture is regenerated from a web app that says the same thing,
+        /// this stops counting and the test says to delete it. Whether the web
+        /// app follows is Lucy's call.
+        var saidBetter = 0
         for c in cases {
             let lift = LiftShape(increment: c.increment, compound: c.compound,
                                  heavy: c.heavy, hold: c.hold, cardio: c.cardio)
@@ -38,8 +54,24 @@ final class PortParityTests: XCTestCase {
             if abs(got.weight - c.weight) > 0.0001 { drifted.append("\(where_): weight \(got.weight) vs \(c.weight)") }
             if got.reps != c.reps { drifted.append("\(where_): reps \(got.reps) vs \(c.reps)") }
             if got.sets != c.sets { drifted.append("\(where_): sets \(got.sets) vs \(c.sets)") }
-            if got.note != c.note { drifted.append("\(where_): note \"\(got.note)\" vs \"\(c.note)\"") }
+            if got.note != c.note {
+                // spelled out from this case's own number rather than
+                // matched on a prefix and a suffix: those accepted anything
+                // in between, the wrong weight included, as a codex audit
+                // 2026-11-17 pointed out.
+                let said = got.weight == got.weight.rounded()
+                    ? String(Int(got.weight)) : String(got.weight)
+                let snapped = c.note == "Same weight. Own it this time."
+                    && got.note == "Same weight, rounded to \(said) lb."
+
+                if snapped { saidBetter += 1 }
+                else { drifted.append("\(where_): note \"\(got.note)\" vs \"\(c.note)\"") }
+            }
         }
         XCTAssertEqual(drifted, [], "the Swift rules answer differently from the web engine")
+        XCTAssertGreaterThan(saidBetter, 0,
+                             "nothing hit the one allowed difference any more. If the fixture was "
+                             + "regenerated, delete the exception above rather than leaving it to "
+                             + "cover a drift nobody meant")
     }
 }

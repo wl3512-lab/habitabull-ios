@@ -122,14 +122,33 @@ public struct TrainingSession: Sendable, Equatable {
     /// workout with no plan behind it, or a day rebuilt around something that
     /// hurts. Both are right for today and neither redefines Thursday.
     public var oneOff: Bool
+    /// When the workout began, where the caller knows it.
+    ///
+    /// The civil day is the right key for attendance and the wrong one for
+    /// order: fly west overnight and the workout she did yesterday carries a
+    /// later date than the one she did this morning. Optional because the
+    /// fixtures ported from the web app have only a day, and they must go on
+    /// being read exactly as the web app reads them.
+    /// Found by a codex audit 2026-11-18.
+    public var startedAt: Date?
 
-    public init(date: String, label: String = "", lifts: [LoggedLift], oneOff: Bool = false) {
+    public init(date: String, label: String = "", lifts: [LoggedLift], oneOff: Bool = false,
+                startedAt: Date? = nil) {
         self.date = date; self.label = label; self.lifts = lifts; self.oneOff = oneOff
+        self.startedAt = startedAt
     }
 }
 
 public enum Progression {
     static let baseLoad: [Level: Double] = [.new: 45, .returning: 65, .experienced: 95]
+    /// The same three numbers read from the far end, for the machines that
+    /// count help. Experience there means needing less of it, and reading
+    /// `baseLoad` straight gave an experienced lifter 95 lb of counterweight
+    /// on her first assisted pull-up where a novice got 45: the novice was
+    /// asked to pull more of herself than the regular.
+    /// Found by a codex audit 2026-11-17. The three numbers are a training
+    /// judgement rather than a fact, and Lucy's to set.
+    static let helpBase: [Level: Double] = [.new: 95, .returning: 65, .experienced: 45]
     static let levelSets: [Level: Int] = [.new: 3, .returning: 3, .experienced: 4]
     /// Working reps for the compounds. Ten was too many for a novice squat and
     /// far too many for a novice deadlift; the accessories are where higher
@@ -155,6 +174,19 @@ public enum Progression {
         return Swift.max(increment, (weight / increment).rounded() * increment)
     }
 
+    /// A loadable amount of help, where none at all is a real answer.
+    ///
+    /// `round` never returns less than one increment, because a bar with
+    /// nothing on it is not a weight. A machine set to no counterweight is
+    /// the whole point of the machine, and rounding it up handed 2.5 lb of
+    /// help back to someone who had just done the lift unaided and missed
+    /// her reps, under the words "Same help".
+    /// Found by a codex audit 2026-11-17.
+    static func roundHelp(_ weight: Double, to increment: Double) -> Double {
+        guard increment > 0 else { return 0 }
+        return Swift.max(0, (weight / increment).rounded() * increment)
+    }
+
     /// A weight you can load, and never heavier than what was asked for.
     ///
     /// Only the back-off uses this. Rounding to the nearest loadable weight
@@ -169,7 +201,7 @@ public enum Progression {
 
     public static func startingWeight(_ lift: LiftShape, level: Level) -> Double {
         guard lift.increment > 0 else { return 0 }   // bodyweight
-        let base = baseLoad[level] ?? 45
+        let base = (lift.assisted ? helpBase[level] : baseLoad[level]) ?? 45
         return round(lift.compound ? base : base * 0.45, to: lift.increment)
     }
 
@@ -185,8 +217,13 @@ public enum Progression {
     /// opened and logged nothing in contributes nothing: it is dropped, so a
     /// lift with no history reads as a lift with no history.
     public static func history(of exerciseId: String, in sessions: [TrainingSession]) -> [[DoneSet]] {
-        sessions
-            .sorted { $0.date > $1.date }
+        // By the clock when every session carries one, by the day otherwise.
+        // All or nothing on purpose: mixing the two orders two sessions by
+        // different rules depending on which pair is being compared, which is
+        // not an order at all. Found by a codex audit 2026-11-18.
+        let byClock = sessions.allSatisfy { $0.startedAt != nil }
+        return sessions
+            .sorted { byClock ? $0.startedAt! > $1.startedAt! : $0.date > $1.date }
             .map { session in
                 session.lifts
                     .filter { $0.exerciseId == exerciseId }
@@ -221,7 +258,18 @@ public enum Progression {
                           note: "First time. Start light and learn the movement.")
         }
 
-        let lastWeight = last.map(\.weight).max() ?? startingWeight(lift, level: level)
+        // Her best set of last time. On a bar that is the heaviest; on a
+        // machine that counts help it is the lightest, and `max` was reading
+        // the set she needed the most help on. Warming up with 45 lb of help
+        // and doing the two sets after it at 30 was read as 45, so the plan
+        // started from her worst set, and "down 2.5 lb of help" then offered
+        // 42.5: still more help than she had finished on. Every assisted case
+        // in the tests used one weight for the whole session, so max and min
+        // were the same number in all of them and none could see it.
+        // Found by a codex audit 2026-11-16.
+        let soFar = last.map(\.weight)
+        let lastWeight = (lift.assisted ? soFar.min() : soFar.max())
+            ?? startingWeight(lift, level: level)
 
         // Cardio carries its incline and nothing else. The field holds a
         // percent rather than a load, so none of the progression below applies
@@ -241,23 +289,59 @@ public enum Progression {
         // Found by a codex review 2026-11-15.
         if lift.assisted, lift.increment > 0 {
             if clearedAll {
-                let next = Swift.max(0, lastWeight - lift.increment)
+                // rounded, because the number she typed is not always one the
+                // machine has. A typed 31 lb of help less a 2.5 lb increment
+                // is 28.5, which is not a setting on any stack; `roundHelp`
+                // puts it on 27.5 and leaves zero reachable.
+                // Found by a codex audit 2026-11-17.
+                let next = roundHelp(lastWeight - lift.increment, to: lift.increment)
+                // what it actually came down by, not what the increment is.
+                // Rounding 31 lb of help onto the stack gives 27.5, and the
+                // line under it said "Down 2.5 lb of help" about a drop of
+                // 3.5. Found by a codex audit 2026-11-17.
+                let came = lastWeight - next
                 return Target(weight: next, reps: targetReps, sets: setCount,
+                              // not "that is a pull-up": the other assisted
+                              // machine in the library is a dip, and a shape
+                              // does not carry a name to tell them apart
                               note: next == 0
-                                ? "No help left. That is a pull-up."
-                                : "Down \(trim(lift.increment)) lb of help. You earned it.")
+                                ? "No help left. That is all you."
+                                : "Down \(trim(came)) lb of help. You earned it.")
             }
             let tough = history.prefix(3)
             let short = tough.filter { !($0.isEmpty == false && $0.allSatisfy { $0.reps >= targetReps }) }.count
             if short >= 3 && history.count >= 3 {
                 // more help, which is the same mercy as taking weight off a bar
+                // both halves rounded: the increment half was raw. More help
+                // is the larger of a tenth more and one increment more, and
+                // the one that wins is not the one that is loadable: at 21 lb
+                // of help the raw increment half won outright and gave 23.5,
+                // and at 26 the tenth is larger before rounding and smaller
+                // after it (28.6 rounds to 27.5), so the raw 28.5 won there
+                // too. The reasoning that the tenth "wins above 25 and is
+                // already rounded" was wrong on both counts. One test each.
                 let eased = Swift.max(round(lastWeight * 1.1, to: lift.increment),
-                                      lastWeight + lift.increment)
+                                      round(lastWeight + lift.increment, to: lift.increment))
                 return Target(weight: eased, reps: targetReps, sets: setCount,
                               note: "More help for now. Three tough sessions is a signal, not a failure.")
             }
-            return Target(weight: round(lastWeight, to: lift.increment), reps: targetReps,
-                          sets: setCount, note: "Same help. Own it this time.")
+            // and when holding it snaps the number, say so. 31 lb of help
+            // held at "Same help" came back as 30, and a sentence that says
+            // nothing changed over a number that did is the app telling her
+            // something untrue about her own training.
+            // Found by a codex audit 2026-11-17.
+            let same = roundHelp(lastWeight, to: lift.increment)
+            return Target(weight: same, reps: targetReps, sets: setCount,
+                          note: same == lastWeight
+                            ? "Same help. Own it this time."
+                            // "rounded to", not "what the machine has": the
+                            // increment is what this lift loads in, and
+                            // whether the stack in her gym has that setting
+                            // is not something the rules know. Said plainly
+                            // after a codex audit 2026-11-17 pointed out that
+                            // the same sentence on a bar promises a weight
+                            // this app's own plate loader cannot build.
+                            : "Same help, rounded to \(trim(same)) lb.")
         }
 
         if clearedAll {
@@ -265,7 +349,12 @@ public enum Progression {
             // What "more" means depends on what the lift is counted in. On a
             // lift the app cannot load, going longer is the user's call.
             let more = lift.cardio || lift.hold ? "Go a little longer this time." : "Add two reps this time."
-            let note = lift.increment == 0 ? more : "Up \(trim(lift.increment)) lb. You earned it."
+            // and the same on a bar, for the same reason: a weight she typed
+            // does not have to be a multiple of the increment, and rounding
+            // 136 up by 2.5 gives 137.5, which is up by 1.5.
+            let note = lift.increment == 0
+                ? more
+                : "Up \(trim(weight - lastWeight)) lb. You earned it."
             return Target(weight: weight, reps: targetReps, sets: setCount, note: note)
         }
 
@@ -290,7 +379,12 @@ public enum Progression {
         // Snap even when holding: a hand-typed 97 should come back as a bar you
         // can actually load, not follow her around forever.
         let held = lift.increment == 0 ? 0 : round(lastWeight, to: lift.increment)
-        return Target(weight: held, reps: targetReps, sets: setCount, note: "Same weight. Own it this time.")
+        // and the snap gets said here too: holding 136 lb handed back 135
+        // under "Same weight".
+        return Target(weight: held, reps: targetReps, sets: setCount,
+                      note: held == lastWeight || lift.increment == 0
+                        ? "Same weight. Own it this time."
+                        : "Same weight, rounded to \(trim(held)) lb.")
     }
 
     /// "2.5" rather than "2.5000", and "5" rather than "5.0".

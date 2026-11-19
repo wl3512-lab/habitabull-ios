@@ -76,6 +76,51 @@ final class OnboardingTests: XCTestCase {
                       "the first run should ask for a session, not show a plan")
         XCTAssertTrue(app.staticTexts["Good to see you, Lucy."].exists,
                       "her name was asked for and never used")
+
+        // the two answers Today does not show. This test used to stop here,
+        // on the chips reading as chosen and her name in the greeting, so the
+        // reason and the rest length were free to be dropped on the way to
+        // being saved and nothing would have gone red.
+        // Found by a codex audit 2026-11-18.
+        //
+        // the same phone, opened again, so her reason is read off the disk
+        // and not out of the screen that just wrote it
+        app.terminate()
+        app.launchArguments = ["-uitest-skip-opening", "-uitest-hold-beats"]
+        app.launch()
+
+        app.goTo("profile")
+        XCTAssertTrue(app.staticTexts["\u{201C}It clears my head.\u{201D}"].waitForExistence(timeout: 10),
+                      "the reason she gave is not the one her profile shows back")
+
+        // and the rest she chose is the rest the timer counts
+        app.goTo("today")
+        app.buttons["Start a quick workout"].tap()
+        let search = app.searchFields.firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 10),
+                      "a quick workout did not open on the lift picker")
+        search.tap()
+        search.typeText("Back Squat")
+        app.buttons["Back Squat"].firstMatch.tap()
+        let add = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH 'Add ' AND label CONTAINS 'set'")).firstMatch
+        XCTAssertTrue(add.waitForExistence(timeout: 5), "the sets step never opened")
+        add.tap()
+
+        app.buttons["Log set"].tap()
+        app.tap()
+
+        let clock = app.staticTexts.matching(
+            NSPredicate(format: "label MATCHES '^[0-9]:[0-9][0-9]$'")).firstMatch
+        XCTAssertTrue(clock.waitForExistence(timeout: 10),
+                      "the rest screen has no countdown on it to read")
+        let said = clock.label
+        let parts = said.split(separator: ":")
+        let counting = (Int(parts.first ?? "") ?? 0) * 60 + (Int(parts.last ?? "") ?? 0)
+        XCTAssertLessThanOrEqual(counting, 60,
+                                 "she chose one minute of rest and the timer is counting \(said)")
+        XCTAssertGreaterThan(counting, 30,
+                             "the countdown is at \(said) already, which is not the rest she chose")
     }
 
     func testSkippingTheQuestionsStillGetsYouToAWorkout() {

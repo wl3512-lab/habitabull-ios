@@ -32,6 +32,65 @@ final class PlannerTests: XCTestCase {
     }
 
     /// And saving a day without renaming it still writes where it should.
+    // MARK: - what she trained carries back onto the day
+
+    /// The lift she added at the rack is still there next week.
+    ///
+    /// The plan is where a session's lifts come from, so without this the day
+    /// rebuilds from its original shape every week and the swap she made is
+    /// forgotten. The rules package has carried the rule since the port and
+    /// nothing in the app called it. Found by a codex audit 2026-11-18.
+    func testTheLiftSheAddedAtTheRackIsStillThereNextWeek() {
+        let week = Routine(days: [Routine.Day(weekday: 3, label: "Leg day")],
+                           library: ["Leg day": ["back-squat", "leg-press"]])
+
+        let kept = Planner.remembering(trained("Leg day", ["back-squat", "lying-leg-curl"]),
+                                       in: week)
+
+        XCTAssertEqual(kept?.library["Leg day"], ["back-squat", "lying-leg-curl"],
+                       "the lift she swapped in was forgotten by the next session")
+    }
+
+    /// Only which lifts travel. Nothing else about the week moves.
+    func testTrainingADayTheWayItIsPlannedChangesNothing() {
+        let week = Routine(days: [Routine.Day(weekday: 3, label: "Leg day")],
+                           library: ["Leg day": ["back-squat", "leg-press"]])
+        XCTAssertNil(Planner.remembering(trained("Leg day", ["back-squat", "leg-press"]), in: week),
+                     "a day she trained as planned should not be written back at all")
+    }
+
+    /// A quick workout is not a decision about the day it fell on.
+    func testAQuickWorkoutLeavesTheDayAlone() {
+        let week = Routine(days: [Routine.Day(weekday: 3, label: "Leg day")],
+                           library: ["Leg day": ["back-squat", "leg-press"]])
+        XCTAssertNil(Planner.remembering(trained("Quick workout", ["db-curl"]), in: week))
+    }
+
+    /// And a name her week does not use is not a workout of hers to rewrite.
+    func testAWorkoutHerWeekHasNeverHeardOfIsNotAddedToIt() {
+        let week = Routine(days: [Routine.Day(weekday: 3, label: "Leg day")],
+                           library: ["Leg day": ["back-squat", "leg-press"]])
+        XCTAssertNil(Planner.remembering(trained("Arms day", ["db-curl"]), in: week),
+                     "one improvised day added a workout to her week")
+    }
+
+    /// An empty one never blanks a day.
+    func testAWorkoutWithNothingInItNeverEmptiesTheDay() {
+        let week = Routine(days: [Routine.Day(weekday: 3, label: "Leg day")],
+                           library: ["Leg day": ["back-squat", "leg-press"]])
+        XCTAssertNil(Planner.remembering(trained("Leg day", []), in: week))
+    }
+
+    /// One finished workout, by name, holding the lifts given.
+    private func trained(_ label: String, _ lifts: [String]) -> Session {
+        Session(id: UUID().uuidString, date: "2026-11-18", label: label,
+                exercises: lifts.map {
+                    LoggedExercise(exerciseId: $0,
+                                   sets: [LoggedSet(weight: 95, reps: 8, done: true)])
+                },
+                startedAt: .now)
+    }
+
     func testSavingADayWithoutRenamingItKeepsItsName() {
         var week = Routine(days: [Routine.Day(weekday: 1, label: "Push day")],
                            library: ["Push day": ["bench-press"]])

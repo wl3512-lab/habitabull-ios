@@ -5,21 +5,27 @@ import ActivityKit
 import Foundation
 
 enum RestActivityController {
-    private static let staleLead: TimeInterval = 5
-
     static func start(endsAt: Date, nextUp: String) {
         // Live Activities can be turned off in Settings. the in-app timer and
         // the lock screen alert still work without one
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         stop()
-        // staleDate is how the widget knows to say Ready while the app is
-        // asleep. iOS redraws it 5 to 10 seconds late, so ask 5 seconds early
-        // and it lands close to 0:00. the app can't be exact while locked, but
-        // the lock screen alert still fires right on time
-        let staleDate = max(endsAt.addingTimeInterval(-staleLead), .now.addingTimeInterval(1))
+        let staleDate = Self.staleDate(endsAt: endsAt)
         let state = RestActivityAttributes.ContentState(endsAt: endsAt, nextUp: nextUp)
         let content = ActivityContent(state: state, staleDate: staleDate)
         _ = try? Activity.request(attributes: RestActivityAttributes(), content: content)
+    }
+
+    /// When the widget may treat the countdown as over.
+    ///
+    /// The finish time, and not a moment before it. This used to ask five
+    /// seconds early, to make up for iOS redrawing the Lock Screen five to
+    /// ten seconds late: the countdown then read Ready with five seconds of
+    /// rest left on it, which is a worse lie than a stale 0:00, because she
+    /// picks the bar up on it. Late is the app being slow; early is the app
+    /// being wrong. Found by a codex audit 2026-11-18.
+    static func staleDate(endsAt: Date, now: Date = .now) -> Date {
+        max(endsAt, now.addingTimeInterval(1))
     }
 
     /// The next set changed while she was resting. The countdown carries on,
