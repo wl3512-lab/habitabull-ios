@@ -45,6 +45,18 @@ final class PortParityTests: XCTestCase {
         /// this stops counting and the test says to delete it. Whether the web
         /// app follows is Lucy's call.
         var saidBetter = 0
+        /// The second deliberate difference, and the count of the cases it
+        /// covers.
+        ///
+        /// The web engine holds the level's count on a lift it cannot load --
+        /// 8 reps, 30 seconds, 20 minutes -- however many she logged, and on a
+        /// cleared session says "Add two reps this time" over a number that
+        /// never moves. Lucy's call, 2026-11-20: the count stays at whatever
+        /// she last logged and changes when she logs a different one. Every
+        /// one of these cases is checked against that rule below rather than
+        /// waved past; the weight and the set count still have to match the
+        /// web engine exactly.
+        var heldWhereSheLeftIt = 0
         for c in cases {
             let lift = LiftShape(increment: c.increment, compound: c.compound,
                                  heavy: c.heavy, hold: c.hold, cardio: c.cardio)
@@ -52,8 +64,24 @@ final class PortParityTests: XCTestCase {
             let got = Progression.next(lift, history: history, level: Level(rawValue: c.level)!)
             let where_ = "\(c.lift) · \(c.level) · \(c.shape)"
             if abs(got.weight - c.weight) > 0.0001 { drifted.append("\(where_): weight \(got.weight) vs \(c.weight)") }
-            if got.reps != c.reps { drifted.append("\(where_): reps \(got.reps) vs \(c.reps)") }
             if got.sets != c.sets { drifted.append("\(where_): sets \(got.sets) vs \(c.sets)") }
+
+            // a lift with nothing to load, and a session of hers to carry
+            if c.increment == 0, let last = history.first {
+                let count = last.map(\.reps).max()
+                if got.reps != count {
+                    drifted.append("\(where_): count \(got.reps), she logged \(count ?? 0)")
+                }
+                let expected = c.cardio
+                    ? "Same as last time. Change the time or the incline if you want to."
+                    : c.hold ? "Same as last time. Change the time if you want to."
+                             : "Same as last time. Change the reps if you want to."
+                if got.note != expected { drifted.append("\(where_): note \"\(got.note)\"") }
+                if got.reps != c.reps || got.note != c.note { heldWhereSheLeftIt += 1 }
+                continue
+            }
+
+            if got.reps != c.reps { drifted.append("\(where_): reps \(got.reps) vs \(c.reps)") }
             if got.note != c.note {
                 // spelled out from this case's own number rather than
                 // matched on a prefix and a suffix: those accepted anything
@@ -69,6 +97,10 @@ final class PortParityTests: XCTestCase {
             }
         }
         XCTAssertEqual(drifted, [], "the Swift rules answer differently from the web engine")
+        XCTAssertGreaterThan(heldWhereSheLeftIt, 60,
+                             "the unloadable lifts stopped diverging from the web engine. If the "
+                             + "fixture was regenerated, check the rule above is still the one "
+                             + "Lucy asked for rather than deleting the exception")
         XCTAssertGreaterThan(saidBetter, 0,
                              "nothing hit the one allowed difference any more. If the fixture was "
                              + "regenerated, delete the exception above rather than leaving it to "

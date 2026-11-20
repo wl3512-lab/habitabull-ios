@@ -168,6 +168,14 @@ public enum Progression {
         return lift.compound ? base : base + 4
     }
 
+    /// What the app says about a lift it cannot load: the number stays, and
+    /// changing it is hers to do. Said in the unit she is counting in.
+    private static func said(_ lift: LiftShape) -> String {
+        if lift.cardio { return "Same as last time. Change the time or the incline if you want to." }
+        if lift.hold { return "Same as last time. Change the time if you want to." }
+        return "Same as last time. Change the reps if you want to."
+    }
+
     /// A weight you can actually load. Never below one increment.
     public static func round(_ weight: Double, to increment: Double) -> Double {
         guard increment > 0 else { return 0 }
@@ -271,13 +279,32 @@ public enum Progression {
         let lastWeight = (lift.assisted ? soFar.min() : soFar.max())
             ?? startingWeight(lift, level: level)
 
-        // Cardio carries its incline and nothing else. The field holds a
-        // percent rather than a load, so none of the progression below applies
-        // to it, and resetting it to flat every session is the other wrong
-        // answer: she set 5% on Monday and found 0% on Wednesday.
-        if lift.cardio {
-            return Target(weight: lastWeight, reps: targetReps, sets: setCount,
-                          note: "Same as last time. Change the time or the incline if you want to.")
+        // A lift the app cannot load keeps the number she last logged.
+        //
+        // A push-up, a plank and a treadmill have no weight to add, so the
+        // only number that could move is the count. The rules used to hold the
+        // level's count -- 12 reps, 30 seconds, 20 minutes -- while the line
+        // under it said "Add two reps this time", so the app asked for more
+        // and planned the same, every session, for ever.
+        //
+        // Lucy's call, 2026-11-20: "working out is very inconsistent and what
+        // if i stay same strength for a while bc im inconsistent in gym? why
+        // cant reps stay the same until user logs them different?" So it does.
+        // There is no automatic step up, and no sentence asking for one. A
+        // session of fewer reps lowers the target by exactly as much, which is
+        // the only back-off a lift with no weight on it can have.
+        //
+        // Her best set of last time, because the target is one number for the
+        // whole lift and the best is the one she knows she has in her.
+        //
+        // Cardio also carries its incline, and nothing else. That field holds
+        // a percent rather than a load, so resetting it to flat every session
+        // is the other wrong answer: she set 5% on Monday and found 0% on
+        // Wednesday.
+        if lift.increment == 0 {
+            let lastCount = last.map(\.reps).max() ?? targetReps
+            return Target(weight: lift.cardio ? lastWeight : 0, reps: lastCount, sets: setCount,
+                          note: said(lift))
         }
 
         let clearedAll = last.count >= setCount && last.allSatisfy { $0.reps >= targetReps }
@@ -345,30 +372,27 @@ public enum Progression {
         }
 
         if clearedAll {
-            let weight = lift.increment == 0 ? 0 : round(lastWeight + lift.increment, to: lift.increment)
-            // What "more" means depends on what the lift is counted in. On a
-            // lift the app cannot load, going longer is the user's call.
-            let more = lift.cardio || lift.hold ? "Go a little longer this time." : "Add two reps this time."
-            // and the same on a bar, for the same reason: a weight she typed
-            // does not have to be a multiple of the increment, and rounding
-            // 136 up by 2.5 gives 137.5, which is up by 1.5.
-            let note = lift.increment == 0
-                ? more
-                : "Up \(trim(weight - lastWeight)) lb. You earned it."
-            return Target(weight: weight, reps: targetReps, sets: setCount, note: note)
+            // the true step, not the increment: a weight she typed does not
+            // have to be a multiple of it, and rounding 136 up by 2.5 gives
+            // 137.5, which is up by 1.5.
+            let weight = round(lastWeight + lift.increment, to: lift.increment)
+            return Target(weight: weight, reps: targetReps, sets: setCount,
+                          note: "Up \(trim(weight - lastWeight)) lb. You earned it.")
         }
 
         let recent = history.prefix(3)
         let missed = recent.filter { !($0.isEmpty == false && $0.allSatisfy { $0.reps >= targetReps }) }.count
         if missed >= 3 && history.count >= 3 {
-            let cut = lift.increment == 0 ? 0 : max(roundDown(lastWeight * 0.9, to: lift.increment), lift.floor)
+            // every path below here loads in something: a lift that does not
+            // was answered above, where the count is the only number there is.
+            let cut = max(roundDown(lastWeight * 0.9, to: lift.increment), lift.floor)
             // A lift already at its lightest cannot be backed off. Printing
             // "backing off 10%" over a number that did not move would be the
             // app describing something it did not do, so it says the true
             // thing instead: there is nowhere lighter to go. Reaching this is
             // now the floor's doing and only the floor's, because the cut
             // rounds down and so always has somewhere to go until it does not.
-            if lift.increment > 0 && cut >= lastWeight {
+            if cut >= lastWeight {
                 return Target(weight: lastWeight, reps: targetReps, sets: setCount,
                               note: "This is as light as it loads. Stay here until it moves.")
             }
@@ -378,11 +402,11 @@ public enum Progression {
 
         // Snap even when holding: a hand-typed 97 should come back as a bar you
         // can actually load, not follow her around forever.
-        let held = lift.increment == 0 ? 0 : round(lastWeight, to: lift.increment)
+        let held = round(lastWeight, to: lift.increment)
         // and the snap gets said here too: holding 136 lb handed back 135
         // under "Same weight".
         return Target(weight: held, reps: targetReps, sets: setCount,
-                      note: held == lastWeight || lift.increment == 0
+                      note: held == lastWeight
                         ? "Same weight. Own it this time."
                         : "Same weight, rounded to \(trim(held)) lb.")
     }

@@ -53,16 +53,18 @@ enum ExerciseLibrary {
         return list
     }()
 
-    // cardio and timed holds don't fit weight and reps, so they wait until they
-    // have their own screens
-    static let liftable = all.filter { !$0.cardio && !$0.hold }
+    /// Everything is loggable now. Cardio was counted in minutes and a hold in
+    /// seconds from the first day the log screen had a unit, but the picker
+    /// still filtered both out, so the treadmill and the plank in this file
+    /// could not be reached from any screen. Lucy, 2026-11-20: "do cardio and
+    /// holds get a screen this round yes why wouldnt they".
 
     /// Lifts a goal can be set on. A goal is a number of pounds to reach, so
     /// it needs a lift that is loaded in pounds and gets harder as that number
     /// grows. An assisted machine fails the second half: its number is help,
     /// so a suggestion offered her more of it to aim for, and a real target of
     /// 40 lb of help after logging 45 counted as already met.
-    static let forGoals = liftable.filter { $0.increment > 0 && !$0.assisted }
+    static let forGoals = all.filter { $0.increment > 0 && !$0.assisted }
 
     static func find(_ id: String) -> Exercise? {
         all.first { $0.id == id }

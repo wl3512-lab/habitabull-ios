@@ -270,6 +270,59 @@ final class WorkoutFlowTests: XCTestCase {
                       "a real name is no longer offered as a lift of her own")
     }
 
+    /// A hold and a run, which no screen could reach until today.
+    ///
+    /// The log screen has counted a plank in seconds and a treadmill in
+    /// minutes since it had units at all, but the picker filtered both out of
+    /// the library, so the only place that work existed was a test. Lucy,
+    /// 2026-11-20: "do cardio and holds get a screen this round yes why
+    /// wouldnt they".
+    func testAHoldIsLoggedInSecondsAndARunInMinutes() {
+        let quick = app.buttons["Quick workout instead"]
+        XCTAssertTrue(quick.waitForExistence(timeout: 30), "no way into a quick workout")
+        quick.tap()
+
+        // a run first: one block of minutes, and never asked how many sets of
+        // it she is doing
+        pick("Treadmill")
+        let minutes = app.staticTexts["Minutes-number"]
+        if !minutes.waitForExistence(timeout: 10) {
+            let shown = app.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: " | ")
+            XCTFail("a treadmill either never went in or is not counted in minutes. on screen: \(shown)")
+        }
+        XCTAssertEqual(minutes.value as? String, "20", "a run opens on twenty minutes")
+        XCTAssertFalse(app.staticTexts["Sets-number"].exists,
+                       "a run was asked how many sets of it she was doing")
+
+        // then a plank: seconds, three sets of them, and no weight to put on it
+        openThePicker()
+        pick("Plank")
+        let addSets = app.buttons["Add 3 sets"]
+        XCTAssertTrue(addSets.waitForExistence(timeout: 10), "the plank never asked for sets")
+        addSets.tap()
+
+        let seconds = app.staticTexts["Seconds-number"]
+        if !seconds.waitForExistence(timeout: 10) {
+            let shown = app.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: " | ")
+            XCTFail("a plank is still being asked for reps. on screen: \(shown)")
+        }
+        XCTAssertEqual(seconds.value as? String, "30", "a plank opens on thirty seconds")
+        XCTAssertFalse(app.staticTexts["Weight-number"].exists,
+                       "a plank was asked how much weight was on it")
+        logSet()
+    }
+
+    /// Finds a lift in the open picker by name and taps it.
+    private func pick(_ name: String, line: UInt = #line) {
+        let search = app.searchFields.firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 10), "the picker has no search field", line: line)
+        search.tap()
+        search.typeText(name)
+        let row = app.buttons[name].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "\(name) is not in the picker", line: line)
+        row.tap()
+    }
+
     /// Swiping the first lift picker away is leaving it.
     ///
     /// A quick workout opens the picker on itself, and backing out of it drops

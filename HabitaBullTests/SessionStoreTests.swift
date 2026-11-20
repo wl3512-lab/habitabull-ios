@@ -847,6 +847,54 @@ final class SessionStoreTests: XCTestCase {
                           + "nothing here would notice heavy going missing")
     }
 
+    // MARK: - cardio and holds
+
+    /// Both are reachable now. The log screen has counted a hold in seconds
+    /// and a cardio block in minutes since it had a unit at all, but the
+    /// picker filtered both out, so nothing could put one in a session.
+    func testAHoldAndARunArePlannedInTheirOwnUnits() {
+        let hold = store.nextTarget(of: "plank")
+        XCTAssertEqual(hold.reps, 30, "a plank is planned in seconds")
+        XCTAssertGreaterThan(hold.sets, 1, "a hold is sets, like any other lift")
+
+        let run = store.nextTarget(of: "treadmill")
+        XCTAssertEqual(run.reps, 20, "a run is planned in minutes")
+        XCTAssertEqual(run.sets, 1, "cardio is one block of time, not three")
+
+        // and the picker can offer them: it used to be handed a library with
+        // both filtered out
+        for id in ["plank", "treadmill", "outdoor-run"] {
+            XCTAssertTrue(ExerciseLibrary.all.contains { $0.id == id },
+                          "\(id) is not in the library the picker reads")
+        }
+        // a goal is still a number of pounds, so neither belongs in that list
+        XCTAssertFalse(ExerciseLibrary.forGoals.contains { $0.hold || $0.cardio },
+                       "a 200 lb plank is not a sentence")
+    }
+
+    /// Lucy's call, 2026-11-20: the count stays at whatever she last logged.
+    func testTheCountSheLoggedIsWhatTheNextSessionAsksFor() {
+        givenPastWorkouts([day("2026-11-18", "plank", weight: 0, reps: 45),
+                           day("2026-11-18", "push-up", weight: 0, reps: 20),
+                           day("2026-11-18", "treadmill", weight: 0, reps: 35, sets: 1)])
+        XCTAssertEqual(store.nextTarget(of: "plank").reps, 45,
+                       "it went back to the 30 seconds the level asks for")
+        XCTAssertEqual(store.nextTarget(of: "push-up").reps, 20)
+        XCTAssertEqual(store.nextTarget(of: "treadmill").reps, 35)
+        // and nothing tells her to do more of it on her own
+        for id in ["plank", "push-up", "treadmill"] {
+            let note = store.nextTarget(of: id).note.lowercased()
+            XCTAssertTrue(note.hasPrefix("same as last time"), note)
+        }
+    }
+
+    /// And a weaker week lowers it again, which is the whole reason she asked.
+    func testAWeekSheWasWeakerLowersItAgain() {
+        givenPastWorkouts([day("2026-11-18", "push-up", weight: 0, reps: 12),
+                           day("2026-11-15", "push-up", weight: 0, reps: 20)])
+        XCTAssertEqual(store.nextTarget(of: "push-up").reps, 12)
+    }
+
     // MARK: - what the second number counts
 
     func testALiftSaysWhatItsSecondNumberCounts() {

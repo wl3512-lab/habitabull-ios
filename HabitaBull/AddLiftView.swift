@@ -37,8 +37,12 @@ struct AddLiftView: View {
     }
 
     private var lifts: [Exercise] {
-        ExerciseLibrary.liftable.filter { lift in
+        // A swap offers the same muscle, and a treadmill is not a swap for a
+        // leg press. Searching by name still finds either.
+        let leaving = swapping.flatMap { ExerciseLibrary.find($0.exerciseId)?.cardio } ?? false
+        return ExerciseLibrary.all.filter { lift in
             !excluding.contains(lift.id)
+                && (swapping == nil || lift.cardio == leaving)
                 && (ownName.isEmpty ? (swapMuscle == nil || lift.primary == swapMuscle)
                                     : lift.name.localizedCaseInsensitiveContains(ownName))
         }
@@ -100,7 +104,7 @@ struct AddLiftView: View {
     /// already had it produced the same id twice, which `addLift` drops on
     /// the floor, so the sheet closed and nothing happened at all.
     ///
-    /// The whole liftable library, not the filtered list, and the ids she
+    /// The whole library, not the filtered list, and the ids she
     /// already has. Found by a codex audit 2026-11-16, both halves
     /// reproduced 2026-11-17.
     ///
@@ -113,7 +117,7 @@ struct AddLiftView: View {
     /// defect, and it is Lucy's: a later codex audit read this comment as a
     /// promise about the whole library and called the difference a bug.
     private var nameIsTaken: Bool {
-        ExerciseLibrary.liftable.contains { $0.name.caseInsensitiveCompare(ownName) == .orderedSame }
+        ExerciseLibrary.all.contains { $0.name.caseInsensitiveCompare(ownName) == .orderedSame }
             || excluding.contains(customLiftId(ownName))
             // one she already made counts: offering it again in cyan reads as
             // a lift the app does not have, and it is right there in the list
@@ -209,6 +213,14 @@ struct AddLiftView: View {
     private func choose(_ id: String, _ name: String) {
         if swapping != nil || !picksSets {
             pick(id)
+            return
+        }
+        // Cardio is one block of time, not a set count, so it skips the sets
+        // step: "how many sets" about a run is a question with one answer,
+        // and the rules already give it.
+        if ExerciseLibrary.find(id)?.cardio == true {
+            onPick(id, 1)
+            dismiss()
             return
         }
         let before = store.setsLastTime(of: id)

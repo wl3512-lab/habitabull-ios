@@ -69,17 +69,24 @@ final class PlannerTests: XCTestCase {
                           "every kind of day was filled the same way")
     }
 
-    /// Nothing that cannot be logged is ever planned.
+    /// A day is filled with the work its own kind asks for.
     ///
-    /// Cardio and timed holds have no screen yet, so a picker that could put
-    /// one on her week would be planning a day the log screen cannot take.
-    func testADayIsNeverFilledWithSomethingTheAppCannotLog() {
+    /// Cardio and timed holds used to be kept out of every day, because
+    /// nothing could log one. Both can be logged now, so the rule is the
+    /// narrower one it always should have been: a cardio day is cardio, and a
+    /// lifting day is not.
+    func testADayIsFilledWithTheWorkItsKindAsksFor() {
         for kind in DayTypes.all.map(\.id) {
-            for id in Planner.lifts(forKind: kind) {
+            let filled = Planner.lifts(forKind: kind)
+            XCTAssertFalse(filled.isEmpty, "\(kind) was filled with nothing at all")
+            for id in filled {
                 let lift = ExerciseLibrary.find(id)
                 XCTAssertNotNil(lift, "\(kind) was filled with a lift the library does not have: \(id)")
-                XCTAssertFalse(lift?.cardio ?? false, "\(kind) was filled with cardio: \(id)")
-                XCTAssertFalse(lift?.hold ?? false, "\(kind) was filled with a timed hold: \(id)")
+                if kind == "cardio" {
+                    XCTAssertTrue(lift?.cardio ?? false, "a cardio day was filled with \(id)")
+                } else {
+                    XCTAssertFalse(lift?.cardio ?? false, "\(kind) was filled with cardio: \(id)")
+                }
             }
         }
     }

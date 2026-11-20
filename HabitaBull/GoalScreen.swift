@@ -98,7 +98,7 @@ struct GoalScreen: View {
     /// 45 counted as already met, because met is `>=`.
     private var notForGoals: [String] {
         let allowed = Set(ExerciseLibrary.forGoals.map(\.id))
-        return ExerciseLibrary.liftable.map(\.id).filter { !allowed.contains($0) }
+        return ExerciseLibrary.all.map(\.id).filter { !allowed.contains($0) }
     }
 
     private var liftRow: some View {

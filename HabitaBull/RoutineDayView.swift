@@ -63,7 +63,7 @@ struct RoutineDayView: View {
                 Menu {
                     // every kind but cardio, which has no screen that can log
                     // it yet: offering it would plan a day the app cannot take
-                    ForEach(DayTypes.all.filter { $0.id != "cardio" }, id: \.id) { type in
+                    ForEach(DayTypes.all, id: \.id) { type in
                         Button(type.label) { choose(type) }
                     }
                 } label: {

@@ -346,7 +346,7 @@ final class ProgressionTests: XCTestCase {
         // exactly the instruction this test is named after.
         // Found by a codex audit 2026-11-17.
         let held = Progression.next(plank, history: [did(4, 30, 0)], level: .experienced)
-        XCTAssertEqual(held.note, "Go a little longer this time.")
+        XCTAssertEqual(held.note, "Same as last time. Change the time if you want to.")
         // a bike is answered before any of this: the field holds an incline
         // she set herself, so the rules leave both numbers where they are
         let ridden = Progression.next(bike, history: [did(1, 20, 0)], level: .experienced)
@@ -356,6 +356,54 @@ final class ProgressionTests: XCTestCase {
             XCTAssertFalse(note.lowercased().contains("lb"),
                            "a lift with no weight on it cannot be told to add any: \(note)")
         }
+    }
+
+
+    // MARK: - a lift the app cannot load stays where she left it
+
+    /// Lucy's call, 2026-11-20: no automatic step up on anything counted in
+    /// reps, seconds or minutes. "why cant reps stay the same until user logs
+    /// them different?"
+    func testTheCountIsWhatSheLastLogged() {
+        // twelve push-ups, where the level would have asked for eight
+        let after12 = Progression.next(pushUp, history: [did(3, 12, 0)], level: .new)
+        XCTAssertEqual(after12.reps, 12, "it went back to the level's count")
+        XCTAssertEqual(after12.weight, 0)
+        // and a 45 second plank, where the level would have asked for 30
+        let after45 = Progression.next(plank, history: [did(3, 45, 0)], level: .new)
+        XCTAssertEqual(after45.reps, 45)
+        // and 35 minutes on the bike, where the level would have asked for 20,
+        // with the incline she set still on it
+        let after35 = Progression.next(bike, history: [[DoneSet(weight: 5, reps: 35)]],
+                                       level: .new)
+        XCTAssertEqual(after35.reps, 35)
+        XCTAssertEqual(after35.weight, 5, "it dropped the incline she set")
+    }
+
+    func testAWeekSheWasWeakerLowersTheCountWithHer() {
+        // the whole point of her asking: a bad week is not a failed rep
+        // target, and the app follows her down as readily as up
+        let t = Progression.next(pushUp, history: [did(3, 6, 0), did(3, 12, 0)], level: .new)
+        XCTAssertEqual(t.reps, 6)
+    }
+
+    func testNothingUnloadableIsEverAskedForMore() {
+        for t in [Progression.next(pushUp, history: [did(3, 12, 0)], level: .new),
+                  Progression.next(plank, history: [did(3, 45, 0)], level: .new),
+                  Progression.next(bike, history: [did(1, 35, 0)], level: .new)] {
+            for word in ["add", "longer", "more", "lb"] {
+                XCTAssertFalse(t.note.lowercased().contains(word),
+                               "the count does not move on its own: \(t.note)")
+            }
+        }
+    }
+
+    /// The first session still comes from the level, because there is nothing
+    /// of hers to carry yet.
+    func testTheFirstTimeStillComesFromTheLevel() {
+        XCTAssertEqual(Progression.next(pushUp, history: [], level: .new).reps, 8)
+        XCTAssertEqual(Progression.next(plank, history: [], level: .new).reps, 30)
+        XCTAssertEqual(Progression.next(bike, history: [], level: .new).reps, 20)
     }
 
     // MARK: - sets and reps

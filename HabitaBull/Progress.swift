@@ -34,13 +34,13 @@ extension Exercise {
 }
 
 extension ExerciseLibrary {
-    /// The library as the rules see it, lifts only.
+    /// The library as the rules see it, all of it.
     ///
-    /// Cardio and timed holds are left out for the same reason they are left
-    /// out of the picker: nothing in the app can log one yet, so planning one
-    /// into a day would put a lift on her week that the log screen cannot
-    /// take. Built once: the planner walks the whole list for every slot.
-    static let asLifts: [HabitaBullKit.Lift] = liftable.map(\.asLift)
+    /// Cardio and timed holds used to be left out, because planning one into a
+    /// day would have put a lift on her week that no screen could log. Both
+    /// are loggable now, so a cardio day can be filled from the library like
+    /// any other. Built once: the planner walks the whole list for every slot.
+    static let asLifts: [HabitaBullKit.Lift] = all.map(\.asLift)
 
     /// Every kind of equipment the library knows.
     ///

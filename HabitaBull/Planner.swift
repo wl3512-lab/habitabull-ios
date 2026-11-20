@@ -189,7 +189,12 @@ enum Planner {
     /// than someone two weeks in will keep, and the day is hers to add to.
     static func lifts(forKind id: String) -> [String] {
         let kind = DayTypes.named(id)
-        let catalogue = ExerciseLibrary.asLifts
+        // Cardio only where the day asks for it. The catalogue carries the
+        // treadmill and the bike now that both can be logged, and a legs day
+        // filled by muscle would otherwise offer a treadmill for quads, which
+        // is not the day she named.
+        let catalogue = id == "cardio" ? ExerciseLibrary.asLifts
+                                       : ExerciseLibrary.asLifts.filter { !$0.cardio }
         // a kind that names its lifts rather than its muscles, as cardio does
         if let named = kind.lifts {
             let known = named.filter { wanted in catalogue.contains { $0.id == wanted } }
